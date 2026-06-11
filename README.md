@@ -63,6 +63,14 @@ or:
 node --test test/*.test.mjs
 ```
 
+Run the full verification gate:
+
+```sh
+npm run verify
+```
+
+This runs tests, fixture validation, MVP evals, and safety evals.
+
 Run the local fixture-backed shell:
 
 ```sh
@@ -71,6 +79,50 @@ npm run command:local -- "What is my next SourceGrid task?"
 
 The local shell prints a response plus an action-record-shaped JSON object. It
 does not write records or call external systems.
+
+Select a repo-relative command pack explicitly:
+
+```sh
+npm run command:local -- --command-pack contracts/commands/mvp-commands.json "What is my next SourceGrid task?"
+```
+
+Command-pack loading is contract-only. Loaded packs cannot include executable
+fields, external integrations, or sources outside `evals/fixtures/` in Phase 1.
+
+Run with an explicit local config:
+
+```sh
+npm run command:local -- --config commandkit.config.example.json "What is my next SourceGrid task?"
+```
+
+Config is repo-relative and cannot enable record writes by default.
+
+Run with a Siri/Shortcuts-shaped request fixture:
+
+```sh
+npm run command:local -- --request-file evals/fixtures/adapter_requests/apple_shortcuts.next_task.json
+```
+
+Request files are validated structured JSON. They cannot include tokens,
+authorization headers, env values, provider keys, passwords, or secrets.
+
+Run MVP evals:
+
+```sh
+npm run eval:mvp
+```
+
+The eval runner executes fixture-backed cases and compares expected route,
+permission, approval, and result status. It prints by default and only writes a
+JSON report with `--write-report`.
+
+Run safety evals:
+
+```sh
+npm run eval:safety
+```
+
+Safety evals prove unsupported high-risk commands fail closed in slice 1.
 
 Write a local action record explicitly:
 
@@ -85,6 +137,7 @@ git. Action records are not execution records.
 
 ```text
 bin/                    Local CLI wrapper for the shell core
+commandkit.config.example.json  Safe local config example
 ops/docs/architecture/  Product and integration boundaries
 ops/docs/contracts/     Adapter, command-pack, permission, and record docs
 ops/docs/runbooks/      Local-only prototype operation notes

@@ -1,0 +1,12 @@
+{
+  "adapter": "apple_shortcuts",
+  "adapter_version": "0.1",
+  "actor_ref": "director",
+  "command_text": "What is my next SourceGrid task?",
+  "device_context": {
+    "platform": "ios",
+    "locale": "en-US",
+    "timezone": "Asia/Taipei"
+  },
+  "requested_output": "spoken_summary"
+}

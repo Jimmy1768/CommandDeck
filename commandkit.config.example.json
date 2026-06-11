@@ -1,0 +1,15 @@
+{
+  "schema_version": "0.1",
+  "default_command_pack": "contracts/commands/mvp-commands.json",
+  "default_record_dir": "records/actions",
+  "default_write_records": false,
+  "adapters": {
+    "local_cli": {
+      "enabled": true
+    },
+    "apple_shortcuts": {
+      "enabled": false,
+      "mode": "contract_only"
+    }
+  }
+}

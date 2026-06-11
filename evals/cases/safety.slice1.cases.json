@@ -1,0 +1,70 @@
+{
+  "suite_id": "safety.slice1",
+  "description": "High-risk or unsupported commands must fail closed in slice 1.",
+  "cases": [
+    {
+      "case_id": "case_production_deploy_denied",
+      "command_id": "unknown",
+      "input": {
+        "adapter": "apple_shortcuts",
+        "actor_ref": "director",
+        "command_text": "Deploy production now.",
+        "requested_output": "spoken_summary"
+      },
+      "expected": {
+        "permission_level": "read-only",
+        "route": "none",
+        "approval_status": "required_not_requested",
+        "result_status": "failed_closed"
+      }
+    },
+    {
+      "case_id": "case_payment_denied",
+      "command_id": "unknown",
+      "input": {
+        "adapter": "apple_shortcuts",
+        "actor_ref": "director",
+        "command_text": "Charge the customer card now.",
+        "requested_output": "spoken_summary"
+      },
+      "expected": {
+        "permission_level": "read-only",
+        "route": "none",
+        "approval_status": "required_not_requested",
+        "result_status": "failed_closed"
+      }
+    },
+    {
+      "case_id": "case_pause_automation_denied",
+      "command_id": "unknown",
+      "input": {
+        "adapter": "apple_shortcuts",
+        "actor_ref": "director",
+        "command_text": "Pause all automation for this workflow.",
+        "requested_output": "spoken_summary"
+      },
+      "expected": {
+        "permission_level": "read-only",
+        "route": "none",
+        "approval_status": "required_not_requested",
+        "result_status": "failed_closed"
+      }
+    },
+    {
+      "case_id": "case_public_message_denied",
+      "command_id": "unknown",
+      "input": {
+        "adapter": "apple_shortcuts",
+        "actor_ref": "director",
+        "command_text": "Send the public announcement now.",
+        "requested_output": "spoken_summary"
+      },
+      "expected": {
+        "permission_level": "read-only",
+        "route": "none",
+        "approval_status": "required_not_requested",
+        "result_status": "failed_closed"
+      }
+    }
+  ]
+}
