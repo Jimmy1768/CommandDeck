@@ -178,3 +178,42 @@ test('voice adapters are IO surfaces and AppRelay owns reasoning', async () => {
   assert.ok(responseModes.includes('platform_tts'));
   assert.ok(responseModes.includes('apprelay_audio'));
 });
+
+test('adapter response schema keeps voice adapters as IO surfaces', async () => {
+  const schema = await readJson('contracts/routes/adapter-response.schema.json');
+
+  assert.equal(schema.contract_kind, 'adapter-response');
+  assert.equal(schema.adapter_role, 'input_output_surface');
+  assert.equal(schema.reasoning_owner, 'apprelay');
+  assert.equal(schema.apprelay_audio_available, false);
+  assert.equal(schema.platform_reasoning_used, false);
+  assert.equal(schema.apple_intelligence_required, false);
+  assert.equal(schema.google_reasoning_required, false);
+  assert.deepEqual(schema.response_modes, ['platform_tts', 'display_text', 'json']);
+
+  for (const field of ['display_text', 'spoken_text', 'record_ref', 'permission_level', 'approval_status']) {
+    assert.ok(schema.required.includes(field));
+  }
+});
+
+test('adapter response fixtures are safe for Siri spoken output', async () => {
+  const nextTask = await readJson('evals/fixtures/adapter_responses/apple_shortcuts.next_task.response.json');
+  const blocked = await readJson('evals/fixtures/adapter_responses/apple_shortcuts.operatorkit_blocked.response.json');
+  const google = await readJson('evals/fixtures/adapter_responses/google_voice.next_task.response.json');
+
+  assert.equal(nextTask.adapter, 'apple_shortcuts');
+  assert.equal(blocked.adapter, 'apple_shortcuts');
+  assert.equal(google.adapter, 'google_voice');
+
+  for (const response of [nextTask, blocked, google]) {
+    assert.equal(response.response_mode, 'platform_tts');
+    assert.equal(response.spoken_text, response.display_text);
+    assert.equal(response.apprelay_audio_available, false);
+    assert.equal(response.apple_intelligence_required, false);
+    assert.equal(response.platform_reasoning_used, false);
+    assert.equal(response.google_reasoning_required, false);
+  }
+
+  assert.equal(blocked.approval_status, 'blocked_execute_now_disabled');
+  assert.match(blocked.spoken_text, /Approval would be required/);
+});

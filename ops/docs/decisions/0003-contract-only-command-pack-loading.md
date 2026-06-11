@@ -4,8 +4,10 @@ Status: Accepted for Phase 1 prototype.
 
 ## Context
 
-CommandKit needs to load command packs from configured JSON files before
-SourceGrid or partner packs can be attached later. Loading a pack must not imply
+CommandKit needs to load command packs from configured JSON files before owner
+repos can be attached later. For SourceGrid, the owner repo is
+`sourcegrid-labs`. For another user, the owner repo might be a personal
+assistant repo such as `jimmys-assistant`. Loading a pack must not imply
 permission to execute scripts, call external services, or mutate state.
 
 ## Decision
@@ -29,14 +31,16 @@ Loaded packs are validated before classification. Phase 1 validation requires:
 
 ## Consequences
 
-- SourceGrid can add command-pack definitions later against a clear contract.
-- Partner command packs still need an explicit configuration decision before
-  they can live outside this repo.
+- SourceGrid can add command-pack definitions and scripts later in
+  `sourcegrid-labs` against a clear contract.
+- Personal assistant and partner command packs follow the same owner-repo
+  pattern.
 - Command-pack loading remains contract-only and does not execute anything.
 
 ## Non-Goals
 
-- No command-pack directories outside this repo yet.
+- No active command-pack loading from owner repos yet.
 - No SourceGrid script imports.
+- No personal assistant or partner script imports.
 - No shell script execution.
 - No external provider or runtime calls.

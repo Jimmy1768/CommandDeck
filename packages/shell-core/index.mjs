@@ -53,8 +53,10 @@ const FORBIDDEN_ADAPTER_REQUEST_FIELDS = [
   'approval_request',
   'approval_status'
 ];
-const ALLOWED_ADAPTERS = new Set(['apple_shortcuts', 'local_cli']);
+const ALLOWED_ADAPTERS = new Set(['apple_shortcuts', 'google_voice', 'local_cli']);
 const ALLOWED_REQUESTED_OUTPUTS = new Set(['spoken_summary', 'display_text', 'json']);
+const ALLOWED_SURFACE_HINTS = new Set(['phone', 'watch', 'glasses', 'computer']);
+const ALLOWED_TARGET_RUNNERS = new Set(['command']);
 const REQUIRED_COMMAND_FIELDS = [
   'command_id',
   'title',
@@ -106,29 +108,32 @@ export async function runLocalCommand(input, options = {}) {
   const sources = await Promise.all(command.sources.map((source) => readJson(rootDir, source)));
   const result = evaluateFixtureCommand(command, sources);
   const approvalStatus = approvalStatusFor(command.permission_level);
-
-  return {
-    response_text: responseFor(result, approvalStatus),
-    record: {
-      record_id: stableId('rec', [command.command_id, commandText, timestamp]),
-      command_id: command.command_id,
-      timestamp,
-      actor_ref: input.actor_ref ?? DEFAULT_ACTOR,
-      adapter: input.adapter ?? DEFAULT_ADAPTER,
-      command_text: commandText,
-      interpreted_intent: command.title,
-      permission_level: command.permission_level,
-      approval_status: approvalStatus,
-      route: command.route,
-      sources_used: command.sources,
-      model_provider_route: null,
-      action_key: null,
-      approval_request: approvalRequestFor(command),
-      result,
-      errors: [],
-      follow_up_owner: followUpOwnerFor(command.permission_level)
-    }
+  const responseText = responseFor(result, approvalStatus);
+  const record = {
+    record_id: stableId('rec', [command.command_id, commandText, timestamp]),
+    command_id: command.command_id,
+    timestamp,
+    actor_ref: input.actor_ref ?? DEFAULT_ACTOR,
+    adapter: input.adapter ?? DEFAULT_ADAPTER,
+    command_text: commandText,
+    interpreted_intent: command.title,
+    permission_level: command.permission_level,
+    approval_status: approvalStatus,
+    route: command.route,
+    sources_used: command.sources,
+    model_provider_route: null,
+    action_key: null,
+    approval_request: approvalRequestFor(command),
+    result,
+    errors: [],
+    follow_up_owner: followUpOwnerFor(command.permission_level)
   };
+
+  return buildCommandResult({
+    input,
+    responseText,
+    record
+  });
 }
 
 export function classifyCommand(commands, commandText) {
@@ -224,6 +229,7 @@ export async function runEvalSuite(options = {}) {
       passed: checks.every((check) => check.passed),
       checks,
       response_text: commandResult.response_text,
+      adapter_response: commandResult.adapter_response,
       record: commandResult.record
     });
   }
@@ -317,6 +323,24 @@ export function validateAdapterRequest(request) {
 
   if (!request.command_text || typeof request.command_text !== 'string') {
     errors.push('command_text is required');
+  }
+
+  if (request.adapter !== 'local_cli') {
+    if (!request.surface_hint || typeof request.surface_hint !== 'string') {
+      errors.push('surface_hint is required for voice adapter requests');
+    } else if (!ALLOWED_SURFACE_HINTS.has(request.surface_hint)) {
+      errors.push(`surface_hint must be one of ${[...ALLOWED_SURFACE_HINTS].join(', ')}`);
+    }
+
+    if (!request.target_runner || typeof request.target_runner !== 'string') {
+      errors.push('target_runner is required for voice adapter requests');
+    } else if (!ALLOWED_TARGET_RUNNERS.has(request.target_runner)) {
+      errors.push(`target_runner must be one of ${[...ALLOWED_TARGET_RUNNERS].join(', ')}`);
+    }
+  }
+
+  if (request.device_code && typeof request.device_code !== 'string') {
+    errors.push('device_code must be a string when provided');
   }
 
   if (!ALLOWED_REQUESTED_OUTPUTS.has(request.requested_output)) {
@@ -472,6 +496,26 @@ export function compareEvalCase(evalCase, commandResult) {
     });
   }
 
+  if (expected.adapter_response) {
+    const adapterResponse = commandResult.adapter_response;
+
+    for (const [field, expectedValue] of Object.entries(expected.adapter_response)) {
+      checks.push({
+        name: `adapter_response.${field}`,
+        expected: expectedValue,
+        actual: adapterResponse?.[field],
+        passed: adapterResponse?.[field] === expectedValue
+      });
+    }
+
+    checks.push({
+      name: 'adapter_response.record_ref',
+      expected: record.record_id,
+      actual: adapterResponse?.record_ref,
+      passed: adapterResponse?.record_ref === record.record_id
+    });
+  }
+
   return checks;
 }
 
@@ -598,6 +642,83 @@ export function validateCommandPackRoots(commandPackRoots, { rootDir }) {
         validateDiscoveryRootPath(root, { rootDir, prefix, errors });
       }
     }
+  }
+
+  return errors;
+}
+
+export function buildAdapterResponseEnvelope(record, responseText, options = {}) {
+  return {
+    schema_version: '0.1',
+    adapter: record.adapter,
+    display_text: responseText,
+    spoken_text: responseText,
+    record_ref: record.record_id,
+    permission_level: record.permission_level,
+    approval_status: record.approval_status,
+    route: record.route,
+    response_mode: responseModeFor(options.requestedOutput),
+    apprelay_audio_available: false,
+    apprelay_audio_ref: null,
+    reasoning_owner: 'apprelay',
+    platform_reasoning_used: false,
+    apple_intelligence_required: false,
+    google_reasoning_required: false,
+    errors: record.errors
+  };
+}
+
+export function validateAdapterResponseEnvelope(envelope) {
+  const errors = [];
+
+  if (!envelope || typeof envelope !== 'object') {
+    return ['adapter response envelope must be an object'];
+  }
+
+  for (const field of [
+    'schema_version',
+    'adapter',
+    'display_text',
+    'spoken_text',
+    'record_ref',
+    'permission_level',
+    'approval_status',
+    'route',
+    'response_mode',
+    'apprelay_audio_available',
+    'errors'
+  ]) {
+    if (!(field in envelope)) {
+      errors.push(`adapter response missing field ${field}`);
+    }
+  }
+
+  if (envelope.schema_version !== '0.1') {
+    errors.push('schema_version must be 0.1');
+  }
+
+  if (!['platform_tts', 'display_text', 'json'].includes(envelope.response_mode)) {
+    errors.push('response_mode must be platform_tts, display_text, or json');
+  }
+
+  if (envelope.apprelay_audio_available !== false) {
+    errors.push('apprelay_audio_available must remain false in Phase 1');
+  }
+
+  if (envelope.platform_reasoning_used !== false) {
+    errors.push('platform_reasoning_used must remain false');
+  }
+
+  if (envelope.apple_intelligence_required !== false) {
+    errors.push('apple_intelligence_required must remain false');
+  }
+
+  if (envelope.google_reasoning_required !== false) {
+    errors.push('google_reasoning_required must remain false');
+  }
+
+  if (!Array.isArray(envelope.errors)) {
+    errors.push('errors must be an array');
   }
 
   return errors;
@@ -932,31 +1053,56 @@ function responseFor(result, approvalStatus) {
 }
 
 function buildFailureRecord({ input, timestamp, commandText, command, summary }) {
-  return {
-    response_text: summary,
-    record: {
-      record_id: stableId('rec', [command?.command_id ?? 'unknown', commandText, timestamp]),
-      command_id: command?.command_id ?? 'unknown',
-      timestamp,
-      actor_ref: input.actor_ref ?? DEFAULT_ACTOR,
-      adapter: input.adapter ?? DEFAULT_ADAPTER,
-      command_text: commandText,
-      interpreted_intent: command?.title ?? 'unclassified',
-      permission_level: command?.permission_level ?? 'read-only',
-      approval_status: 'required_not_requested',
-      route: command?.route ?? 'none',
-      sources_used: command?.sources ?? [],
-      model_provider_route: null,
-      action_key: null,
-      approval_request: null,
-      result: {
-        status: 'failed_closed',
-        summary
-      },
-      errors: [summary],
-      follow_up_owner: 'human_operator'
-    }
+  const record = {
+    record_id: stableId('rec', [command?.command_id ?? 'unknown', commandText, timestamp]),
+    command_id: command?.command_id ?? 'unknown',
+    timestamp,
+    actor_ref: input.actor_ref ?? DEFAULT_ACTOR,
+    adapter: input.adapter ?? DEFAULT_ADAPTER,
+    command_text: commandText,
+    interpreted_intent: command?.title ?? 'unclassified',
+    permission_level: command?.permission_level ?? 'read-only',
+    approval_status: 'required_not_requested',
+    route: command?.route ?? 'none',
+    sources_used: command?.sources ?? [],
+    model_provider_route: null,
+    action_key: null,
+    approval_request: null,
+    result: {
+      status: 'failed_closed',
+      summary
+    },
+    errors: [summary],
+    follow_up_owner: 'human_operator'
   };
+
+  return buildCommandResult({
+    input,
+    responseText: summary,
+    record
+  });
+}
+
+function buildCommandResult({ input, responseText, record }) {
+  return {
+    response_text: responseText,
+    adapter_response: buildAdapterResponseEnvelope(record, responseText, {
+      requestedOutput: input.requested_output
+    }),
+    record
+  };
+}
+
+function responseModeFor(requestedOutput) {
+  if (requestedOutput === 'spoken_summary') {
+    return 'platform_tts';
+  }
+
+  if (requestedOutput === 'json') {
+    return 'json';
+  }
+
+  return 'display_text';
 }
 
 function stableId(prefix, parts) {

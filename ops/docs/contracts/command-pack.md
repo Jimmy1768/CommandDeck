@@ -3,9 +3,16 @@
 A command pack declares commands that CommandKit may classify, evaluate,
 route, and record. It does not grant execution by itself.
 
-Command packs live outside this repository unless they are generic examples or
-tests. SourceGrid command packs belong in `sourcegrid-labs`. Partner command
-packs belong in partner repos or configured local folders.
+Command packs and scripts live outside this repository unless they are generic
+examples or tests. They belong in the owner repo that CommandKit is attached to.
+For SourceGrid, that owner repo is `sourcegrid-labs`. Another user might create
+a personal repo such as `jimmys-assistant` and put their local workspace scripts
+there. Partner command packs belong in partner repos or configured local
+folders.
+
+Command packs should model exact workspace routines. For coding work, they may
+prepare the PC environment around Codex, but they should not turn
+CommandKit into a replacement coding agent.
 
 ## Required Fields
 
@@ -42,6 +49,7 @@ All other effects must be represented as `blocked`, `contract_only`, or
 `contracts/commands/mvp-commands.json` is the built-in MVP fixture pack.
 `evals/fixtures/command-packs/` contains generic validation fixtures only.
 
-Real owner-specific packs must stay in their owner repo or configured local
-command folder. CommandKit should load those packs through configuration in a
-future phase; it should not absorb SourceGrid or partner command scripts.
+Real owner-specific packs and scripts must stay in their owner repo or
+configured local command folder. CommandKit should load those packs through
+configuration in a future phase; it should not absorb SourceGrid, personal
+assistant, or partner command scripts.

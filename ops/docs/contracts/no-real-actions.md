@@ -12,6 +12,7 @@ Allowed:
 
 Forbidden:
 
+- editing code by voice as a substitute for Codex;
 - calling AppRelay, OperatorKit, or ManyMind;
 - running production deploys or restarts;
 - mutating infrastructure;

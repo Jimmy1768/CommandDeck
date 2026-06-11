@@ -15,6 +15,10 @@ model reasoning is needed in a later phase.
   "adapter": "apple_shortcuts",
   "adapter_version": "0.1",
   "actor_ref": "director",
+  "request_id": "req_example_001",
+  "surface_hint": "phone",
+  "device_code": "command",
+  "target_runner": "command",
   "command_text": "What is my next SourceGrid task?",
   "device_context": {
     "platform": "ios",
@@ -28,6 +32,7 @@ model reasoning is needed in a later phase.
 ## Adapter Responsibilities
 
 - Capture an explicit invocation.
+- Map the spoken device code to `device_code` and `target_runner`.
 - Pass actor evidence and command text to CommandKit.
 - Display or speak the returned response.
 - Preserve the returned action record id when available.
@@ -46,9 +51,13 @@ model reasoning is needed in a later phase.
 
 ```json
 {
-  "command_id": "cmd_0001",
-  "response_text": "Your next task is to review the pending dry-run plan.",
-  "record_ref": "action_records/cmd_0001.json",
-  "approval_required": false
+  "response_text": "Next task: Review CommandKit repo skeleton.",
+  "adapter_response": {
+    "display_text": "Next task: Review CommandKit repo skeleton.",
+    "spoken_text": "Next task: Review CommandKit repo skeleton.",
+    "record_ref": "rec_example",
+    "response_mode": "platform_tts",
+    "apprelay_audio_available": false
+  }
 }
 ```

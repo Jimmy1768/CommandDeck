@@ -1,0 +1,32 @@
+{
+  "schema_version": "0.1",
+  "contract_kind": "adapter-response",
+  "phase": "local_prototype",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "adapter",
+    "display_text",
+    "spoken_text",
+    "record_ref",
+    "permission_level",
+    "approval_status",
+    "route",
+    "response_mode",
+    "apprelay_audio_available",
+    "errors"
+  ],
+  "response_modes": ["platform_tts", "display_text", "json"],
+  "apprelay_audio_available": false,
+  "platform_reasoning_used": false,
+  "apple_intelligence_required": false,
+  "google_reasoning_required": false,
+  "reasoning_owner": "apprelay",
+  "adapter_role": "input_output_surface",
+  "notes": [
+    "Voice adapters may speak spoken_text with platform TTS.",
+    "Display adapters may render display_text.",
+    "record_ref points to the action record id returned with the same command result.",
+    "AppRelay audio is a future response mode and is unavailable in Phase 1."
+  ]
+}

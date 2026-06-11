@@ -34,4 +34,8 @@ npm run eval:mvp -- --write-report --report evals/reports/mvp.slice1.latest.json
 - Generated JSON reports are ignored by git.
 - Eval runs do not write action records.
 - Eval runs do not call AppRelay, OperatorKit, ManyMind, or platform adapters.
+- MVP and safety evals may assert adapter response fields such as
+  `response_mode`, `record_ref`, `apprelay_audio_available`,
+  `platform_reasoning_used`, `apple_intelligence_required`, and
+  `google_reasoning_required`.
 - A failed eval exits non-zero.

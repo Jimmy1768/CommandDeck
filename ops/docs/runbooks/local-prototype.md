@@ -2,6 +2,10 @@
 
 This runbook covers the slice 1 skeleton only.
 
+CommandKit is for hands-off workspace command flow around the PC command runner.
+It is not a Codex replacement. If a task edits code, use Codex and the normal
+local development toolchain on the PC.
+
 ## Validate Contracts And Fixtures
 
 ```sh
@@ -110,3 +114,5 @@ only; it is not an execution record and it does not trigger any integration.
 
 Stop and add a decision record before adding any code path that calls an
 external runtime, writes records outside fixtures, or runs local scripts.
+Also stop before adding any flow that treats Siri, Shortcuts, or Google voice
+as a coding interface instead of a command invocation surface.

@@ -1,0 +1,18 @@
+{
+  "schema_version": "0.1",
+  "adapter": "apple_shortcuts",
+  "display_text": "OperatorKit dry run was not started because slice 1 is contract-only. Approval would be required in a future phase.",
+  "spoken_text": "OperatorKit dry run was not started because slice 1 is contract-only. Approval would be required in a future phase.",
+  "record_ref": "rec_fixture_operatorkit_dry_run",
+  "permission_level": "approval-required",
+  "approval_status": "blocked_execute_now_disabled",
+  "route": "operatorkit.dry_run_request",
+  "response_mode": "platform_tts",
+  "apprelay_audio_available": false,
+  "apprelay_audio_ref": null,
+  "reasoning_owner": "apprelay",
+  "platform_reasoning_used": false,
+  "apple_intelligence_required": false,
+  "google_reasoning_required": false,
+  "errors": []
+}

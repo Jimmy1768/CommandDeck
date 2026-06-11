@@ -6,6 +6,7 @@ import { test } from 'node:test';
 import { spawnSync } from 'node:child_process';
 import {
   applyApprovalDecision,
+  buildAdapterResponseEnvelope,
   classifyCommand,
   loadAdapterRequest,
   loadCommandKitConfig,
@@ -17,6 +18,7 @@ import {
   runEvalSuite,
   runLocalCommand,
   validateAdapterRequest,
+  validateAdapterResponseEnvelope,
   validateApprovalDecision,
   validateCommandKitConfig,
   validateCommandPack,
@@ -63,6 +65,33 @@ test('answers read-only MVP command from fixture only', async () => {
   assert.equal(result.record.approval_status, 'not_required');
   assert.equal(result.record.result.status, 'answered_from_fixture');
   assert.match(result.response_text, /Review CommandKit repo skeleton/);
+  assert.equal(result.adapter_response.display_text, result.response_text);
+  assert.equal(result.adapter_response.spoken_text, result.response_text);
+  assert.equal(result.adapter_response.record_ref, result.record.record_id);
+  assert.equal(result.adapter_response.response_mode, 'display_text');
+  assert.equal(result.adapter_response.apprelay_audio_available, false);
+  assert.deepEqual(validateAdapterResponseEnvelope(result.adapter_response), []);
+});
+
+test('Siri request gets platform TTS adapter response without platform reasoning', async () => {
+  const result = await runLocalCommand(
+    {
+      adapter: 'apple_shortcuts',
+      actor_ref: 'director',
+      command_text: 'What is my next SourceGrid task?',
+      requested_output: 'spoken_summary'
+    },
+    { rootDir, timestamp }
+  );
+
+  assert.equal(result.adapter_response.adapter, 'apple_shortcuts');
+  assert.equal(result.adapter_response.response_mode, 'platform_tts');
+  assert.equal(result.adapter_response.spoken_text, 'Next task: Review CommandKit repo skeleton.');
+  assert.equal(result.adapter_response.display_text, result.adapter_response.spoken_text);
+  assert.equal(result.adapter_response.reasoning_owner, 'apprelay');
+  assert.equal(result.adapter_response.platform_reasoning_used, false);
+  assert.equal(result.adapter_response.apple_intelligence_required, false);
+  assert.equal(result.adapter_response.google_reasoning_required, false);
 });
 
 test('draft-only MVP command returns draft data without sending anything', async () => {
@@ -100,6 +129,10 @@ test('approval-required dry run is blocked and not routed to real OperatorKit', 
     expected_record: 'action record with approval decision'
   });
   assert.match(result.response_text, /not started/);
+  assert.equal(result.adapter_response.response_mode, 'display_text');
+  assert.equal(result.adapter_response.approval_status, 'blocked_execute_now_disabled');
+  assert.match(result.adapter_response.spoken_text, /Approval would be required/);
+  assert.equal(result.adapter_response.apprelay_audio_available, false);
 });
 
 test('unknown commands fail closed', async () => {
@@ -114,6 +147,42 @@ test('unknown commands fail closed', async () => {
   assert.equal(result.record.result.status, 'failed_closed');
   assert.equal(result.record.follow_up_owner, 'human_operator');
   assert.equal(result.record.sources_used.length, 0);
+  assert.equal(result.adapter_response.record_ref, result.record.record_id);
+  assert.equal(result.adapter_response.errors.length, 1);
+  assert.equal(result.adapter_response.apprelay_audio_available, false);
+});
+
+test('adapter response envelope validates required fields and disabled audio', () => {
+  const envelope = buildAdapterResponseEnvelope(
+    {
+      adapter: 'google_voice',
+      record_id: 'rec_test',
+      permission_level: 'read-only',
+      approval_status: 'not_required',
+      route: 'local.fixture_read',
+      errors: []
+    },
+    'Fixture response.',
+    {
+      requestedOutput: 'spoken_summary'
+    }
+  );
+
+  assert.equal(envelope.adapter, 'google_voice');
+  assert.equal(envelope.response_mode, 'platform_tts');
+  assert.equal(envelope.apprelay_audio_available, false);
+  assert.equal(envelope.apple_intelligence_required, false);
+  assert.equal(envelope.google_reasoning_required, false);
+  assert.deepEqual(validateAdapterResponseEnvelope(envelope), []);
+
+  const unsafeEnvelope = {
+    ...envelope,
+    apprelay_audio_available: true,
+    platform_reasoning_used: true
+  };
+  const errors = validateAdapterResponseEnvelope(unsafeEnvelope);
+  assert.ok(errors.some((error) => error.includes('apprelay_audio_available')));
+  assert.ok(errors.some((error) => error.includes('platform_reasoning_used')));
 });
 
 test('writes action records only when called explicitly', async () => {
@@ -373,8 +442,33 @@ test('loads a Siri Shortcuts-shaped adapter request fixture', async () => {
 
   assert.equal(request.adapter, 'apple_shortcuts');
   assert.equal(request.actor_ref, 'director');
+  assert.equal(request.surface_hint, 'phone');
+  assert.equal(request.device_code, 'command');
+  assert.equal(request.target_runner, 'command');
   assert.equal(request.command_text, 'What is my next SourceGrid task?');
   assert.equal(request.requested_output, 'spoken_summary');
+});
+
+test('loads a Google voice-shaped adapter request fixture as contract-only IO', async () => {
+  const request = await loadAdapterRequest({
+    rootDir,
+    requestPath: 'evals/fixtures/adapter_requests/google_voice.next_task.json'
+  });
+
+  assert.equal(request.adapter, 'google_voice');
+  assert.equal(request.actor_ref, 'director');
+  assert.equal(request.surface_hint, 'phone');
+  assert.equal(request.device_code, 'command');
+  assert.equal(request.target_runner, 'command');
+  assert.equal(request.command_text, 'What is my next SourceGrid task?');
+  assert.equal(request.requested_output, 'spoken_summary');
+
+  const result = await runLocalCommand(request, { rootDir, timestamp });
+  assert.equal(result.adapter_response.adapter, 'google_voice');
+  assert.equal(result.adapter_response.response_mode, 'platform_tts');
+  assert.equal(result.adapter_response.reasoning_owner, 'apprelay');
+  assert.equal(result.adapter_response.google_reasoning_required, false);
+  assert.equal(result.adapter_response.apprelay_audio_available, false);
 });
 
 test('rejects adapter requests with missing required fields or nested secrets', () => {
@@ -389,6 +483,19 @@ test('rejects adapter requests with missing required fields or nested secrets', 
 
   assert.ok(errors.some((error) => error.includes('command_text is required')));
   assert.ok(errors.some((error) => error.includes('device_context.token')));
+});
+
+test('rejects local_cli as a voice surface hint', () => {
+  const errors = validateAdapterRequest({
+    adapter: 'apple_shortcuts',
+    actor_ref: 'director',
+    command_text: 'What is my next SourceGrid task?',
+    requested_output: 'spoken_summary',
+    surface_hint: 'local_cli',
+    target_runner: 'command'
+  });
+
+  assert.ok(errors.some((error) => error.includes('surface_hint must be one of phone, watch, glasses, computer')));
 });
 
 test('rejects adapter requests that try to carry approval data', () => {
@@ -435,6 +542,32 @@ test('CLI accepts adapter request files without writing records', async () => {
   assert.equal(parsed.record.adapter, 'apple_shortcuts');
   assert.equal(parsed.record.actor_ref, 'director');
   assert.equal(parsed.record.command_id, 'mvp.next_sourcegrid_task');
+  assert.equal(parsed.adapter_response.response_mode, 'platform_tts');
+  assert.equal(parsed.adapter_response.record_ref, parsed.record.record_id);
+  assert.equal(parsed.record_write.status, 'not_written');
+});
+
+test('CLI accepts Google voice request files without writing records', async () => {
+  const output = spawnSync(
+    process.execPath,
+    [
+      'bin/command-kit.mjs',
+      '--request-file',
+      'evals/fixtures/adapter_requests/google_voice.next_task.json'
+    ],
+    {
+      cwd: rootDir,
+      encoding: 'utf8'
+    }
+  );
+
+  assert.equal(output.status, 0, output.stderr);
+  const parsed = JSON.parse(output.stdout);
+  assert.equal(parsed.record.adapter, 'google_voice');
+  assert.equal(parsed.record.command_id, 'mvp.next_sourcegrid_task');
+  assert.equal(parsed.adapter_response.adapter, 'google_voice');
+  assert.equal(parsed.adapter_response.response_mode, 'platform_tts');
+  assert.equal(parsed.adapter_response.google_reasoning_required, false);
   assert.equal(parsed.record_write.status, 'not_written');
 });
 

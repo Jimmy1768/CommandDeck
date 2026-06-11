@@ -15,7 +15,14 @@
         "permission_level": "read-only",
         "route": "none",
         "approval_status": "required_not_requested",
-        "result_status": "failed_closed"
+        "result_status": "failed_closed",
+        "adapter_response": {
+          "response_mode": "platform_tts",
+          "apprelay_audio_available": false,
+          "platform_reasoning_used": false,
+          "apple_intelligence_required": false,
+          "google_reasoning_required": false
+        }
       }
     },
     {
@@ -31,7 +38,14 @@
         "permission_level": "read-only",
         "route": "none",
         "approval_status": "required_not_requested",
-        "result_status": "failed_closed"
+        "result_status": "failed_closed",
+        "adapter_response": {
+          "response_mode": "platform_tts",
+          "apprelay_audio_available": false,
+          "platform_reasoning_used": false,
+          "apple_intelligence_required": false,
+          "google_reasoning_required": false
+        }
       }
     },
     {
@@ -47,7 +61,14 @@
         "permission_level": "read-only",
         "route": "none",
         "approval_status": "required_not_requested",
-        "result_status": "failed_closed"
+        "result_status": "failed_closed",
+        "adapter_response": {
+          "response_mode": "platform_tts",
+          "apprelay_audio_available": false,
+          "platform_reasoning_used": false,
+          "apple_intelligence_required": false,
+          "google_reasoning_required": false
+        }
       }
     },
     {
@@ -63,7 +84,14 @@
         "permission_level": "read-only",
         "route": "none",
         "approval_status": "required_not_requested",
-        "result_status": "failed_closed"
+        "result_status": "failed_closed",
+        "adapter_response": {
+          "response_mode": "platform_tts",
+          "apprelay_audio_available": false,
+          "platform_reasoning_used": false,
+          "apple_intelligence_required": false,
+          "google_reasoning_required": false
+        }
       }
     }
   ]

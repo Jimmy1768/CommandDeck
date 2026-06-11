@@ -16,3 +16,7 @@ It must run:
 
 CI must not require secrets, provider keys, external runtimes, or platform
 adapter credentials. A failing test or eval fails the gate.
+
+The gate also protects the adapter response contract: voice/display response
+fields, record references, disabled AppRelay audio, and disabled Siri/Google
+reasoning must remain covered by tests or evals.

@@ -1,0 +1,18 @@
+{
+  "schema_version": "0.1",
+  "adapter": "google_voice",
+  "display_text": "Next task: Review CommandKit repo skeleton.",
+  "spoken_text": "Next task: Review CommandKit repo skeleton.",
+  "record_ref": "rec_fixture_next_sourcegrid_task_google",
+  "permission_level": "read-only",
+  "approval_status": "not_required",
+  "route": "local.fixture_read",
+  "response_mode": "platform_tts",
+  "apprelay_audio_available": false,
+  "apprelay_audio_ref": null,
+  "reasoning_owner": "apprelay",
+  "platform_reasoning_used": false,
+  "apple_intelligence_required": false,
+  "google_reasoning_required": false,
+  "errors": []
+}

@@ -20,9 +20,12 @@ before command classification.
 
 Phase 1 validation requires:
 
-- adapter is `apple_shortcuts` or `local_cli`;
+- adapter is `apple_shortcuts`, `google_voice`, or `local_cli`;
 - actor reference is present;
 - command text is present;
+- voice adapter requests include a generic `surface_hint`, such as `phone`,
+  `watch`, `glasses`, or `computer`;
+- voice adapter requests include `target_runner: "command"`;
 - requested output is `spoken_summary`, `display_text`, or `json`;
 - request file path is repo-relative;
 - token, authorization, env, provider key, password, and secret fields are

@@ -1,9 +1,16 @@
 # CommandKit
 
-CommandKit is a local-first SourceGrid command shell prototype. It connects
+CommandKit is a local-first workspace command shell prototype. It connects
 platform invocation adapters, starting with Siri and Apple Shortcuts, to
-permissioned command packs stored in a company repo, user repo, or configured
-local command folder.
+permissioned command packs that assist a user's command flow on the PC command
+runner.
+For SourceGrid, the first command runner is the user's Apple PC.
+
+The core use case is hands-off workspace control: start work modes, inspect
+local service state, open apps, switch devices, play media, prepare drafts, and
+run approved local routines. Phones, watches, glasses, and computers can be
+capture surfaces, but they never bypass the PC runner. CommandKit is not a
+replacement for Codex and is not the path for voice-driven code editing.
 
 This repository is the `command-kit` skeleton only. It is a second-class
 installable SourceGrid tool, sibling to OperatorKit. It is not AppRelay,
@@ -16,19 +23,45 @@ CommandKit owns:
 - command intake from thin adapters such as Siri/Shortcuts;
 - actor identity and server-side permission checks;
 - command classification and conservative route selection;
+- local workspace command flow around the PC command runner;
 - read-only answers and draft-only artifacts in the local prototype;
 - approval prompts for risky actions in future phases;
 - action record contracts and eval fixtures.
 
-CommandKit does not own company-specific scripts. SourceGrid command packs and
-scripts belong in `sourcegrid-labs`. Partner scripts belong in partner repos or
+CommandKit does not own company-specific or personal workspace scripts.
+SourceGrid command packs and scripts belong in `sourcegrid-labs`. Another user
+can attach CommandKit to their own assistant repo, such as `jimmys-assistant`,
+and keep their scripts there. Partner scripts belong in partner repos or
 configured local command folders.
+
+Code editing remains a PC development workflow inside Codex and the normal repo
+toolchain. If a command changes code, the user should be at the command runner
+with local services such as Puma, Sidekiq, databases, simulators, and browser
+state available.
 
 Voice platforms such as Siri/Shortcuts and future Google voice adapters are
 input/output surfaces, not the reasoning layer. They can capture commands and
 speak or play responses. CommandKit owns permissions, routing, and records;
 AppRelay owns LLM/runtime capability when model reasoning or future generated
 audio is needed.
+
+The first invocation grammar is:
+
+```text
+Hey Siri, <device code> <command>
+```
+
+Example:
+
+```text
+Hey Siri, command play focus music
+```
+
+`Hey Siri` is owned by Apple. The device code and command are owned by
+CommandKit and the attached command pack. The initial reserved device code is
+`command`, which routes to the locked-down local PC runner. Request payloads use
+generic capture surfaces such as `phone`, `watch`, `glasses`, or `computer`
+rather than iPhone, Android, or MacBook-specific names.
 
 ## Current Slice
 
@@ -114,8 +147,18 @@ Run with a Siri/Shortcuts-shaped request fixture:
 npm run command:local -- --request-file evals/fixtures/adapter_requests/apple_shortcuts.next_task.json
 ```
 
+Run with a Google voice-shaped request fixture:
+
+```sh
+npm run command:local -- --request-file evals/fixtures/adapter_requests/google_voice.next_task.json
+```
+
 Request files are validated structured JSON. They cannot include tokens,
 authorization headers, env values, provider keys, passwords, or secrets.
+Command results include an `adapter_response` envelope with `display_text`,
+`spoken_text`, permission status, route, and action `record_ref`. AppRelay audio
+is unavailable in this slice, so voice adapters speak returned text with
+platform TTS.
 
 Run MVP evals:
 

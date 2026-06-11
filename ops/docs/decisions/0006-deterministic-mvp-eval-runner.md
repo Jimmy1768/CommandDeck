@@ -24,7 +24,12 @@ The runner executes each case through the local shell and compares:
 - permission level;
 - route;
 - approval status;
-- result status.
+- result status;
+- adapter response expectations when present.
+
+Adapter response checks cover the voice/display envelope without calling a real
+platform adapter. They also keep AppRelay audio unavailable and platform
+reasoning disabled in Phase 1.
 
 It prints JSON to stdout by default. Report persistence is opt-in with
 `--write-report`, and generated JSON reports are ignored by git.

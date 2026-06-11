@@ -5,12 +5,15 @@ execute real workflows.
 
 ## Where Packs Live
 
-- SourceGrid company packs live in `sourcegrid-labs`.
+- SourceGrid company packs and scripts live in `sourcegrid-labs`.
+- Personal assistant packs and scripts live in the user's assistant repo, for
+  example `jimmys-assistant`.
 - Partner packs live in partner repos or configured local command folders.
 - This repo may contain only generic examples, tests, and contract fixtures.
 
-Do not copy SourceGrid company scripts, partner scripts, secrets, local env
-values, provider keys, or workflow credentials into this repo.
+Do not copy SourceGrid company scripts, personal assistant scripts, partner
+scripts, secrets, local env values, provider keys, or workflow credentials into
+this repo.
 
 ## Pack Readiness Checklist
 
@@ -40,7 +43,8 @@ means the pack is ready for classification and fixture reads only.
 ## Future Integration
 
 Future command-pack discovery can point CommandKit at configured local folders
-or owner repos. The pack contract should remain stable: CommandKit classifies,
-checks permission, records action intent, and routes through declared
-boundaries. AppRelay, OperatorKit, and ManyMind integrations remain external
-contracts until a later phase explicitly implements them.
+or owner repos such as `sourcegrid-labs` or a user's personal assistant repo.
+The pack contract should remain stable: CommandKit classifies, checks
+permission, records action intent, and routes through declared boundaries.
+AppRelay, OperatorKit, and ManyMind integrations remain external contracts
+until a later phase explicitly implements them.

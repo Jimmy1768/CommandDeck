@@ -19,7 +19,8 @@ Required root fields:
 Allowed `kind` values:
 
 - `repo-fixture`: generic fixtures in this repository;
-- `owner-repo`: an owner repo such as `sourcegrid-labs`;
+- `owner-repo`: an attached owner repo such as `sourcegrid-labs` or a personal
+  assistant repo such as `jimmys-assistant`;
 - `local-folder`: a configured local command-pack folder.
 
 Allowed `discovery_mode` values:
@@ -42,3 +43,7 @@ Allowed `discovery_mode` values:
 
 Pack discovery does not call AppRelay, OperatorKit, ManyMind, GitHub, shell
 scripts, provider APIs, or external services in Phase 1.
+
+The owner repo is where real scripts live. CommandKit core owns the contract and
+runner boundary; the attached repo owns the user's actual command packs and
+workspace routines.

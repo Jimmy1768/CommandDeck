@@ -15,7 +15,14 @@
         "permission_level": "read-only",
         "route": "local.fixture_read",
         "approval_status": "not_required",
-        "result_status": "answered_from_fixture"
+        "result_status": "answered_from_fixture",
+        "adapter_response": {
+          "response_mode": "platform_tts",
+          "apprelay_audio_available": false,
+          "platform_reasoning_used": false,
+          "apple_intelligence_required": false,
+          "google_reasoning_required": false
+        }
       }
     },
     {
@@ -31,7 +38,14 @@
         "permission_level": "read-only",
         "route": "local.fixture_read",
         "approval_status": "not_required",
-        "result_status": "answered_from_fixture"
+        "result_status": "answered_from_fixture",
+        "adapter_response": {
+          "response_mode": "platform_tts",
+          "apprelay_audio_available": false,
+          "platform_reasoning_used": false,
+          "apple_intelligence_required": false,
+          "google_reasoning_required": false
+        }
       }
     },
     {
@@ -47,7 +61,14 @@
         "permission_level": "draft-only",
         "route": "local.draft_fixture",
         "approval_status": "not_required",
-        "result_status": "drafted_fixture_only"
+        "result_status": "drafted_fixture_only",
+        "adapter_response": {
+          "response_mode": "display_text",
+          "apprelay_audio_available": false,
+          "platform_reasoning_used": false,
+          "apple_intelligence_required": false,
+          "google_reasoning_required": false
+        }
       }
     },
     {
@@ -64,7 +85,14 @@
         "route": "operatorkit.dry_run_request",
         "approval_status": "blocked_execute_now_disabled",
         "result_status": "blocked_contract_only",
-        "approval_request_required": true
+        "approval_request_required": true,
+        "adapter_response": {
+          "response_mode": "display_text",
+          "apprelay_audio_available": false,
+          "platform_reasoning_used": false,
+          "apple_intelligence_required": false,
+          "google_reasoning_required": false
+        }
       }
     },
     {
@@ -80,7 +108,14 @@
         "permission_level": "read-only",
         "route": "apprelay.summary",
         "approval_status": "not_required",
-        "result_status": "answered_from_fixture"
+        "result_status": "answered_from_fixture",
+        "adapter_response": {
+          "response_mode": "platform_tts",
+          "apprelay_audio_available": false,
+          "platform_reasoning_used": false,
+          "apple_intelligence_required": false,
+          "google_reasoning_required": false
+        }
       }
     }
   ]

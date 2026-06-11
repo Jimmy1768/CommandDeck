@@ -3,6 +3,17 @@
 CommandKit routes to neighboring systems by contract. It does not embed their
 internal behavior.
 
+## Codex
+
+Codex remains the coding interface for repo reasoning, code edits, tests,
+reviews, and implementation work. CommandKit may help set up or inspect the
+workspace around Codex, but it does not replace Codex and should not become a
+voice-driven code editor.
+
+Slice 1 status: no Codex calls. Any future command that asks Codex to open a
+repo, summarize a task, or prepare a handoff must remain explicit and
+permissioned.
+
 ## AppRelay
 
 CommandKit may ask AppRelay for LLM/runtime capability in later phases.
@@ -41,3 +52,8 @@ fixtures and not included in the first five MVP cases.
 Command packs are owned by the company or user repo that configures them. This
 repo defines the pack contract but must not import SourceGrid-specific or
 partner-specific scripts.
+
+Workspace command packs may include PC-command routines such as opening apps,
+switching devices, starting local services, or preparing drafts after future
+execution boundaries are defined. Those routines belong in owner repos or
+configured local folders, not in CommandKit core.
