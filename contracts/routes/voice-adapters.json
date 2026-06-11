@@ -1,0 +1,38 @@
+{
+  "schema_version": "0.1",
+  "voice_adapters_are_io_surfaces": true,
+  "reasoning_owner": "apprelay",
+  "command_shell_owner": "command-kit",
+  "adapters": [
+    {
+      "id": "apple_shortcuts",
+      "platform_family": "apple",
+      "captures_user_speech": true,
+      "can_speak_response_text": true,
+      "provides_reasoning": false,
+      "requires_apple_intelligence": false,
+      "slice_1_status": "contract_only"
+    },
+    {
+      "id": "google_voice",
+      "platform_family": "google",
+      "captures_user_speech": true,
+      "can_speak_response_text": true,
+      "provides_reasoning": false,
+      "requires_apple_intelligence": false,
+      "slice_1_status": "future_adapter_contract"
+    }
+  ],
+  "response_modes": [
+    {
+      "id": "platform_tts",
+      "description": "CommandKit returns text and the platform adapter speaks it.",
+      "phase": "first_voice_phase"
+    },
+    {
+      "id": "apprelay_audio",
+      "description": "AppRelay or its selected runtime returns audio for the adapter to play.",
+      "phase": "future_phase"
+    }
+  ]
+}

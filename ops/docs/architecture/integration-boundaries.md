@@ -7,7 +7,12 @@ internal behavior.
 
 CommandKit may ask AppRelay for LLM/runtime capability in later phases.
 AppRelay remains responsible for provider selection, model routing, cost
-controls, tool dispatch policies, and provider credentials.
+controls, tool dispatch policies, provider credentials, and future generated
+audio when needed.
+
+Siri, Shortcuts, Google voice, and similar voice platforms are adapters, not
+model/runtime providers for CommandKit. They may capture commands and speak or
+play responses, but AppRelay remains the LLM/runtime path.
 
 Slice 1 status: no AppRelay calls. Fixtures may describe an intended
 `apprelay.summary` route, but validation requires `integration_mode` to be

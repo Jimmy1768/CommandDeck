@@ -24,6 +24,12 @@ CommandKit does not own company-specific scripts. SourceGrid command packs and
 scripts belong in `sourcegrid-labs`. Partner scripts belong in partner repos or
 configured local command folders.
 
+Voice platforms such as Siri/Shortcuts and future Google voice adapters are
+input/output surfaces, not the reasoning layer. They can capture commands and
+speak or play responses. CommandKit owns permissions, routing, and records;
+AppRelay owns LLM/runtime capability when model reasoning or future generated
+audio is needed.
+
 ## Current Slice
 
 Implementation slice 1 is a repo skeleton. It defines docs, contracts, fixtures,

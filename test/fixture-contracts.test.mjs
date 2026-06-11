@@ -111,3 +111,20 @@ test('eval cases match command contracts and do not claim real execution', async
     }
   }
 });
+
+test('voice adapters are IO surfaces and AppRelay owns reasoning', async () => {
+  const contract = await readJson('contracts/routes/voice-adapters.json');
+
+  assert.equal(contract.voice_adapters_are_io_surfaces, true);
+  assert.equal(contract.reasoning_owner, 'apprelay');
+  assert.equal(contract.command_shell_owner, 'command-kit');
+
+  const adaptersById = new Map(contract.adapters.map((adapter) => [adapter.id, adapter]));
+  assert.equal(adaptersById.get('apple_shortcuts').provides_reasoning, false);
+  assert.equal(adaptersById.get('apple_shortcuts').requires_apple_intelligence, false);
+  assert.equal(adaptersById.get('google_voice').provides_reasoning, false);
+
+  const responseModes = contract.response_modes.map((mode) => mode.id);
+  assert.ok(responseModes.includes('platform_tts'));
+  assert.ok(responseModes.includes('apprelay_audio'));
+});
