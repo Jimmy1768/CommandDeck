@@ -30,6 +30,16 @@ const FORBIDDEN_ALLOWED_EFFECTS = new Set([
 ]);
 const FORBIDDEN_COMMAND_FIELDS = ['script', 'scripts', 'shell', 'executable', 'handler', 'env', 'secrets'];
 const FORBIDDEN_CONFIG_FIELDS = ['provider_keys', 'secrets', 'env', 'execute_now_enabled'];
+const FORBIDDEN_DISCOVERY_ROOT_FIELDS = [
+  ...FORBIDDEN_CONFIG_FIELDS,
+  'script',
+  'scripts',
+  'shell',
+  'executable',
+  'handler'
+];
+const ALLOWED_DISCOVERY_ROOT_KINDS = new Set(['repo-fixture', 'owner-repo', 'local-folder']);
+const ALLOWED_DISCOVERY_MODES = new Set(['metadata_only']);
 const FORBIDDEN_ADAPTER_REQUEST_FIELDS = [
   'provider_keys',
   'secrets',
@@ -497,10 +507,9 @@ export function validateCommandKitConfig(config, { rootDir }) {
     return ['config must be an object'];
   }
 
-  for (const field of FORBIDDEN_CONFIG_FIELDS) {
-    if (field in config) {
-      errors.push(`config includes forbidden field ${field}`);
-    }
+  const forbiddenFields = findForbiddenFields(config, FORBIDDEN_CONFIG_FIELDS);
+  for (const field of forbiddenFields) {
+    errors.push(`config includes forbidden field ${field}`);
   }
 
   if (config.schema_version !== '0.1') {
@@ -521,6 +530,74 @@ export function validateCommandKitConfig(config, { rootDir }) {
     resolveRecordDir(rootDir, config.default_record_dir ?? DEFAULT_RECORD_DIR);
   } catch (error) {
     errors.push(`default_record_dir ${error.message}`);
+  }
+
+  errors.push(...validateCommandPackRoots(config.command_pack_roots, { rootDir }));
+
+  return errors;
+}
+
+export function validateCommandPackRoots(commandPackRoots, { rootDir }) {
+  const errors = [];
+
+  if (commandPackRoots === undefined) {
+    return errors;
+  }
+
+  if (!Array.isArray(commandPackRoots)) {
+    return ['command_pack_roots must be an array'];
+  }
+
+  for (const [index, root] of commandPackRoots.entries()) {
+    const prefix = `command_pack_roots[${index}]`;
+
+    if (!root || typeof root !== 'object') {
+      errors.push(`${prefix} must be an object`);
+      continue;
+    }
+
+    const forbiddenFields = findForbiddenFields(root, FORBIDDEN_DISCOVERY_ROOT_FIELDS);
+    for (const field of forbiddenFields) {
+      errors.push(`${prefix} includes forbidden field ${field}`);
+    }
+
+    for (const field of ['id', 'kind', 'enabled', 'discovery_mode']) {
+      if (!(field in root)) {
+        errors.push(`${prefix} missing field ${field}`);
+      }
+    }
+
+    if (!root.id || typeof root.id !== 'string' || !/^[a-z0-9_.-]+$/.test(root.id)) {
+      errors.push(`${prefix} id must be a stable lowercase identifier`);
+    }
+
+    if (!ALLOWED_DISCOVERY_ROOT_KINDS.has(root.kind)) {
+      errors.push(`${prefix} kind must be one of ${[...ALLOWED_DISCOVERY_ROOT_KINDS].join(', ')}`);
+    }
+
+    if (!ALLOWED_DISCOVERY_MODES.has(root.discovery_mode)) {
+      errors.push(`${prefix} discovery_mode must be metadata_only`);
+    }
+
+    if (typeof root.enabled !== 'boolean') {
+      errors.push(`${prefix} enabled must be boolean`);
+    }
+
+    if (root.kind === 'owner-repo') {
+      if (!root.repo_slug || typeof root.repo_slug !== 'string') {
+        errors.push(`${prefix} owner-repo roots require repo_slug`);
+      }
+
+      if ('path' in root) {
+        errors.push(`${prefix} owner-repo roots must not declare a local path in Phase 1`);
+      }
+    } else {
+      if (!root.path || typeof root.path !== 'string') {
+        errors.push(`${prefix} ${root.kind ?? 'root'} roots require path`);
+      } else {
+        validateDiscoveryRootPath(root, { rootDir, prefix, errors });
+      }
+    }
   }
 
   return errors;
@@ -713,6 +790,37 @@ function isSafeFixtureSource(source) {
 
   const normalized = path.posix.normalize(source);
   return normalized === source && normalized.startsWith('evals/fixtures/') && !normalized.includes('../');
+}
+
+function validateDiscoveryRootPath(root, { rootDir, prefix, errors }) {
+  if (path.isAbsolute(root.path)) {
+    if (root.local_only !== true) {
+      errors.push(`${prefix} absolute paths require local_only true`);
+    }
+
+    return;
+  }
+
+  let resolvedPath;
+  try {
+    resolvedPath = resolveRepoRelativePath(rootDir, root.path);
+  } catch (error) {
+    errors.push(`${prefix} path ${error.message}`);
+    return;
+  }
+
+  if (root.kind === 'repo-fixture') {
+    const resolvedRoot = path.resolve(rootDir);
+    const relative = path.relative(resolvedRoot, resolvedPath).split(path.sep).join(path.posix.sep);
+
+    if (relative !== 'evals/fixtures/command-packs' && !relative.startsWith('evals/fixtures/command-packs/')) {
+      errors.push(`${prefix} repo-fixture path must stay under evals/fixtures/command-packs`);
+    }
+  }
+
+  if (root.kind === 'local-folder' && root.local_only !== true) {
+    errors.push(`${prefix} local-folder roots require local_only true`);
+  }
 }
 
 function findForbiddenFields(value, forbiddenFields, prefix = '') {

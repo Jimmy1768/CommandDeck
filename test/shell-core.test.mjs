@@ -20,6 +20,7 @@ import {
   validateApprovalDecision,
   validateCommandKitConfig,
   validateCommandPack,
+  validateCommandPackRoots,
   writeEvalReport,
   writeActionRecord
 } from '../packages/shell-core/index.mjs';
@@ -255,24 +256,86 @@ test('loads the explicit example config', async () => {
   assert.equal(config.config_path, 'commandkit.config.example.json');
   assert.equal(config.default_command_pack, 'contracts/commands/mvp-commands.json');
   assert.equal(config.default_write_records, false);
+  assert.equal(config.command_pack_roots[0].discovery_mode, 'metadata_only');
+  assert.equal(config.command_pack_roots[1].repo_slug, 'sourcegrid-labs');
 });
 
-test('rejects configs that enable writes or include secret-bearing fields', () => {
+test('loads metadata-only pack discovery fixture config', async () => {
+  const config = await loadCommandKitConfig({
+    rootDir,
+    configPath: 'evals/fixtures/pack_discovery/metadata-only.config.json'
+  });
+
+  assert.equal(config.config_path, 'evals/fixtures/pack_discovery/metadata-only.config.json');
+  assert.equal(config.command_pack_roots.length, 2);
+  assert.equal(config.command_pack_roots[0].kind, 'repo-fixture');
+  assert.equal(config.command_pack_roots[1].enabled, false);
+});
+
+test('rejects configs that enable writes or include nested secret-bearing fields', () => {
   const errors = validateCommandKitConfig(
     {
       schema_version: '0.1',
       default_command_pack: 'contracts/commands/mvp-commands.json',
       default_record_dir: 'records/actions',
       default_write_records: true,
-      secrets: {
-        provider: 'not-allowed'
+      adapters: {
+        apple_shortcuts: {
+          secrets: {
+            provider: 'not-allowed'
+          }
+        }
       }
     },
     { rootDir }
   );
 
   assert.ok(errors.some((error) => error.includes('default_write_records must remain false')));
+  assert.ok(errors.some((error) => error.includes('forbidden field adapters.apple_shortcuts.secrets')));
+});
+
+test('rejects unsafe pack discovery roots', async () => {
+  const unsafeConfig = await readJson('evals/fixtures/pack_discovery/unsafe-executable.config.json');
+  const errors = validateCommandKitConfig(unsafeConfig, { rootDir });
+
+  assert.ok(errors.some((error) => error.includes('discovery_mode must be metadata_only')));
+  assert.ok(errors.some((error) => error.includes('forbidden field script')));
   assert.ok(errors.some((error) => error.includes('forbidden field secrets')));
+  assert.ok(errors.some((error) => error.includes('absolute paths require local_only true')));
+});
+
+test('pack discovery roots enforce repo fixture and local-only path boundaries', () => {
+  const errors = validateCommandPackRoots(
+    [
+      {
+        id: 'bad_fixture',
+        kind: 'repo-fixture',
+        path: 'contracts/commands',
+        enabled: true,
+        discovery_mode: 'metadata_only'
+      },
+      {
+        id: 'bad_local',
+        kind: 'local-folder',
+        path: '.commandkit/command-packs',
+        enabled: false,
+        discovery_mode: 'metadata_only'
+      },
+      {
+        id: 'bad_owner',
+        kind: 'owner-repo',
+        path: 'sourcegrid-labs',
+        repo_slug: 'sourcegrid-labs',
+        enabled: false,
+        discovery_mode: 'metadata_only'
+      }
+    ],
+    { rootDir }
+  );
+
+  assert.ok(errors.some((error) => error.includes('repo-fixture path must stay under evals/fixtures/command-packs')));
+  assert.ok(errors.some((error) => error.includes('local-folder roots require local_only true')));
+  assert.ok(errors.some((error) => error.includes('owner-repo roots must not declare a local path')));
 });
 
 test('config paths must stay inside the repo', async () => {

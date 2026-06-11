@@ -1,0 +1,19 @@
+{
+  "schema_version": "0.1",
+  "default_command_pack": "contracts/commands/mvp-commands.json",
+  "default_record_dir": "records/actions",
+  "default_write_records": false,
+  "command_pack_roots": [
+    {
+      "id": "unsafe_scripts",
+      "kind": "local-folder",
+      "path": "/tmp/command-packs",
+      "enabled": true,
+      "discovery_mode": "execute",
+      "script": "./run.sh",
+      "secrets": {
+        "provider": "not-allowed"
+      }
+    }
+  ]
+}

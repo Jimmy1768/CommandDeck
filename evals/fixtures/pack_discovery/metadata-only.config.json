@@ -17,23 +17,6 @@
       "repo_slug": "sourcegrid-labs",
       "enabled": false,
       "discovery_mode": "metadata_only"
-    },
-    {
-      "id": "local_user_packs_future",
-      "kind": "local-folder",
-      "path": ".commandkit/command-packs",
-      "local_only": true,
-      "enabled": false,
-      "discovery_mode": "metadata_only"
     }
-  ],
-  "adapters": {
-    "local_cli": {
-      "enabled": true
-    },
-    "apple_shortcuts": {
-      "enabled": false,
-      "mode": "contract_only"
-    }
-  }
+  ]
 }

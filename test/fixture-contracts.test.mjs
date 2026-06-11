@@ -63,6 +63,19 @@ test('command pack schema documents the Phase 1 loading boundary', async () => {
   assert.equal(schema.real_pack_locations.command_kit_repo, 'generic examples and tests only');
 });
 
+test('pack discovery schema is metadata-only and non-executing', async () => {
+  const schema = await readJson('contracts/commands/pack-discovery.schema.json');
+
+  assert.equal(schema.contract_kind, 'pack-discovery');
+  assert.equal(schema.real_execution_enabled, false);
+  assert.equal(schema.execute_now_enabled, false);
+  assert.deepEqual(schema.allowed_discovery_modes, ['metadata_only']);
+  assert.ok(schema.allowed_kinds.includes('owner-repo'));
+  assert.ok(schema.forbidden_root_fields.includes('script'));
+  assert.ok(schema.forbidden_root_fields.includes('secrets'));
+  assert.equal(schema.allowed_repo_fixture_root, 'evals/fixtures/command-packs');
+});
+
 test('generic command-pack fixtures validate without becoming executable integrations', async () => {
   const fixtureDir = path.join(root, 'evals/fixtures/command-packs');
   const fixtureFiles = (await readdir(fixtureDir)).filter((file) => file.endsWith('.json')).sort();

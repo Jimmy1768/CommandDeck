@@ -97,6 +97,8 @@ fields, external integrations, or sources outside `evals/fixtures/` in Phase 1.
 Generic example packs live under `evals/fixtures/command-packs/`; real
 SourceGrid packs belong in `sourcegrid-labs` or configured local command
 folders.
+Pack discovery configuration is metadata-only in this slice and cannot crawl
+owner repos, execute scripts, call providers, or enable `execute-now`.
 
 Run with an explicit local config:
 

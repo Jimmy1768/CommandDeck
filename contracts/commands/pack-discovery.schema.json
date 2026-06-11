@@ -1,0 +1,32 @@
+{
+  "schema_version": "0.1",
+  "contract_kind": "pack-discovery",
+  "phase": "local_prototype",
+  "type": "object",
+  "config_field": "command_pack_roots",
+  "root_required_fields": ["id", "kind", "enabled", "discovery_mode"],
+  "allowed_kinds": ["repo-fixture", "owner-repo", "local-folder"],
+  "allowed_discovery_modes": ["metadata_only"],
+  "default_enabled": false,
+  "execute_now_enabled": false,
+  "real_execution_enabled": false,
+  "allowed_repo_fixture_root": "evals/fixtures/command-packs",
+  "absolute_path_rule": "absolute paths are rejected unless local_only is true",
+  "forbidden_root_fields": [
+    "script",
+    "scripts",
+    "shell",
+    "executable",
+    "handler",
+    "env",
+    "secrets",
+    "provider_keys",
+    "execute_now_enabled"
+  ],
+  "future_owner_repos": ["sourcegrid-labs", "partner repos"],
+  "notes": [
+    "Discovery roots declare where packs may be found in later phases.",
+    "Phase 1 validation does not crawl owner repos, execute scripts, call providers, or load secrets.",
+    "SourceGrid command packs remain in sourcegrid-labs."
+  ]
+}
