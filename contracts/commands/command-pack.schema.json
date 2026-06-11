@@ -1,0 +1,17 @@
+{
+  "schema_version": "0.1",
+  "type": "object",
+  "required": ["pack_id", "owner", "commands", "permissions", "record_policy"],
+  "command_required_fields": [
+    "command_id",
+    "title",
+    "example_utterances",
+    "permission_level",
+    "route",
+    "allowed_effects",
+    "forbidden_effects",
+    "sources"
+  ],
+  "allowed_permission_levels": ["read-only", "draft-only", "approval-required"],
+  "execute_now_enabled": false
+}

@@ -1,0 +1,8 @@
+{
+  "fixture_id": "repo_status.clean",
+  "kind": "read_only_source",
+  "repo": "command-kit",
+  "status": "prototype_fixture",
+  "dirty": false,
+  "notes": "Fixture only; does not inspect real git state."
+}

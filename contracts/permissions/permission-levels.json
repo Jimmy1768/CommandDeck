@@ -1,0 +1,26 @@
+{
+  "schema_version": "0.1",
+  "execute_now_default": "disabled",
+  "levels": [
+    {
+      "id": "read-only",
+      "allowed_effects": ["read_local_fixture", "read_approved_source"],
+      "forbidden_effects": ["state_change", "external_call", "secret_write"]
+    },
+    {
+      "id": "draft-only",
+      "allowed_effects": ["read_local_fixture", "draft_local_artifact", "create_action_record_fixture"],
+      "forbidden_effects": ["send", "commit", "push", "deploy", "restart", "migration", "external_message", "customer_data_mutation", "payment", "secret_write"]
+    },
+    {
+      "id": "approval-required",
+      "allowed_effects": ["blocked_pending_explicit_approval", "create_action_record_fixture"],
+      "forbidden_effects": ["execute_without_approval", "execute_now"]
+    },
+    {
+      "id": "execute-now",
+      "enabled": false,
+      "forbidden_effects": ["payment", "production_deploy", "production_restart", "migration", "customer_data_mutation", "public_message", "external_party_contact", "infrastructure_mutation", "secret_write", "physical_world_action"]
+    }
+  ]
+}

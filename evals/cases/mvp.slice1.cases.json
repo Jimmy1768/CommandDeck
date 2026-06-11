@@ -1,0 +1,86 @@
+{
+  "suite_id": "mvp.slice1",
+  "description": "First five MVP CommandKit commands as non-executing fixtures.",
+  "cases": [
+    {
+      "case_id": "case_next_sourcegrid_task",
+      "command_id": "mvp.next_sourcegrid_task",
+      "input": {
+        "adapter": "apple_shortcuts",
+        "actor_ref": "director",
+        "command_text": "What is my next SourceGrid task?",
+        "requested_output": "spoken_summary"
+      },
+      "expected": {
+        "permission_level": "read-only",
+        "route": "local.fixture_read",
+        "approval_status": "not_required",
+        "result_status": "answered_from_fixture"
+      }
+    },
+    {
+      "case_id": "case_operator_queue_today",
+      "command_id": "mvp.operator_queue_today",
+      "input": {
+        "adapter": "apple_shortcuts",
+        "actor_ref": "director",
+        "command_text": "Summarize today's operator queue.",
+        "requested_output": "spoken_summary"
+      },
+      "expected": {
+        "permission_level": "read-only",
+        "route": "local.fixture_read",
+        "approval_status": "not_required",
+        "result_status": "answered_from_fixture"
+      }
+    },
+    {
+      "case_id": "case_draft_handoff",
+      "command_id": "mvp.draft_handoff",
+      "input": {
+        "adapter": "apple_shortcuts",
+        "actor_ref": "director",
+        "command_text": "Create a draft handoff for this task.",
+        "requested_output": "display_text"
+      },
+      "expected": {
+        "permission_level": "draft-only",
+        "route": "local.draft_fixture",
+        "approval_status": "not_required",
+        "result_status": "drafted_fixture_only"
+      }
+    },
+    {
+      "case_id": "case_operatorkit_dry_run",
+      "command_id": "mvp.operatorkit_dry_run",
+      "input": {
+        "adapter": "apple_shortcuts",
+        "actor_ref": "director",
+        "command_text": "Start an OperatorKit dry run for this repo.",
+        "requested_output": "display_text"
+      },
+      "expected": {
+        "permission_level": "approval-required",
+        "route": "operatorkit.dry_run_request",
+        "approval_status": "blocked_execute_now_disabled",
+        "result_status": "blocked_contract_only"
+      }
+    },
+    {
+      "case_id": "case_apprelay_changes_today",
+      "command_id": "mvp.apprelay_changes_today",
+      "input": {
+        "adapter": "apple_shortcuts",
+        "actor_ref": "director",
+        "command_text": "What changed in AppRelay today?",
+        "requested_output": "spoken_summary"
+      },
+      "expected": {
+        "permission_level": "read-only",
+        "route": "apprelay.summary",
+        "approval_status": "not_required",
+        "result_status": "answered_from_fixture"
+      }
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "fixture_id": "apprelay_changes.today",
+  "kind": "read_only_source",
+  "system": "apprelay",
+  "changes": [
+    {
+      "id": "ar_001",
+      "summary": "Documented that provider routing remains behind AppRelay.",
+      "source": "planning fixture"
+    }
+  ],
+  "real_apprelay_read": false
+}

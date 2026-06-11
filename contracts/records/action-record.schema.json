@@ -1,0 +1,58 @@
+{
+  "schema_version": "0.1",
+  "type": "object",
+  "required": [
+    "record_id",
+    "command_id",
+    "timestamp",
+    "actor_ref",
+    "adapter",
+    "command_text",
+    "interpreted_intent",
+    "permission_level",
+    "approval_status",
+    "route",
+    "sources_used",
+    "model_provider_route",
+    "action_key",
+    "result",
+    "errors",
+    "follow_up_owner"
+  ],
+  "properties": {
+    "record_id": { "type": "string" },
+    "command_id": { "type": "string" },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "actor_ref": { "type": "string" },
+    "adapter": { "type": "string" },
+    "command_text": { "type": "string" },
+    "interpreted_intent": { "type": "string" },
+    "permission_level": {
+      "enum": ["read-only", "draft-only", "approval-required"]
+    },
+    "approval_status": {
+      "enum": [
+        "not_required",
+        "required_not_requested",
+        "requested_pending",
+        "approved",
+        "denied",
+        "blocked_execute_now_disabled"
+      ]
+    },
+    "route": { "type": "string" },
+    "sources_used": { "type": "array", "items": { "type": "string" } },
+    "model_provider_route": { "type": ["string", "null"] },
+    "action_key": { "type": ["string", "null"] },
+    "result": {
+      "type": "object",
+      "required": ["status", "summary"],
+      "properties": {
+        "status": { "type": "string" },
+        "summary": { "type": "string" }
+      }
+    },
+    "errors": { "type": "array", "items": { "type": "string" } },
+    "follow_up_owner": { "type": ["string", "null"] }
+  }
+}

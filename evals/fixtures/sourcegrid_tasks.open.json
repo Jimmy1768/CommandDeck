@@ -1,0 +1,20 @@
+{
+  "fixture_id": "sourcegrid_tasks.open",
+  "kind": "read_only_source",
+  "items": [
+    {
+      "id": "task_001",
+      "title": "Review CommandKit repo skeleton",
+      "priority": 1,
+      "status": "open",
+      "source": "planning fixture"
+    },
+    {
+      "id": "task_002",
+      "title": "Define later command-pack storage",
+      "priority": 2,
+      "status": "open",
+      "source": "planning fixture"
+    }
+  ]
+}

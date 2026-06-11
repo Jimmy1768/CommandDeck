@@ -1,0 +1,10 @@
+{
+  "fixture_id": "task_context.current",
+  "kind": "draft_source",
+  "task": {
+    "id": "task_001",
+    "title": "Review CommandKit repo skeleton",
+    "goal": "Confirm the skeleton matches slice 1 boundaries.",
+    "handoff_requirements": ["scope", "files changed", "tests run", "remaining decisions"]
+  }
+}

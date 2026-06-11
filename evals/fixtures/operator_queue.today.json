@@ -1,0 +1,19 @@
+{
+  "fixture_id": "operator_queue.today",
+  "kind": "read_only_source",
+  "queue_date": "2026-06-11",
+  "items": [
+    {
+      "id": "op_001",
+      "title": "CommandKit contract review",
+      "status": "waiting_review",
+      "risk": "low"
+    },
+    {
+      "id": "op_002",
+      "title": "OperatorKit dry-run integration design",
+      "status": "not_started",
+      "risk": "medium"
+    }
+  ]
+}

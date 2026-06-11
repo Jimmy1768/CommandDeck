@@ -1,0 +1,67 @@
+{
+  "pack_id": "commandkit.mvp.slice1",
+  "owner": "command-kit",
+  "permissions": "contracts/permissions/permission-levels.json",
+  "record_policy": {
+    "record_schema": "contracts/records/action-record.schema.json",
+    "slice_1_storage": "fixtures_only"
+  },
+  "commands": [
+    {
+      "command_id": "mvp.next_sourcegrid_task",
+      "title": "What is my next SourceGrid task?",
+      "example_utterances": ["What is my next SourceGrid task?"],
+      "permission_level": "read-only",
+      "route": "local.fixture_read",
+      "allowed_effects": ["read_local_fixture"],
+      "forbidden_effects": ["state_change", "external_call"],
+      "sources": ["evals/fixtures/sourcegrid_tasks.open.json"]
+    },
+    {
+      "command_id": "mvp.operator_queue_today",
+      "title": "Summarize today's operator queue.",
+      "example_utterances": ["Summarize today's operator queue."],
+      "permission_level": "read-only",
+      "route": "local.fixture_read",
+      "allowed_effects": ["read_local_fixture"],
+      "forbidden_effects": ["state_change", "external_call"],
+      "sources": ["evals/fixtures/operator_queue.today.json"]
+    },
+    {
+      "command_id": "mvp.draft_handoff",
+      "title": "Create a draft handoff for this task.",
+      "example_utterances": ["Create a draft handoff for this task."],
+      "permission_level": "draft-only",
+      "route": "local.draft_fixture",
+      "allowed_effects": ["read_local_fixture", "draft_local_artifact", "create_action_record_fixture"],
+      "forbidden_effects": ["send", "commit", "push", "external_message"],
+      "sources": ["evals/fixtures/task_context.current.json"]
+    },
+    {
+      "command_id": "mvp.operatorkit_dry_run",
+      "title": "Start an OperatorKit dry run for this repo.",
+      "example_utterances": ["Start an OperatorKit dry run for this repo."],
+      "permission_level": "approval-required",
+      "route": "operatorkit.dry_run_request",
+      "allowed_effects": ["blocked_pending_explicit_approval", "create_action_record_fixture"],
+      "forbidden_effects": ["execute_without_approval", "execute_now", "external_call"],
+      "sources": ["evals/fixtures/repo_status.clean.json"],
+      "approval_prompt": {
+        "target": "OperatorKit dry run for current repo",
+        "action": "request dry-run workflow",
+        "risk": "would invoke external execution layer in future phases",
+        "expected_record": "action record with approval decision"
+      }
+    },
+    {
+      "command_id": "mvp.apprelay_changes_today",
+      "title": "What changed in AppRelay today?",
+      "example_utterances": ["What changed in AppRelay today?"],
+      "permission_level": "read-only",
+      "route": "apprelay.summary",
+      "allowed_effects": ["read_local_fixture"],
+      "forbidden_effects": ["external_call", "provider_call", "state_change"],
+      "sources": ["evals/fixtures/apprelay_changes.today.json"]
+    }
+  ]
+}
