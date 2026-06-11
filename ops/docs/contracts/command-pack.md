@@ -9,6 +9,7 @@ packs belong in partner repos or configured local folders.
 
 ## Required Fields
 
+- `schema_version`: contract version, currently `0.1`.
 - `pack_id`: stable identifier.
 - `owner`: company, user, or partner owner.
 - `commands`: list of command definitions.
@@ -35,3 +36,12 @@ Each command requires:
 
 All other effects must be represented as `blocked`, `contract_only`, or
 `future_phase`.
+
+## Pack Locations
+
+`contracts/commands/mvp-commands.json` is the built-in MVP fixture pack.
+`evals/fixtures/command-packs/` contains generic validation fixtures only.
+
+Real owner-specific packs must stay in their owner repo or configured local
+command folder. CommandKit should load those packs through configuration in a
+future phase; it should not absorb SourceGrid or partner command scripts.

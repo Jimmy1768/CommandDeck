@@ -1,0 +1,32 @@
+{
+  "schema_version": "0.1",
+  "pack_id": "commandkit.fixture.generic_read_draft",
+  "owner": "command-kit",
+  "permissions": "contracts/permissions/permission-levels.json",
+  "record_policy": {
+    "record_schema": "contracts/records/action-record.schema.json",
+    "slice_1_storage": "fixtures_only"
+  },
+  "commands": [
+    {
+      "command_id": "fixture.current_repo_summary",
+      "title": "Summarize this CommandKit repo fixture.",
+      "example_utterances": ["Summarize this CommandKit repo fixture."],
+      "permission_level": "read-only",
+      "route": "local.fixture_read",
+      "allowed_effects": ["read_local_fixture"],
+      "forbidden_effects": ["state_change", "external_call", "provider_call"],
+      "sources": ["evals/fixtures/generic/current_repo_summary.json"]
+    },
+    {
+      "command_id": "fixture.draft_task_note",
+      "title": "Draft a local task note from fixture context.",
+      "example_utterances": ["Draft a local task note from fixture context."],
+      "permission_level": "draft-only",
+      "route": "local.draft_fixture",
+      "allowed_effects": ["read_local_fixture", "draft_local_artifact", "create_action_record_fixture"],
+      "forbidden_effects": ["send", "commit", "push", "external_message", "external_call"],
+      "sources": ["evals/fixtures/generic/task_note_context.json"]
+    }
+  ]
+}

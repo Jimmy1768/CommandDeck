@@ -1,0 +1,5 @@
+{
+  "fixture_id": "generic.current_repo_summary",
+  "summary": "CommandKit is in a local prototype state with contract-only command packs.",
+  "real_external_reads": false
+}

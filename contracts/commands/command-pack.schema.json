@@ -1,7 +1,17 @@
 {
   "schema_version": "0.1",
+  "contract_kind": "command-pack",
+  "phase": "local_prototype",
   "type": "object",
-  "required": ["pack_id", "owner", "commands", "permissions", "record_policy"],
+  "required": ["schema_version", "pack_id", "owner", "commands", "permissions", "record_policy"],
+  "pack_required_fields": [
+    "schema_version",
+    "pack_id",
+    "owner",
+    "commands",
+    "permissions",
+    "record_policy"
+  ],
   "command_required_fields": [
     "command_id",
     "title",
@@ -13,5 +23,27 @@
     "sources"
   ],
   "allowed_permission_levels": ["read-only", "draft-only", "approval-required"],
-  "execute_now_enabled": false
+  "allowed_source_roots": ["evals/fixtures/"],
+  "forbidden_command_fields": ["script", "scripts", "shell", "executable", "handler", "env", "secrets"],
+  "forbidden_allowed_effects": [
+    "payment",
+    "production_deploy",
+    "production_restart",
+    "migration",
+    "customer_data_mutation",
+    "public_message",
+    "external_party_contact",
+    "infrastructure_mutation",
+    "secret_write",
+    "execute_now",
+    "execute_without_approval",
+    "external_call",
+    "provider_call"
+  ],
+  "execute_now_enabled": false,
+  "real_pack_locations": {
+    "sourcegrid": "sourcegrid-labs",
+    "partners": "partner repos or configured local command folders",
+    "command_kit_repo": "generic examples and tests only"
+  }
 }

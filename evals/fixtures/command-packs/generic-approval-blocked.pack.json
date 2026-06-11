@@ -1,0 +1,28 @@
+{
+  "schema_version": "0.1",
+  "pack_id": "commandkit.fixture.generic_approval_blocked",
+  "owner": "command-kit",
+  "permissions": "contracts/permissions/permission-levels.json",
+  "record_policy": {
+    "record_schema": "contracts/records/action-record.schema.json",
+    "slice_1_storage": "fixtures_only"
+  },
+  "commands": [
+    {
+      "command_id": "fixture.request_operator_dry_run",
+      "title": "Request an operator dry run for this fixture.",
+      "example_utterances": ["Request an operator dry run for this fixture."],
+      "permission_level": "approval-required",
+      "route": "operatorkit.dry_run_request",
+      "allowed_effects": ["blocked_pending_explicit_approval", "create_action_record_fixture"],
+      "forbidden_effects": ["execute_without_approval", "execute_now", "external_call"],
+      "sources": ["evals/fixtures/repo_status.clean.json"],
+      "approval_prompt": {
+        "target": "fixture operator dry run",
+        "action": "request dry-run workflow",
+        "risk": "would invoke external execution layer in future phases",
+        "expected_record": "action record with approval decision"
+      }
+    }
+  ]
+}

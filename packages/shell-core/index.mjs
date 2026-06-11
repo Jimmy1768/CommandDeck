@@ -537,10 +537,14 @@ export function validateCommandPack(pack, { routes, permissions }) {
     return ['pack must be an object'];
   }
 
-  for (const field of ['pack_id', 'owner', 'permissions', 'record_policy', 'commands']) {
+  for (const field of ['schema_version', 'pack_id', 'owner', 'permissions', 'record_policy', 'commands']) {
     if (!(field in pack)) {
       errors.push(`missing pack field ${field}`);
     }
+  }
+
+  if (pack.schema_version !== '0.1') {
+    errors.push('schema_version must be 0.1');
   }
 
   if (!Array.isArray(pack.commands) || pack.commands.length === 0) {

@@ -1,0 +1,12 @@
+{
+  "fixture_id": "generic.task_note_context",
+  "task": {
+    "id": "generic-task-1",
+    "title": "Draft a command-pack readiness note",
+    "status": "fixture_only"
+  },
+  "draft": {
+    "body": "Command pack is valid for local classification and fixture reads only."
+  },
+  "real_external_writes": false
+}

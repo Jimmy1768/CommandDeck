@@ -16,6 +16,7 @@ npm run command:local -- --command-pack contracts/commands/mvp-commands.json "Wh
 ## Validation Rules
 
 - Pack paths must be repo-relative.
+- Packs must include `schema_version: 0.1`.
 - Commands must include all required command-pack fields.
 - Routes must exist in `contracts/routes/route-contracts.json`.
 - Routes must be contract-only with `real_integration: false`.
@@ -28,3 +29,7 @@ npm run command:local -- --command-pack contracts/commands/mvp-commands.json "Wh
 Loading a command pack authorizes classification and fixture reads only. It does
 not authorize local script execution, external calls, file mutation, OperatorKit
 dispatch, AppRelay calls, or ManyMind calls.
+
+Generic example packs live under `evals/fixtures/command-packs/` so contract
+tests can prove future owner packs have a stable shape. Real SourceGrid packs
+belong in `sourcegrid-labs`, not in this repository.

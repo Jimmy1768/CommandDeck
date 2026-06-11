@@ -94,6 +94,9 @@ npm run command:local -- --command-pack contracts/commands/mvp-commands.json "Wh
 
 Command-pack loading is contract-only. Loaded packs cannot include executable
 fields, external integrations, or sources outside `evals/fixtures/` in Phase 1.
+Generic example packs live under `evals/fixtures/command-packs/`; real
+SourceGrid packs belong in `sourcegrid-labs` or configured local command
+folders.
 
 Run with an explicit local config:
 

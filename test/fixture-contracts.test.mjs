@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import { access } from 'node:fs/promises';
 import path from 'node:path';
 import { test } from 'node:test';
+import { validateCommandPack } from '../packages/shell-core/index.mjs';
 
 const root = path.resolve(import.meta.dirname, '..');
 
@@ -36,6 +37,7 @@ test('permission contract keeps execute-now disabled', async () => {
 
 test('MVP command pack contains the first five commands only', async () => {
   const pack = await readJson('contracts/commands/mvp-commands.json');
+  assert.equal(pack.schema_version, '0.1');
   assert.equal(pack.commands.length, 5);
 
   const ids = pack.commands.map((command) => command.command_id);
@@ -46,6 +48,41 @@ test('MVP command pack contains the first five commands only', async () => {
     'mvp.operatorkit_dry_run',
     'mvp.apprelay_changes_today'
   ]);
+});
+
+test('command pack schema documents the Phase 1 loading boundary', async () => {
+  const schema = await readJson('contracts/commands/command-pack.schema.json');
+
+  assert.equal(schema.contract_kind, 'command-pack');
+  assert.equal(schema.execute_now_enabled, false);
+  assert.ok(schema.required.includes('schema_version'));
+  assert.deepEqual(schema.allowed_permission_levels, ['read-only', 'draft-only', 'approval-required']);
+  assert.deepEqual(schema.allowed_source_roots, ['evals/fixtures/']);
+  assert.ok(schema.forbidden_command_fields.includes('handler'));
+  assert.equal(schema.real_pack_locations.sourcegrid, 'sourcegrid-labs');
+  assert.equal(schema.real_pack_locations.command_kit_repo, 'generic examples and tests only');
+});
+
+test('generic command-pack fixtures validate without becoming executable integrations', async () => {
+  const fixtureDir = path.join(root, 'evals/fixtures/command-packs');
+  const fixtureFiles = (await readdir(fixtureDir)).filter((file) => file.endsWith('.json')).sort();
+  const routes = await readJson('contracts/routes/route-contracts.json');
+  const permissions = await readJson('contracts/permissions/permission-levels.json');
+
+  assert.deepEqual(fixtureFiles, ['generic-approval-blocked.pack.json', 'generic-read-draft.pack.json']);
+
+  for (const file of fixtureFiles) {
+    const pack = await readJson(`evals/fixtures/command-packs/${file}`);
+    const errors = validateCommandPack(pack, { routes, permissions });
+
+    assert.deepEqual(errors, [], `${file} should validate`);
+
+    for (const command of pack.commands) {
+      assert.notEqual(command.permission_level, 'execute-now');
+      assert.ok(command.sources.every((source) => source.startsWith('evals/fixtures/')));
+      assert.ok(command.forbidden_effects.includes('execute_now') || command.forbidden_effects.includes('external_call'));
+    }
+  }
 });
 
 test('command routes and permission levels match route contracts', async () => {
