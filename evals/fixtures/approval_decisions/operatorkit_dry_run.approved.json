@@ -1,0 +1,13 @@
+{
+  "decision_id": "appr_fixture_approved",
+  "record_id": "rec_fixture_operatorkit_dry_run",
+  "actor_ref": "director",
+  "decision": "approved",
+  "decided_at": "2026-06-11T00:05:00.000Z",
+  "reason": "Approved for future dry-run dispatch only after Phase 1 execution is enabled.",
+  "scope": {
+    "target": "OperatorKit dry run for current repo",
+    "action": "request dry-run workflow"
+  },
+  "expires_at": "2026-06-11T01:05:00.000Z"
+}

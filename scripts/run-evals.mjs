@@ -1,11 +1,16 @@
 import process from 'node:process';
-import { runEvalSuite, writeEvalReport } from '../packages/shell-core/index.mjs';
+import { runApprovalDecisionEvalSuite, runEvalSuite, writeEvalReport } from '../packages/shell-core/index.mjs';
 
 const parsed = parseArgs(process.argv.slice(2));
-const report = await runEvalSuite({
-  suitePath: parsed.suitePath,
-  commandPackPath: parsed.commandPackPath
-});
+const report =
+  parsed.kind === 'approval'
+    ? await runApprovalDecisionEvalSuite({
+        suitePath: parsed.suitePath
+      })
+    : await runEvalSuite({
+        suitePath: parsed.suitePath,
+        commandPackPath: parsed.commandPackPath
+      });
 
 if (parsed.writeReport) {
   report.report_write = await writeEvalReport(report, {
@@ -28,6 +33,7 @@ function parseArgs(args) {
   let reportPath = null;
   let writeReport = false;
   let overwrite = false;
+  let kind = 'command';
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
@@ -59,6 +65,12 @@ function parseArgs(args) {
       overwrite = true;
       continue;
     }
+
+    if (arg === '--kind') {
+      kind = args[index + 1];
+      index += 1;
+      continue;
+    }
   }
 
   return {
@@ -66,6 +78,7 @@ function parseArgs(args) {
     commandPackPath,
     reportPath,
     writeReport,
-    overwrite
+    overwrite,
+    kind
   };
 }

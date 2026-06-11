@@ -1,0 +1,13 @@
+{
+  "decision_id": "appr_fixture_expired",
+  "record_id": "rec_fixture_operatorkit_dry_run",
+  "actor_ref": "director",
+  "decision": "approved",
+  "decided_at": "2026-06-10T00:05:00.000Z",
+  "reason": "Expired approval fixture.",
+  "scope": {
+    "target": "OperatorKit dry run for current repo",
+    "action": "request dry-run workflow"
+  },
+  "expires_at": "2026-06-10T01:05:00.000Z"
+}

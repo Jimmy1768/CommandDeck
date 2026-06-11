@@ -1,0 +1,39 @@
+{
+  "suite_id": "approval.slice1",
+  "description": "Approval decisions are modeled but never execute actions in slice 1.",
+  "cases": [
+    {
+      "case_id": "case_denied_dry_run_stays_blocked",
+      "record_fixture": "evals/fixtures/action_records/operatorkit_dry_run.blocked.json",
+      "decision_fixture": "evals/fixtures/approval_decisions/operatorkit_dry_run.denied.json",
+      "now": "2026-06-11T00:10:00.000Z",
+      "expected": {
+        "decision_status": "denied_no_execution",
+        "approval_status": "denied",
+        "result_status": "blocked_contract_only"
+      }
+    },
+    {
+      "case_id": "case_approved_dry_run_still_execution_disabled",
+      "record_fixture": "evals/fixtures/action_records/operatorkit_dry_run.blocked.json",
+      "decision_fixture": "evals/fixtures/approval_decisions/operatorkit_dry_run.approved.json",
+      "now": "2026-06-11T00:10:00.000Z",
+      "expected": {
+        "decision_status": "approved_execution_disabled",
+        "approval_status": "approved",
+        "result_status": "blocked_contract_only"
+      }
+    },
+    {
+      "case_id": "case_expired_approval_rejected",
+      "record_fixture": "evals/fixtures/action_records/operatorkit_dry_run.blocked.json",
+      "decision_fixture": "evals/fixtures/approval_decisions/operatorkit_dry_run.expired.json",
+      "now": "2026-06-11T00:10:00.000Z",
+      "expected": {
+        "decision_status": "rejected_expired",
+        "approval_status": "blocked_execute_now_disabled",
+        "result_status": "blocked_contract_only"
+      }
+    }
+  ]
+}

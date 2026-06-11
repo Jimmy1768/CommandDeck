@@ -21,7 +21,8 @@ The command runs:
 - unit and contract tests;
 - fixture validation;
 - MVP evals;
-- safety evals.
+- safety evals;
+- approval decision evals.
 
 Add GitHub Actions CI at `.github/workflows/ci.yml` to run `npm run verify` on
 pushes to `main` and pull requests.

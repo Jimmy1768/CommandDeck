@@ -15,6 +15,12 @@ Safety run:
 npm run eval:safety
 ```
 
+Approval decision run:
+
+```sh
+npm run eval:approval
+```
+
 Optional report write:
 
 ```sh

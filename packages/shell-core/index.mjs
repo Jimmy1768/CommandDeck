@@ -37,7 +37,11 @@ const FORBIDDEN_ADAPTER_REQUEST_FIELDS = [
   'token',
   'tokens',
   'authorization',
-  'password'
+  'password',
+  'approval',
+  'approval_decision',
+  'approval_request',
+  'approval_status'
 ];
 const ALLOWED_ADAPTERS = new Set(['apple_shortcuts', 'local_cli']);
 const ALLOWED_REQUESTED_OUTPUTS = new Set(['spoken_summary', 'display_text', 'json']);
@@ -109,6 +113,7 @@ export async function runLocalCommand(input, options = {}) {
       sources_used: command.sources,
       model_provider_route: null,
       action_key: null,
+      approval_request: approvalRequestFor(command),
       result,
       errors: [],
       follow_up_owner: followUpOwnerFor(command.permission_level)
@@ -230,6 +235,43 @@ export async function runEvalSuite(options = {}) {
   };
 }
 
+export async function runApprovalDecisionEvalSuite(options = {}) {
+  const rootDir = options.rootDir ?? path.resolve(import.meta.dirname, '../..');
+  const suitePath = options.suitePath ?? 'evals/cases/approval.slice1.cases.json';
+  const suite = await readRepoRelativeJson(rootDir, suitePath);
+  const caseResults = [];
+
+  for (const evalCase of suite.cases ?? []) {
+    const record = await readRepoRelativeJson(rootDir, evalCase.record_fixture);
+    const decision = await readRepoRelativeJson(rootDir, evalCase.decision_fixture);
+    const decisionResult = applyApprovalDecision(record, decision, {
+      now: evalCase.now
+    });
+    const checks = compareApprovalDecisionEvalCase(evalCase, decisionResult);
+
+    caseResults.push({
+      case_id: evalCase.case_id,
+      passed: checks.every((check) => check.passed),
+      checks,
+      decision_result: decisionResult
+    });
+  }
+
+  const passed = caseResults.filter((result) => result.passed).length;
+  const failed = caseResults.length - passed;
+
+  return {
+    suite_id: suite.suite_id,
+    suite_path: suitePath,
+    summary: {
+      total: caseResults.length,
+      passed,
+      failed
+    },
+    cases: caseResults
+  };
+}
+
 export async function writeEvalReport(report, options = {}) {
   const rootDir = options.rootDir ?? path.resolve(import.meta.dirname, '../..');
   const reportPath = options.reportPath ?? `evals/reports/${report.suite_id}.latest.json`;
@@ -278,11 +320,106 @@ export function validateAdapterRequest(request) {
   return errors;
 }
 
+export function validateApprovalDecision(record, decision, options = {}) {
+  const errors = [];
+  const now = new Date(options.now ?? new Date().toISOString());
+
+  if (!record || typeof record !== 'object') {
+    return ['record must be an object'];
+  }
+
+  if (!decision || typeof decision !== 'object') {
+    return ['decision must be an object'];
+  }
+
+  for (const field of ['decision_id', 'record_id', 'actor_ref', 'decision', 'decided_at', 'reason', 'scope', 'expires_at']) {
+    if (!(field in decision)) {
+      errors.push(`decision missing field ${field}`);
+    }
+  }
+
+  if (!['approved', 'denied'].includes(decision.decision)) {
+    errors.push('decision must be approved or denied');
+  }
+
+  if (decision.record_id !== record.record_id) {
+    errors.push('decision record_id must match action record');
+  }
+
+  if (record.permission_level !== 'approval-required') {
+    errors.push('action record must be approval-required');
+  }
+
+  if (!record.approval_request) {
+    errors.push('action record must include approval_request');
+  }
+
+  if (!decision.scope || typeof decision.scope !== 'object') {
+    errors.push('decision scope is required');
+  } else if (record.approval_request) {
+    if (decision.scope.target !== record.approval_request.target) {
+      errors.push('decision scope target must match approval_request target');
+    }
+
+    if (decision.scope.action !== record.approval_request.action) {
+      errors.push('decision scope action must match approval_request action');
+    }
+  }
+
+  const expiresAt = new Date(decision.expires_at);
+  if (Number.isNaN(expiresAt.getTime())) {
+    errors.push('expires_at must be a valid date-time');
+  } else if (expiresAt <= now) {
+    errors.push('approval decision is expired');
+  }
+
+  return errors;
+}
+
+export function applyApprovalDecision(record, decision, options = {}) {
+  const errors = validateApprovalDecision(record, decision, options);
+  const expired = errors.includes('approval decision is expired');
+
+  if (errors.length > 0) {
+    return {
+      decision_id: decision?.decision_id ?? null,
+      record_id: record?.record_id ?? null,
+      decision_status: expired ? 'rejected_expired' : 'rejected_invalid',
+      approval_status: record?.approval_status ?? 'required_not_requested',
+      result: record?.result ?? {
+        status: 'failed_closed',
+        summary: 'Approval decision rejected.'
+      },
+      errors
+    };
+  }
+
+  if (decision.decision === 'denied') {
+    return {
+      decision_id: decision.decision_id,
+      record_id: record.record_id,
+      decision_status: 'denied_no_execution',
+      approval_status: 'denied',
+      result: record.result,
+      errors: []
+    };
+  }
+
+  return {
+    decision_id: decision.decision_id,
+    record_id: record.record_id,
+    decision_status: 'approved_execution_disabled',
+    approval_status: 'approved',
+    result: record.result,
+    errors: []
+  };
+}
+
 export function compareEvalCase(evalCase, commandResult) {
   const expected = evalCase.expected;
   const record = commandResult.record;
 
-  return [
+  const checks = [
     {
       name: 'command_id',
       expected: evalCase.command_id,
@@ -312,6 +449,43 @@ export function compareEvalCase(evalCase, commandResult) {
       expected: expected.result_status,
       actual: record.result.status,
       passed: record.result.status === expected.result_status
+    }
+  ];
+
+  if ('approval_request_required' in expected) {
+    const hasApprovalRequest = Boolean(record.approval_request);
+    checks.push({
+      name: 'approval_request_required',
+      expected: expected.approval_request_required,
+      actual: hasApprovalRequest,
+      passed: hasApprovalRequest === expected.approval_request_required
+    });
+  }
+
+  return checks;
+}
+
+export function compareApprovalDecisionEvalCase(evalCase, decisionResult) {
+  const expected = evalCase.expected;
+
+  return [
+    {
+      name: 'decision_status',
+      expected: expected.decision_status,
+      actual: decisionResult.decision_status,
+      passed: decisionResult.decision_status === expected.decision_status
+    },
+    {
+      name: 'approval_status',
+      expected: expected.approval_status,
+      actual: decisionResult.approval_status,
+      passed: decisionResult.approval_status === expected.approval_status
+    },
+    {
+      name: 'result_status',
+      expected: expected.result_status,
+      actual: decisionResult.result.status,
+      passed: decisionResult.result.status === expected.result_status
     }
   ];
 }
@@ -624,6 +798,19 @@ function followUpOwnerFor(permissionLevel) {
   return permissionLevel === 'approval-required' ? 'human_operator' : null;
 }
 
+function approvalRequestFor(command) {
+  if (command.permission_level !== 'approval-required') {
+    return null;
+  }
+
+  return {
+    target: command.approval_prompt.target,
+    action: command.approval_prompt.action,
+    risk: command.approval_prompt.risk,
+    expected_record: command.approval_prompt.expected_record
+  };
+}
+
 function responseFor(result, approvalStatus) {
   if (approvalStatus === 'blocked_execute_now_disabled') {
     return `${result.summary} Approval would be required in a future phase.`;
@@ -649,6 +836,7 @@ function buildFailureRecord({ input, timestamp, commandText, command, summary })
       sources_used: command?.sources ?? [],
       model_provider_route: null,
       action_key: null,
+      approval_request: null,
       result: {
         status: 'failed_closed',
         summary

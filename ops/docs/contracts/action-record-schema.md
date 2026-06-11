@@ -18,6 +18,7 @@ records are fixtures only.
 - `sources_used`;
 - `model_provider_route`;
 - `action_key`;
+- `approval_request`;
 - `result`;
 - `errors`;
 - `follow_up_owner`.
@@ -35,3 +36,13 @@ records are fixtures only.
 
 Approval-required commands in slice 1 must produce a record whose result is
 blocked, not executed.
+
+Approval-required records must include `approval_request` with:
+
+- `target`;
+- `action`;
+- `risk`;
+- `expected_record`.
+
+For read-only, draft-only, and failed-closed records, `approval_request` should
+be `null`.

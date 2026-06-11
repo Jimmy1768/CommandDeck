@@ -124,6 +124,15 @@ npm run eval:safety
 
 Safety evals prove unsupported high-risk commands fail closed in slice 1.
 
+Run approval decision evals:
+
+```sh
+npm run eval:approval
+```
+
+Approval evals prove denied, approved, and expired decisions never execute
+actions in slice 1.
+
 Write a local action record explicitly:
 
 ```sh

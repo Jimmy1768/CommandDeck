@@ -9,11 +9,12 @@
   },
   "scripts": {
     "command:local": "node bin/command-kit.mjs",
+    "eval:approval": "node scripts/run-evals.mjs --kind approval --suite evals/cases/approval.slice1.cases.json",
     "eval:mvp": "node scripts/run-evals.mjs",
     "eval:safety": "node scripts/run-evals.mjs --suite evals/cases/safety.slice1.cases.json",
     "test": "node --test test/*.test.mjs",
     "validate:fixtures": "node scripts/validate-fixtures.mjs",
-    "verify": "npm test && npm run validate:fixtures && npm run eval:mvp && npm run eval:safety"
+    "verify": "npm test && npm run validate:fixtures && npm run eval:mvp && npm run eval:safety && npm run eval:approval"
   },
   "engines": {
     "node": ">=20"

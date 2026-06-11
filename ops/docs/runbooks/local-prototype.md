@@ -87,6 +87,15 @@ npm run eval:safety
 Safety evals cover high-risk unsupported commands such as production deploy,
 payment, automation pause, and public-message requests. They must fail closed.
 
+## Run Approval Evals
+
+```sh
+npm run eval:approval
+```
+
+Approval evals cover denied, approved, and expired decision fixtures. Even an
+approved decision must not execute anything in Phase 1.
+
 ## Write A Local Action Record
 
 ```sh

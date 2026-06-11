@@ -1,0 +1,31 @@
+{
+  "schema_version": "0.1",
+  "type": "object",
+  "required": [
+    "decision_id",
+    "record_id",
+    "actor_ref",
+    "decision",
+    "decided_at",
+    "reason",
+    "scope",
+    "expires_at"
+  ],
+  "properties": {
+    "decision_id": { "type": "string" },
+    "record_id": { "type": "string" },
+    "actor_ref": { "type": "string" },
+    "decision": { "enum": ["approved", "denied"] },
+    "decided_at": { "type": "string", "format": "date-time" },
+    "reason": { "type": "string" },
+    "scope": {
+      "type": "object",
+      "required": ["target", "action"],
+      "properties": {
+        "target": { "type": "string" },
+        "action": { "type": "string" }
+      }
+    },
+    "expires_at": { "type": "string", "format": "date-time" }
+  }
+}

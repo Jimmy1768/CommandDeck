@@ -15,6 +15,7 @@
     "sources_used",
     "model_provider_route",
     "action_key",
+    "approval_request",
     "result",
     "errors",
     "follow_up_owner"
@@ -44,6 +45,16 @@
     "sources_used": { "type": "array", "items": { "type": "string" } },
     "model_provider_route": { "type": ["string", "null"] },
     "action_key": { "type": ["string", "null"] },
+    "approval_request": {
+      "type": ["object", "null"],
+      "required": ["target", "action", "risk", "expected_record"],
+      "properties": {
+        "target": { "type": "string" },
+        "action": { "type": "string" },
+        "risk": { "type": "string" },
+        "expected_record": { "type": "string" }
+      }
+    },
     "result": {
       "type": "object",
       "required": ["status", "summary"],

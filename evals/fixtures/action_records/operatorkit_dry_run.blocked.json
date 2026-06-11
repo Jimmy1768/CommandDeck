@@ -1,0 +1,27 @@
+{
+  "record_id": "rec_fixture_operatorkit_dry_run",
+  "command_id": "mvp.operatorkit_dry_run",
+  "timestamp": "2026-06-11T00:00:00.000Z",
+  "actor_ref": "director",
+  "adapter": "apple_shortcuts",
+  "command_text": "Start an OperatorKit dry run for this repo.",
+  "interpreted_intent": "Start an OperatorKit dry run for this repo.",
+  "permission_level": "approval-required",
+  "approval_status": "blocked_execute_now_disabled",
+  "route": "operatorkit.dry_run_request",
+  "sources_used": ["evals/fixtures/repo_status.clean.json"],
+  "model_provider_route": null,
+  "action_key": null,
+  "approval_request": {
+    "target": "OperatorKit dry run for current repo",
+    "action": "request dry-run workflow",
+    "risk": "would invoke external execution layer in future phases",
+    "expected_record": "action record with approval decision"
+  },
+  "result": {
+    "status": "blocked_contract_only",
+    "summary": "OperatorKit dry run was not started because slice 1 is contract-only."
+  },
+  "errors": [],
+  "follow_up_owner": "human_operator"
+}

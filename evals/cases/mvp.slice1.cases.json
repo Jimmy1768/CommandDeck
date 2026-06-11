@@ -63,7 +63,8 @@
         "permission_level": "approval-required",
         "route": "operatorkit.dry_run_request",
         "approval_status": "blocked_execute_now_disabled",
-        "result_status": "blocked_contract_only"
+        "result_status": "blocked_contract_only",
+        "approval_request_required": true
       }
     },
     {

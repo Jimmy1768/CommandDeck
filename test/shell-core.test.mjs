@@ -5,6 +5,7 @@ import path from 'node:path';
 import { test } from 'node:test';
 import { spawnSync } from 'node:child_process';
 import {
+  applyApprovalDecision,
   classifyCommand,
   loadAdapterRequest,
   loadCommandKitConfig,
@@ -12,9 +13,11 @@ import {
   normalizeUtterance,
   resolveEvalReportPath,
   resolveRecordDir,
+  runApprovalDecisionEvalSuite,
   runEvalSuite,
   runLocalCommand,
   validateAdapterRequest,
+  validateApprovalDecision,
   validateCommandKitConfig,
   validateCommandPack,
   writeEvalReport,
@@ -89,6 +92,12 @@ test('approval-required dry run is blocked and not routed to real OperatorKit', 
   assert.equal(result.record.approval_status, 'blocked_execute_now_disabled');
   assert.equal(result.record.result.status, 'blocked_contract_only');
   assert.equal(result.record.follow_up_owner, 'human_operator');
+  assert.deepEqual(result.record.approval_request, {
+    target: 'OperatorKit dry run for current repo',
+    action: 'request dry-run workflow',
+    risk: 'would invoke external execution layer in future phases',
+    expected_record: 'action record with approval decision'
+  });
   assert.match(result.response_text, /not started/);
 });
 
@@ -319,6 +328,20 @@ test('rejects adapter requests with missing required fields or nested secrets', 
   assert.ok(errors.some((error) => error.includes('device_context.token')));
 });
 
+test('rejects adapter requests that try to carry approval data', () => {
+  const errors = validateAdapterRequest({
+    adapter: 'apple_shortcuts',
+    actor_ref: 'director',
+    command_text: 'Start an OperatorKit dry run for this repo.',
+    requested_output: 'display_text',
+    approval_decision: {
+      decision: 'approved'
+    }
+  });
+
+  assert.ok(errors.some((error) => error.includes('approval_decision')));
+});
+
 test('adapter request paths must stay inside the repo', async () => {
   await assert.rejects(
     () =>
@@ -364,6 +387,8 @@ test('runs MVP eval suite without writing reports', async () => {
   assert.equal(report.summary.passed, 5);
   assert.equal(report.summary.failed, 0);
   assert.ok(report.cases.every((evalCase) => evalCase.passed));
+  const dryRun = report.cases.find((evalCase) => evalCase.command_id === 'mvp.operatorkit_dry_run');
+  assert.ok(dryRun.checks.some((check) => check.name === 'approval_request_required' && check.passed));
 });
 
 test('eval report paths must stay under evals reports as JSON', () => {
@@ -429,6 +454,83 @@ test('safety eval CLI prints passing report without writing by default', async (
   assert.equal(output.status, 0, output.stderr);
   const parsed = JSON.parse(output.stdout);
   assert.equal(parsed.summary.total, 4);
+  assert.equal(parsed.summary.failed, 0);
+  assert.equal(parsed.report_write.status, 'not_written');
+});
+
+test('applies denied approval decision without execution', async () => {
+  const record = await readJson('evals/fixtures/action_records/operatorkit_dry_run.blocked.json');
+  const decision = await readJson('evals/fixtures/approval_decisions/operatorkit_dry_run.denied.json');
+  const result = applyApprovalDecision(record, decision, {
+    now: '2026-06-11T00:10:00.000Z'
+  });
+
+  assert.equal(result.decision_status, 'denied_no_execution');
+  assert.equal(result.approval_status, 'denied');
+  assert.equal(result.result.status, 'blocked_contract_only');
+});
+
+test('approved approval decision still cannot execute in Phase 1', async () => {
+  const record = await readJson('evals/fixtures/action_records/operatorkit_dry_run.blocked.json');
+  const decision = await readJson('evals/fixtures/approval_decisions/operatorkit_dry_run.approved.json');
+  const result = applyApprovalDecision(record, decision, {
+    now: '2026-06-11T00:10:00.000Z'
+  });
+
+  assert.equal(result.decision_status, 'approved_execution_disabled');
+  assert.equal(result.approval_status, 'approved');
+  assert.equal(result.result.status, 'blocked_contract_only');
+});
+
+test('expired approval decision is rejected', async () => {
+  const record = await readJson('evals/fixtures/action_records/operatorkit_dry_run.blocked.json');
+  const decision = await readJson('evals/fixtures/approval_decisions/operatorkit_dry_run.expired.json');
+  const result = applyApprovalDecision(record, decision, {
+    now: '2026-06-11T00:10:00.000Z'
+  });
+
+  assert.equal(result.decision_status, 'rejected_expired');
+  assert.ok(result.errors.includes('approval decision is expired'));
+});
+
+test('approval decision scope must match approval request', async () => {
+  const record = await readJson('evals/fixtures/action_records/operatorkit_dry_run.blocked.json');
+  const decision = await readJson('evals/fixtures/approval_decisions/operatorkit_dry_run.approved.json');
+  const mismatchedDecision = structuredClone(decision);
+  mismatchedDecision.scope.action = 'dispatch production workflow';
+
+  const errors = validateApprovalDecision(record, mismatchedDecision, {
+    now: '2026-06-11T00:10:00.000Z'
+  });
+
+  assert.ok(errors.some((error) => error.includes('scope action')));
+});
+
+test('runs approval decision eval suite', async () => {
+  const report = await runApprovalDecisionEvalSuite({
+    rootDir,
+    suitePath: 'evals/cases/approval.slice1.cases.json'
+  });
+
+  assert.equal(report.suite_id, 'approval.slice1');
+  assert.equal(report.summary.total, 3);
+  assert.equal(report.summary.passed, 3);
+  assert.equal(report.summary.failed, 0);
+});
+
+test('approval eval CLI prints passing report without writing by default', async () => {
+  const output = spawnSync(
+    process.execPath,
+    ['scripts/run-evals.mjs', '--kind', 'approval', '--suite', 'evals/cases/approval.slice1.cases.json'],
+    {
+      cwd: rootDir,
+      encoding: 'utf8'
+    }
+  );
+
+  assert.equal(output.status, 0, output.stderr);
+  const parsed = JSON.parse(output.stdout);
+  assert.equal(parsed.summary.total, 3);
   assert.equal(parsed.summary.failed, 0);
   assert.equal(parsed.report_write.status, 'not_written');
 });
