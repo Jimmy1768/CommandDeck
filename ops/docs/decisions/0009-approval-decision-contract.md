@@ -4,7 +4,7 @@ Status: Accepted for Phase 1 prototype.
 
 ## Context
 
-CommandKit now records approval requests for approval-required commands. It also
+CommandDeck now records approval requests for approval-required commands. It also
 needs a deterministic way to model future human decisions without dispatching
 OperatorKit, AppRelay, ManyMind, or any external system.
 

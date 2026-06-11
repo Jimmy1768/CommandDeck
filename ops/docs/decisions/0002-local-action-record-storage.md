@@ -4,7 +4,7 @@ Status: Accepted for Phase 1 prototype.
 
 ## Context
 
-CommandKit needs an accountability path before it can execute real workflows.
+CommandDeck needs an accountability path before it can execute real workflows.
 The first local shell already returns action-record-shaped JSON, but record
 persistence should be explicit and constrained while the repo remains a
 prototype.
@@ -15,7 +15,7 @@ Use one JSON file per action record under `records/actions/` when persistence is
 explicitly requested. The local CLI is print-only by default. Writing requires
 the `--write-record` flag.
 
-Record directories must be repo-relative and stay inside the CommandKit repo.
+Record directories must be repo-relative and stay inside the CommandDeck repo.
 Generated action record JSON files are gitignored by default.
 
 ## Consequences

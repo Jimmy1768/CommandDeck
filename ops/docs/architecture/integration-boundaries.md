@@ -1,12 +1,12 @@
 # Integration Boundaries
 
-CommandKit routes to neighboring systems by contract. It does not embed their
+CommandDeck routes to neighboring systems by contract. It does not embed their
 internal behavior.
 
 ## Codex
 
 Codex remains the coding interface for repo reasoning, code edits, tests,
-reviews, and implementation work. CommandKit may help set up or inspect the
+reviews, and implementation work. CommandDeck may help set up or inspect the
 workspace around Codex, but it does not replace Codex and should not become a
 voice-driven code editor.
 
@@ -16,13 +16,21 @@ permissioned.
 
 ## AppRelay
 
-CommandKit may ask AppRelay for LLM/runtime capability in later phases.
+CommandDeck may ask AppRelay for LLM/runtime capability in later phases.
 AppRelay remains responsible for provider selection, model routing, cost
 controls, tool dispatch policies, provider credentials, and future generated
 audio when needed.
 
+AppRelay can create cost, so CommandDeck must not enable AppRelay spend until a
+SourceGrid workspace attachment and payment-method readiness check have passed.
+SourceGrid is the billing anchor for AppRelay usage; owner repos are not.
+SourceGrid credits gate AppRelay reasoning, generated audio, and other
+SourceGrid-billed runtime routes only. Credit exhaustion must not disable voice
+capture, platform TTS, deterministic local commands, local reads, local drafts,
+or permitted local scripts.
+
 Siri, Shortcuts, Google voice, and similar voice platforms are adapters, not
-model/runtime providers for CommandKit. They may capture commands and speak or
+model/runtime providers for CommandDeck. They may capture commands and speak or
 play responses, but AppRelay remains the LLM/runtime path.
 
 Slice 1 status: no AppRelay calls. Fixtures may describe an intended
@@ -31,7 +39,7 @@ Slice 1 status: no AppRelay calls. Fixtures may describe an intended
 
 ## OperatorKit
 
-CommandKit may request bounded workflow dry runs or dispatches after future
+CommandDeck may request bounded workflow dry runs or dispatches after future
 approval gates. OperatorKit remains responsible for execution queues, node
 profiles, authority levels, returns, and execution records.
 
@@ -40,7 +48,7 @@ approval-required and blocked from execution.
 
 ## ManyMind
 
-CommandKit may request deep review or source-packet preparation in later phases.
+CommandDeck may request deep review or source-packet preparation in later phases.
 ManyMind remains the meeting, sleeve, source-packet, and decision-support
 workspace.
 
@@ -49,11 +57,12 @@ fixtures and not included in the first five MVP cases.
 
 ## Command Packs
 
-Command packs are owned by the company or user repo that configures them. This
-repo defines the pack contract but must not import SourceGrid-specific or
-partner-specific scripts.
+Command packs are owned by the company, user, or partner repo that provides the
+workspace routines. This repo defines the pack contract but must not import
+SourceGrid-specific or partner-specific scripts. Those repos are command-pack
+sources, not the CommandDeck billing or entitlement authority.
 
 Workspace command packs may include PC-command routines such as opening apps,
 switching devices, starting local services, or preparing drafts after future
 execution boundaries are defined. Those routines belong in owner repos or
-configured local folders, not in CommandKit core.
+configured local folders, not in CommandDeck core.

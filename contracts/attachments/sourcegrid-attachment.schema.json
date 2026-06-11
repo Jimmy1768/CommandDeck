@@ -1,0 +1,57 @@
+{
+  "schema_version": "0.1",
+  "contract_kind": "sourcegrid-attachment",
+  "attachment_owner": "sourcegrid",
+  "billing_owner": "sourcegrid_workspace",
+  "commanddeck_stores_payment_data": false,
+  "apprelay_cost_owner": "sourcegrid_workspace",
+  "sourcegrid_credit_gate_scope": [
+    "apprelay_reasoning",
+    "apprelay_audio",
+    "other_sourcegrid_billed_runtime_routes"
+  ],
+  "not_blocked_by_credit_exhaustion": [
+    "voice_capture_surface",
+    "platform_tts",
+    "local_exact_commands",
+    "local_read_commands",
+    "local_draft_commands",
+    "permitted_local_scripts"
+  ],
+  "required": [
+    "schema_version",
+    "status",
+    "billing_owner",
+    "payment_method_state",
+    "apprelay_spend_policy",
+    "command_pack_owner_repos"
+  ],
+  "allowed_statuses": [
+    "not_attached",
+    "contract_only",
+    "attached"
+  ],
+  "allowed_payment_method_states": [
+    "missing",
+    "verified",
+    "not_required_contract_only"
+  ],
+  "allowed_apprelay_spend_policies": [
+    "disabled_until_payment_verified",
+    "contract_only_no_spend",
+    "enabled_after_payment_verified"
+  ],
+  "forbidden_local_payment_fields": [
+    "card_number",
+    "cvv",
+    "cvc",
+    "raw_payment_method",
+    "payment_token",
+    "stripe_secret_key",
+    "stripe_publishable_key",
+    "stripe_payment_method_id"
+  ],
+  "owner_repo_role": "command_pack_source_only",
+  "phase_1_network_calls_enabled": false,
+  "phase_1_apprelay_spend_enabled": false
+}

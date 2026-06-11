@@ -5,7 +5,7 @@
   "items": [
     {
       "id": "op_001",
-      "title": "CommandKit contract review",
+      "title": "CommandDeck contract review",
       "status": "waiting_review",
       "risk": "low"
     },

@@ -1,6 +1,6 @@
 # Command-Pack Loading Contract
 
-CommandKit Phase 1 supports one selected JSON command pack per local command
+CommandDeck Phase 1 supports one selected JSON command pack per local command
 run. The default pack is:
 
 ```text

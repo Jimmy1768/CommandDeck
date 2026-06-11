@@ -4,7 +4,7 @@ Status: Accepted for slice 1.
 
 ## Context
 
-CommandKit needs a safe initial repo shape before any adapter, runtime, or
+CommandDeck needs a safe initial repo shape before any adapter, runtime, or
 execution integration exists.
 
 ## Decision

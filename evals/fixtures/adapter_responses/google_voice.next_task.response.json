@@ -1,8 +1,8 @@
 {
   "schema_version": "0.1",
   "adapter": "google_voice",
-  "display_text": "Next task: Review CommandKit repo skeleton.",
-  "spoken_text": "Next task: Review CommandKit repo skeleton.",
+  "display_text": "Next task: Review CommandDeck repo skeleton.",
+  "spoken_text": "Next task: Review CommandDeck repo skeleton.",
   "record_ref": "rec_fixture_next_sourcegrid_task_google",
   "permission_level": "read-only",
   "approval_status": "not_required",

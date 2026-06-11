@@ -1,7 +1,7 @@
 {
   "schema_version": "0.1",
-  "pack_id": "commandkit.fixture.generic_read_draft",
-  "owner": "command-kit",
+  "pack_id": "commanddeck.fixture.generic_read_draft",
+  "owner": "command-deck",
   "permissions": "contracts/permissions/permission-levels.json",
   "record_policy": {
     "record_schema": "contracts/records/action-record.schema.json",
@@ -10,8 +10,8 @@
   "commands": [
     {
       "command_id": "fixture.current_repo_summary",
-      "title": "Summarize this CommandKit repo fixture.",
-      "example_utterances": ["Summarize this CommandKit repo fixture."],
+      "title": "Summarize this CommandDeck repo fixture.",
+      "example_utterances": ["Summarize this CommandDeck repo fixture."],
       "permission_level": "read-only",
       "route": "local.fixture_read",
       "allowed_effects": ["read_local_fixture"],

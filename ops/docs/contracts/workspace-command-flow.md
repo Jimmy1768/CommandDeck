@@ -1,6 +1,6 @@
 # Workspace Command Flow Contract
 
-CommandKit is a command-flow layer for a user's workspace. The PC is the
+CommandDeck is a command-flow layer for a user's workspace. The PC is the
 command runner for local apps, devices, services, scripts, and development
 state. For SourceGrid, the first command runner is the user's Apple PC.
 
@@ -19,6 +19,11 @@ Future command packs may define permissioned routines for:
 - preparing local draft artifacts;
 - asking neighboring systems for bounded help through declared routes.
 
+Exact local routines should not require AppRelay or SourceGrid credits. They
+should run through deterministic command-pack matches and local permission
+checks. AppRelay is reserved for reasoning, summarization, ambiguity resolution,
+or generated response modes.
+
 ## First Mode
 
 The first working mode is:
@@ -26,7 +31,7 @@ The first working mode is:
 ```text
 Phone Siri
   -> Apple Shortcut
-  -> PC CommandKit runner
+  -> PC CommandDeck runner
   -> sourcegrid-labs command pack and scripts
   -> local apps/services/devices
   -> adapter_response.spoken_text back to the capture surface
@@ -61,7 +66,7 @@ After the Apple-PC mode works, the same contract can support:
 ## Code Editing Rule
 
 If editing code, work from the PC in Codex or the normal local development
-toolchain. CommandKit may prepare or inspect the workspace, but it does not
+toolchain. CommandDeck may prepare or inspect the workspace, but it does not
 edit code by voice and does not replace Codex.
 
 ## Phase 1 Boundary

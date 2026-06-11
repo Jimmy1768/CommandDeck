@@ -7,9 +7,10 @@ import { spawnSync } from 'node:child_process';
 import {
   applyApprovalDecision,
   buildAdapterResponseEnvelope,
+  buildSourceGridAttachmentStatus,
   classifyCommand,
   loadAdapterRequest,
-  loadCommandKitConfig,
+  loadCommandDeckConfig,
   loadCommandPack,
   normalizeUtterance,
   resolveEvalReportPath,
@@ -20,9 +21,10 @@ import {
   validateAdapterRequest,
   validateAdapterResponseEnvelope,
   validateApprovalDecision,
-  validateCommandKitConfig,
+  validateCommandDeckConfig,
   validateCommandPack,
   validateCommandPackRoots,
+  validateSourceGridAttachment,
   writeEvalReport,
   writeActionRecord
 } from '../packages/shell-core/index.mjs';
@@ -64,7 +66,7 @@ test('answers read-only MVP command from fixture only', async () => {
   assert.equal(result.record.permission_level, 'read-only');
   assert.equal(result.record.approval_status, 'not_required');
   assert.equal(result.record.result.status, 'answered_from_fixture');
-  assert.match(result.response_text, /Review CommandKit repo skeleton/);
+  assert.match(result.response_text, /Review CommandDeck repo skeleton/);
   assert.equal(result.adapter_response.display_text, result.response_text);
   assert.equal(result.adapter_response.spoken_text, result.response_text);
   assert.equal(result.adapter_response.record_ref, result.record.record_id);
@@ -86,7 +88,7 @@ test('Siri request gets platform TTS adapter response without platform reasoning
 
   assert.equal(result.adapter_response.adapter, 'apple_shortcuts');
   assert.equal(result.adapter_response.response_mode, 'platform_tts');
-  assert.equal(result.adapter_response.spoken_text, 'Next task: Review CommandKit repo skeleton.');
+  assert.equal(result.adapter_response.spoken_text, 'Next task: Review CommandDeck repo skeleton.');
   assert.equal(result.adapter_response.display_text, result.adapter_response.spoken_text);
   assert.equal(result.adapter_response.reasoning_owner, 'apprelay');
   assert.equal(result.adapter_response.platform_reasoning_used, false);
@@ -186,7 +188,7 @@ test('adapter response envelope validates required fields and disabled audio', (
 });
 
 test('writes action records only when called explicitly', async () => {
-  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'command-kit-records-'));
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'command-deck-records-'));
   const result = await runLocalCommand(
     {
       command_text: 'What is my next SourceGrid task?'
@@ -207,8 +209,8 @@ test('writes action records only when called explicitly', async () => {
 });
 
 test('record directories must stay repo-relative', () => {
-  assert.throws(() => resolveRecordDir(rootDir, '/tmp/command-kit-records'));
-  assert.throws(() => resolveRecordDir(rootDir, '../outside-command-kit'));
+  assert.throws(() => resolveRecordDir(rootDir, '/tmp/command-deck-records'));
+  assert.throws(() => resolveRecordDir(rootDir, '../outside-command-deck'));
   assert.equal(resolveRecordDir(rootDir, 'records/actions'), path.join(rootDir, 'records/actions'));
 });
 
@@ -216,7 +218,7 @@ test('CLI is print-only by default and does not create the requested record dire
   const recordDir = `records/no-write-${Date.now()}`;
   const output = spawnSync(
     process.execPath,
-    ['bin/command-kit.mjs', '--record-dir', recordDir, 'What is my next SourceGrid task?'],
+    ['bin/command-deck.mjs', '--record-dir', recordDir, 'What is my next SourceGrid task?'],
     {
       cwd: rootDir,
       encoding: 'utf8'
@@ -232,7 +234,7 @@ test('CLI is print-only by default and does not create the requested record dire
 test('loads the default command pack through validation', async () => {
   const pack = await loadCommandPack({ rootDir });
 
-  assert.equal(pack.pack_id, 'commandkit.mvp.slice1');
+  assert.equal(pack.pack_id, 'commanddeck.mvp.slice1');
   assert.equal(pack.commands.length, 5);
 });
 
@@ -280,7 +282,7 @@ test('command pack paths must stay inside the repo', async () => {
     () =>
       loadCommandPack({
         rootDir,
-        commandPackPath: '../outside-command-kit.json'
+        commandPackPath: '../outside-command-deck.json'
       }),
     /inside the repo/
   );
@@ -290,7 +292,7 @@ test('CLI accepts an explicit command pack without writing records', async () =>
   const output = spawnSync(
     process.execPath,
     [
-      'bin/command-kit.mjs',
+      'bin/command-deck.mjs',
       '--command-pack',
       'contracts/commands/mvp-commands.json',
       'What is my next SourceGrid task?'
@@ -308,7 +310,7 @@ test('CLI accepts an explicit command pack without writing records', async () =>
 });
 
 test('uses safe config defaults when no local config file exists', async () => {
-  const config = await loadCommandKitConfig({ rootDir });
+  const config = await loadCommandDeckConfig({ rootDir });
 
   assert.equal(config.config_path, null);
   assert.equal(config.default_command_pack, 'contracts/commands/mvp-commands.json');
@@ -317,20 +319,61 @@ test('uses safe config defaults when no local config file exists', async () => {
 });
 
 test('loads the explicit example config', async () => {
-  const config = await loadCommandKitConfig({
+  const config = await loadCommandDeckConfig({
     rootDir,
-    configPath: 'commandkit.config.example.json'
+    configPath: 'commanddeck.config.example.json'
   });
 
-  assert.equal(config.config_path, 'commandkit.config.example.json');
+  assert.equal(config.config_path, 'commanddeck.config.example.json');
   assert.equal(config.default_command_pack, 'contracts/commands/mvp-commands.json');
   assert.equal(config.default_write_records, false);
   assert.equal(config.command_pack_roots[0].discovery_mode, 'metadata_only');
   assert.equal(config.command_pack_roots[1].repo_slug, 'sourcegrid-labs');
+  assert.equal(config.sourcegrid_attachment.billing_owner, 'sourcegrid_workspace');
+  assert.equal(config.sourcegrid_attachment.payment_method_state, 'missing');
+  assert.equal(config.sourcegrid_attachment.command_pack_owner_repos[0], 'sourcegrid-labs');
+});
+
+test('builds SourceGrid attachment status without enabling AppRelay spend', async () => {
+  const config = await loadCommandDeckConfig({
+    rootDir,
+    configPath: 'commanddeck.config.example.json'
+  });
+
+  const status = buildSourceGridAttachmentStatus(config);
+
+  assert.equal(status.status, 'contract_only');
+  assert.equal(status.billing_owner, 'sourcegrid_workspace');
+  assert.equal(status.payment_method_state, 'missing');
+  assert.equal(status.apprelay_spend_ready, false);
+  assert.equal(status.command_pack_repo_ready, true);
+  assert.equal(status.local_routes_available_without_credits, true);
+  assert.equal(status.voice_capture_available_without_credits, true);
+  assert.equal(status.platform_tts_available_without_credits, true);
+  assert.ok(status.sourcegrid_credit_gate_scope.includes('apprelay_reasoning'));
+  assert.equal(status.local_payment_data_allowed, false);
+  assert.deepEqual(status.errors, []);
+});
+
+test('rejects SourceGrid attachment with raw payment fields', () => {
+  const errors = validateSourceGridAttachment({
+    schema_version: '0.1',
+    status: 'attached',
+    sourcegrid_workspace_ref: 'workspace_sourcegrid_fixture',
+    sourcegrid_account_ref: 'account_sourcegrid_fixture',
+    billing_owner: 'sourcegrid_workspace',
+    payment_method_state: 'verified',
+    payment_method_label: 'Visa ending 4242',
+    apprelay_spend_policy: 'enabled_after_payment_verified',
+    command_pack_owner_repos: ['sourcegrid-labs'],
+    card_number: '4242424242424242'
+  });
+
+  assert.ok(errors.some((error) => error.includes('forbidden field card_number')));
 });
 
 test('loads metadata-only pack discovery fixture config', async () => {
-  const config = await loadCommandKitConfig({
+  const config = await loadCommandDeckConfig({
     rootDir,
     configPath: 'evals/fixtures/pack_discovery/metadata-only.config.json'
   });
@@ -342,7 +385,7 @@ test('loads metadata-only pack discovery fixture config', async () => {
 });
 
 test('rejects configs that enable writes or include nested secret-bearing fields', () => {
-  const errors = validateCommandKitConfig(
+  const errors = validateCommandDeckConfig(
     {
       schema_version: '0.1',
       default_command_pack: 'contracts/commands/mvp-commands.json',
@@ -365,7 +408,7 @@ test('rejects configs that enable writes or include nested secret-bearing fields
 
 test('rejects unsafe pack discovery roots', async () => {
   const unsafeConfig = await readJson('evals/fixtures/pack_discovery/unsafe-executable.config.json');
-  const errors = validateCommandKitConfig(unsafeConfig, { rootDir });
+  const errors = validateCommandDeckConfig(unsafeConfig, { rootDir });
 
   assert.ok(errors.some((error) => error.includes('discovery_mode must be metadata_only')));
   assert.ok(errors.some((error) => error.includes('forbidden field script')));
@@ -386,7 +429,7 @@ test('pack discovery roots enforce repo fixture and local-only path boundaries',
       {
         id: 'bad_local',
         kind: 'local-folder',
-        path: '.commandkit/command-packs',
+        path: '.commanddeck/command-packs',
         enabled: false,
         discovery_mode: 'metadata_only'
       },
@@ -410,9 +453,9 @@ test('pack discovery roots enforce repo fixture and local-only path boundaries',
 test('config paths must stay inside the repo', async () => {
   await assert.rejects(
     () =>
-      loadCommandKitConfig({
+      loadCommandDeckConfig({
         rootDir,
-        configPath: '/tmp/commandkit.config.json'
+        configPath: '/tmp/commanddeck.config.json'
       }),
     /repo-relative/
   );
@@ -421,7 +464,7 @@ test('config paths must stay inside the repo', async () => {
 test('CLI accepts explicit config without enabling record writes', async () => {
   const output = spawnSync(
     process.execPath,
-    ['bin/command-kit.mjs', '--config', 'commandkit.config.example.json', 'What is my next SourceGrid task?'],
+    ['bin/command-deck.mjs', '--config', 'commanddeck.config.example.json', 'What is my next SourceGrid task?'],
     {
       cwd: rootDir,
       encoding: 'utf8'
@@ -432,6 +475,26 @@ test('CLI accepts explicit config without enabling record writes', async () => {
   const parsed = JSON.parse(output.stdout);
   assert.equal(parsed.record.command_id, 'mvp.next_sourcegrid_task');
   assert.equal(parsed.record_write.status, 'not_written');
+});
+
+test('CLI reports SourceGrid attachment and AppRelay billing readiness', async () => {
+  const output = spawnSync(
+    process.execPath,
+    ['bin/command-deck.mjs', 'sourcegrid:status', '--config', 'commanddeck.config.example.json'],
+    {
+      cwd: rootDir,
+      encoding: 'utf8'
+    }
+  );
+
+  assert.equal(output.status, 0, output.stderr);
+  const parsed = JSON.parse(output.stdout);
+  assert.equal(parsed.status, 'contract_only');
+  assert.equal(parsed.sourcegrid_workspace_ref, 'workspace_sourcegrid_fixture');
+  assert.equal(parsed.payment_method_state, 'missing');
+  assert.equal(parsed.apprelay_spend_ready, false);
+  assert.equal(parsed.local_routes_available_without_credits, true);
+  assert.equal(parsed.local_payment_data_allowed, false);
 });
 
 test('loads a Siri Shortcuts-shaped adapter request fixture', async () => {
@@ -527,7 +590,7 @@ test('CLI accepts adapter request files without writing records', async () => {
   const output = spawnSync(
     process.execPath,
     [
-      'bin/command-kit.mjs',
+      'bin/command-deck.mjs',
       '--request-file',
       'evals/fixtures/adapter_requests/apple_shortcuts.next_task.json'
     ],
@@ -551,7 +614,7 @@ test('CLI accepts Google voice request files without writing records', async () 
   const output = spawnSync(
     process.execPath,
     [
-      'bin/command-kit.mjs',
+      'bin/command-deck.mjs',
       '--request-file',
       'evals/fixtures/adapter_requests/google_voice.next_task.json'
     ],
@@ -597,7 +660,7 @@ test('eval report paths must stay under evals reports as JSON', () => {
 });
 
 test('writes eval reports only when called explicitly', async () => {
-  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'command-kit-evals-'));
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'command-deck-evals-'));
   const report = await runEvalSuite({
     rootDir,
     suitePath: 'evals/cases/mvp.slice1.cases.json',

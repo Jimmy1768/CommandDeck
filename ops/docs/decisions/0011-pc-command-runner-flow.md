@@ -4,7 +4,7 @@ Status: Accepted for Phase 1 prototype.
 
 ## Context
 
-CommandKit's purpose was unclear if framed as "voice access to coding." Codex
+CommandDeck's purpose was unclear if framed as "voice access to coding." Codex
 already supports voice input and is the correct interface for code editing,
 repo reasoning, patch generation, test loops, and implementation work.
 
@@ -15,7 +15,7 @@ development context. For SourceGrid, the first runner is the user's Apple PC.
 
 ## Decision
 
-CommandKit assists the user's command flow. It connects voice and shortcut
+CommandDeck assists the user's command flow. It connects voice and shortcut
 invocations to permissioned local workspace commands.
 
 The first working mode is a phone Siri surface and the local PC as the command
@@ -24,7 +24,7 @@ runner:
 ```text
 Hey Siri, command <command>
   -> Apple Shortcut
-  -> PC CommandKit runner
+  -> PC CommandDeck runner
   -> sourcegrid-labs command pack and scripts
 ```
 
@@ -42,7 +42,7 @@ Examples of intended future command domains:
 - prepare draft notes or handoffs;
 - route bounded work to AppRelay, OperatorKit, or ManyMind by contract.
 
-CommandKit must not replace Codex. If editing code, the user works from the
+CommandDeck must not replace Codex. If editing code, the user works from the
 PC in Codex or the normal development toolchain.
 
 ## Consequences

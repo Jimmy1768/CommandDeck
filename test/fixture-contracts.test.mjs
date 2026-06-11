@@ -76,6 +76,24 @@ test('pack discovery schema is metadata-only and non-executing', async () => {
   assert.equal(schema.allowed_repo_fixture_root, 'evals/fixtures/command-packs');
 });
 
+test('SourceGrid attachment schema keeps billing anchor outside owner repos', async () => {
+  const schema = await readJson('contracts/attachments/sourcegrid-attachment.schema.json');
+
+  assert.equal(schema.contract_kind, 'sourcegrid-attachment');
+  assert.equal(schema.attachment_owner, 'sourcegrid');
+  assert.equal(schema.billing_owner, 'sourcegrid_workspace');
+  assert.equal(schema.commanddeck_stores_payment_data, false);
+  assert.equal(schema.owner_repo_role, 'command_pack_source_only');
+  assert.equal(schema.phase_1_apprelay_spend_enabled, false);
+  assert.ok(schema.sourcegrid_credit_gate_scope.includes('apprelay_reasoning'));
+  assert.ok(schema.not_blocked_by_credit_exhaustion.includes('local_exact_commands'));
+  assert.ok(schema.not_blocked_by_credit_exhaustion.includes('voice_capture_surface'));
+  assert.ok(schema.allowed_payment_method_states.includes('missing'));
+  assert.ok(schema.allowed_payment_method_states.includes('verified'));
+  assert.ok(schema.forbidden_local_payment_fields.includes('card_number'));
+  assert.ok(schema.forbidden_local_payment_fields.includes('stripe_secret_key'));
+});
+
 test('generic command-pack fixtures validate without becoming executable integrations', async () => {
   const fixtureDir = path.join(root, 'evals/fixtures/command-packs');
   const fixtureFiles = (await readdir(fixtureDir)).filter((file) => file.endsWith('.json')).sort();
@@ -113,6 +131,12 @@ test('command routes and permission levels match route contracts', async () => {
       route.allowed_permission_levels.includes(command.permission_level),
       `${command.command_id} permission must be allowed by ${command.route}`
     );
+
+    if (route.system === 'apprelay') {
+      assert.equal(route.credit_policy, 'sourcegrid_credits_required_for_real_apprelay_spend');
+    } else if (route.id.startsWith('local.')) {
+      assert.equal(route.credit_policy, 'no_sourcegrid_credits_required');
+    }
   }
 });
 
@@ -167,7 +191,7 @@ test('voice adapters are IO surfaces and AppRelay owns reasoning', async () => {
 
   assert.equal(contract.voice_adapters_are_io_surfaces, true);
   assert.equal(contract.reasoning_owner, 'apprelay');
-  assert.equal(contract.command_shell_owner, 'command-kit');
+  assert.equal(contract.command_shell_owner, 'command-deck');
 
   const adaptersById = new Map(contract.adapters.map((adapter) => [adapter.id, adapter]));
   assert.equal(adaptersById.get('apple_shortcuts').provides_reasoning, false);

@@ -4,7 +4,7 @@ Status: Accepted for Phase 1 prototype.
 
 ## Context
 
-CommandKit needs a bridge between the Siri/Shortcuts adapter contract and the
+CommandDeck needs a bridge between the Siri/Shortcuts adapter contract and the
 local shell before any private endpoint or device integration exists.
 
 ## Decision

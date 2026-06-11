@@ -1,6 +1,6 @@
 # Permission Levels
 
-CommandKit separates authentication from authorization. A valid actor identity
+CommandDeck separates authentication from authorization. A valid actor identity
 does not imply permission to perform an action.
 
 Every material command resolves:

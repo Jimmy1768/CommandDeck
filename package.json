@@ -1,14 +1,14 @@
 {
-  "name": "command-kit",
+  "name": "command-deck",
   "version": "0.0.0",
   "private": true,
-  "description": "Local-first CommandKit contract skeleton.",
+  "description": "Local-first CommandDeck contract skeleton.",
   "type": "module",
   "bin": {
-    "command-kit": "bin/command-kit.mjs"
+    "command-deck": "bin/command-deck.mjs"
   },
   "scripts": {
-    "command:local": "node bin/command-kit.mjs",
+    "command:local": "node bin/command-deck.mjs",
     "eval:approval": "node scripts/run-evals.mjs --kind approval --suite evals/cases/approval.slice1.cases.json",
     "eval:mvp": "node scripts/run-evals.mjs",
     "eval:safety": "node scripts/run-evals.mjs --suite evals/cases/safety.slice1.cases.json",

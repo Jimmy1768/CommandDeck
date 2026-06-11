@@ -1,16 +1,23 @@
 #!/usr/bin/env node
 import process from 'node:process';
 import {
+  buildSourceGridAttachmentStatus,
   loadAdapterRequest,
-  loadCommandKitConfig,
+  loadCommandDeckConfig,
   runLocalCommand,
   writeActionRecord
 } from '../packages/shell-core/index.mjs';
 
 const parsed = parseArgs(process.argv.slice(2));
-const config = await loadCommandKitConfig({
+const config = await loadCommandDeckConfig({
   configPath: parsed.config
 });
+
+if (['sourcegrid:status', 'attachment:status'].includes(parsed.subcommand)) {
+  console.log(JSON.stringify(buildSourceGridAttachmentStatus(config), null, 2));
+  process.exit(0);
+}
+
 const adapterRequest = parsed.requestFile
   ? await loadAdapterRequest({
       requestPath: parsed.requestFile
@@ -25,7 +32,7 @@ if (parsed.requestFile && parsed.commandText) {
 
 if (!commandText) {
   console.error(
-    'Usage: command-kit [--request-file evals/fixtures/adapter_requests/apple_shortcuts.next_task.json] [--config commandkit.config.json] [--command-pack contracts/commands/mvp-commands.json] [--write-record] [--record-dir records/actions] "What is my next SourceGrid task?"'
+    'Usage: command-deck [sourcegrid:status] [--request-file evals/fixtures/adapter_requests/apple_shortcuts.next_task.json] [--config commanddeck.config.json] [--command-pack contracts/commands/mvp-commands.json] [--write-record] [--record-dir records/actions] "What is my next SourceGrid task?"'
   );
   process.exit(2);
 }
@@ -55,15 +62,22 @@ if (parsed.writeRecord) {
 console.log(JSON.stringify(result, null, 2));
 
 function parseArgs(args) {
+  const subcommands = new Set(['sourcegrid:status', 'attachment:status']);
   const commandParts = [];
   let writeRecord = false;
   let recordDir = null;
   let commandPack = null;
   let config = null;
   let requestFile = null;
+  let subcommand = null;
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
+
+    if (index === 0 && subcommands.has(arg)) {
+      subcommand = arg;
+      continue;
+    }
 
     if (arg === '--write-record') {
       writeRecord = true;
@@ -103,6 +117,7 @@ function parseArgs(args) {
     recordDir,
     commandPack,
     config,
-    requestFile
+    requestFile,
+    subcommand
   };
 }

@@ -4,14 +4,26 @@ import path from 'node:path';
 
 const DEFAULT_ACTOR = 'local_prototype';
 const DEFAULT_ADAPTER = 'local_cli';
-const DEFAULT_CONFIG_PATH = 'commandkit.config.json';
+const DEFAULT_CONFIG_PATH = 'commanddeck.config.json';
 const DEFAULT_COMMAND_PACK_PATH = 'contracts/commands/mvp-commands.json';
 const DEFAULT_RECORD_DIR = 'records/actions';
+const DEFAULT_SOURCEGRID_ATTACHMENT = {
+  schema_version: '0.1',
+  status: 'not_attached',
+  sourcegrid_workspace_ref: null,
+  sourcegrid_account_ref: null,
+  billing_owner: 'sourcegrid_workspace',
+  payment_method_state: 'missing',
+  payment_method_label: null,
+  apprelay_spend_policy: 'disabled_until_payment_verified',
+  command_pack_owner_repos: []
+};
 const DEFAULT_CONFIG = {
   schema_version: '0.1',
   default_command_pack: DEFAULT_COMMAND_PACK_PATH,
   default_record_dir: DEFAULT_RECORD_DIR,
-  default_write_records: false
+  default_write_records: false,
+  sourcegrid_attachment: DEFAULT_SOURCEGRID_ATTACHMENT
 };
 const FORBIDDEN_ALLOWED_EFFECTS = new Set([
   'payment',
@@ -29,7 +41,20 @@ const FORBIDDEN_ALLOWED_EFFECTS = new Set([
   'provider_call'
 ]);
 const FORBIDDEN_COMMAND_FIELDS = ['script', 'scripts', 'shell', 'executable', 'handler', 'env', 'secrets'];
-const FORBIDDEN_CONFIG_FIELDS = ['provider_keys', 'secrets', 'env', 'execute_now_enabled'];
+const FORBIDDEN_CONFIG_FIELDS = [
+  'provider_keys',
+  'secrets',
+  'env',
+  'execute_now_enabled',
+  'card_number',
+  'cvv',
+  'cvc',
+  'raw_payment_method',
+  'payment_token',
+  'stripe_secret_key',
+  'stripe_publishable_key',
+  'stripe_payment_method_id'
+];
 const FORBIDDEN_DISCOVERY_ROOT_FIELDS = [
   ...FORBIDDEN_CONFIG_FIELDS,
   'script',
@@ -40,6 +65,13 @@ const FORBIDDEN_DISCOVERY_ROOT_FIELDS = [
 ];
 const ALLOWED_DISCOVERY_ROOT_KINDS = new Set(['repo-fixture', 'owner-repo', 'local-folder']);
 const ALLOWED_DISCOVERY_MODES = new Set(['metadata_only']);
+const ALLOWED_SOURCEGRID_ATTACHMENT_STATUSES = new Set(['not_attached', 'contract_only', 'attached']);
+const ALLOWED_PAYMENT_METHOD_STATES = new Set(['missing', 'verified', 'not_required_contract_only']);
+const ALLOWED_APPRELAY_SPEND_POLICIES = new Set([
+  'disabled_until_payment_verified',
+  'contract_only_no_spend',
+  'enabled_after_payment_verified'
+]);
 const FORBIDDEN_ADAPTER_REQUEST_FIELDS = [
   'provider_keys',
   'secrets',
@@ -90,7 +122,7 @@ export async function runLocalCommand(input, options = {}) {
       input,
       timestamp,
       commandText,
-      summary: 'CommandKit could not classify this command from the slice 1 command pack.'
+      summary: 'CommandDeck could not classify this command from the slice 1 command pack.'
     });
   }
 
@@ -167,7 +199,7 @@ export async function loadCommandPack(options = {}) {
   return pack;
 }
 
-export async function loadCommandKitConfig(options = {}) {
+export async function loadCommandDeckConfig(options = {}) {
   const rootDir = options.rootDir ?? path.resolve(import.meta.dirname, '../..');
   const configPath = options.configPath ?? DEFAULT_CONFIG_PATH;
 
@@ -176,10 +208,10 @@ export async function loadCommandKitConfig(options = {}) {
   }
 
   const config = await readRepoRelativeJson(rootDir, configPath);
-  const errors = validateCommandKitConfig(config, { rootDir });
+  const errors = validateCommandDeckConfig(config, { rootDir });
 
   if (errors.length > 0) {
-    throw new Error(`invalid CommandKit config ${configPath}: ${errors.join('; ')}`);
+    throw new Error(`invalid CommandDeck config ${configPath}: ${errors.join('; ')}`);
   }
 
   return {
@@ -544,7 +576,7 @@ export function compareApprovalDecisionEvalCase(evalCase, decisionResult) {
   ];
 }
 
-export function validateCommandKitConfig(config, { rootDir }) {
+export function validateCommandDeckConfig(config, { rootDir }) {
   const errors = [];
 
   if (!config || typeof config !== 'object') {
@@ -577,8 +609,120 @@ export function validateCommandKitConfig(config, { rootDir }) {
   }
 
   errors.push(...validateCommandPackRoots(config.command_pack_roots, { rootDir }));
+  errors.push(...validateSourceGridAttachment(config.sourcegrid_attachment));
 
   return errors;
+}
+
+export function validateSourceGridAttachment(attachment) {
+  const errors = [];
+
+  if (attachment === undefined) {
+    return errors;
+  }
+
+  if (!attachment || typeof attachment !== 'object') {
+    return ['sourcegrid_attachment must be an object'];
+  }
+
+  const forbiddenFields = findForbiddenFields(attachment, FORBIDDEN_CONFIG_FIELDS);
+  for (const field of forbiddenFields) {
+    errors.push(`sourcegrid_attachment includes forbidden field ${field}`);
+  }
+
+  for (const field of [
+    'schema_version',
+    'status',
+    'billing_owner',
+    'payment_method_state',
+    'apprelay_spend_policy',
+    'command_pack_owner_repos'
+  ]) {
+    if (!(field in attachment)) {
+      errors.push(`sourcegrid_attachment missing field ${field}`);
+    }
+  }
+
+  if (attachment.schema_version !== '0.1') {
+    errors.push('sourcegrid_attachment schema_version must be 0.1');
+  }
+
+  if (!ALLOWED_SOURCEGRID_ATTACHMENT_STATUSES.has(attachment.status)) {
+    errors.push(`sourcegrid_attachment status must be one of ${[...ALLOWED_SOURCEGRID_ATTACHMENT_STATUSES].join(', ')}`);
+  }
+
+  if (attachment.billing_owner !== 'sourcegrid_workspace') {
+    errors.push('sourcegrid_attachment billing_owner must be sourcegrid_workspace');
+  }
+
+  if (!ALLOWED_PAYMENT_METHOD_STATES.has(attachment.payment_method_state)) {
+    errors.push(`sourcegrid_attachment payment_method_state must be one of ${[...ALLOWED_PAYMENT_METHOD_STATES].join(', ')}`);
+  }
+
+  if (!ALLOWED_APPRELAY_SPEND_POLICIES.has(attachment.apprelay_spend_policy)) {
+    errors.push(`sourcegrid_attachment apprelay_spend_policy must be one of ${[...ALLOWED_APPRELAY_SPEND_POLICIES].join(', ')}`);
+  }
+
+  if (!Array.isArray(attachment.command_pack_owner_repos)) {
+    errors.push('sourcegrid_attachment command_pack_owner_repos must be an array');
+  } else {
+    for (const repoSlug of attachment.command_pack_owner_repos) {
+      if (typeof repoSlug !== 'string' || repoSlug.length === 0) {
+        errors.push('sourcegrid_attachment command_pack_owner_repos must contain repo slugs');
+      }
+    }
+  }
+
+  if (attachment.payment_method_label !== null && typeof attachment.payment_method_label !== 'string') {
+    errors.push('sourcegrid_attachment payment_method_label must be null or a non-sensitive display string');
+  }
+
+  if (attachment.status === 'attached') {
+    if (!attachment.sourcegrid_workspace_ref || typeof attachment.sourcegrid_workspace_ref !== 'string') {
+      errors.push('sourcegrid_attachment attached status requires sourcegrid_workspace_ref');
+    }
+
+    if (!attachment.sourcegrid_account_ref || typeof attachment.sourcegrid_account_ref !== 'string') {
+      errors.push('sourcegrid_attachment attached status requires sourcegrid_account_ref');
+    }
+
+    if (attachment.payment_method_state !== 'verified') {
+      errors.push('sourcegrid_attachment attached status requires verified payment_method_state');
+    }
+  }
+
+  return errors;
+}
+
+export function buildSourceGridAttachmentStatus(config = {}) {
+  const attachment = config.sourcegrid_attachment ?? DEFAULT_SOURCEGRID_ATTACHMENT;
+  const errors = validateSourceGridAttachment(attachment);
+  const paymentMethodReady = attachment.payment_method_state === 'verified';
+  const appRelaySpendReady =
+    attachment.status === 'attached' &&
+    paymentMethodReady &&
+    attachment.apprelay_spend_policy === 'enabled_after_payment_verified';
+
+  return {
+    schema_version: '0.1',
+    status: errors.length > 0 ? 'invalid' : attachment.status,
+    sourcegrid_workspace_ref: attachment.sourcegrid_workspace_ref ?? null,
+    sourcegrid_account_ref: attachment.sourcegrid_account_ref ?? null,
+    billing_owner: attachment.billing_owner ?? 'sourcegrid_workspace',
+    payment_method_state: attachment.payment_method_state ?? 'missing',
+    payment_method_label: attachment.payment_method_label ?? null,
+    apprelay_spend_policy: attachment.apprelay_spend_policy ?? 'disabled_until_payment_verified',
+    apprelay_spend_ready: appRelaySpendReady,
+    command_pack_owner_repos: attachment.command_pack_owner_repos ?? [],
+    command_pack_repo_ready: Array.isArray(attachment.command_pack_owner_repos) && attachment.command_pack_owner_repos.length > 0,
+    sourcegrid_credit_gate_scope: ['apprelay_reasoning', 'apprelay_audio', 'other_sourcegrid_billed_runtime_routes'],
+    local_routes_available_without_credits: true,
+    voice_capture_available_without_credits: true,
+    platform_tts_available_without_credits: true,
+    sourcegrid_required: true,
+    local_payment_data_allowed: false,
+    errors
+  };
 }
 
 export function validateCommandPackRoots(commandPackRoots, { rootDir }) {

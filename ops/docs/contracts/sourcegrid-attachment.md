@@ -1,0 +1,86 @@
+# SourceGrid Attachment Contract
+
+CommandDeck must attach to a SourceGrid workspace before any path can spend
+money through AppRelay. The declared owner repo is not the account of record.
+It is only a source for command packs and local workspace scripts.
+
+## Ownership
+
+- SourceGrid owns identity, entitlement, billing profile, and payment method
+  state.
+- CommandDeck owns local command intake, permission checks, routing contracts,
+  adapter responses, and action records.
+- Owner repos such as `sourcegrid-labs` own command packs and workspace
+  routines.
+- AppRelay owns LLM/runtime capability and may create billable usage only after
+  SourceGrid attachment and payment checks pass.
+
+## Local Contract
+
+`sourcegrid_attachment` in `commanddeck.config.example.json` is contract-only in
+Phase 1:
+
+```json
+{
+  "schema_version": "0.1",
+  "status": "contract_only",
+  "sourcegrid_workspace_ref": "workspace_sourcegrid_fixture",
+  "sourcegrid_account_ref": "account_sourcegrid_fixture",
+  "billing_owner": "sourcegrid_workspace",
+  "payment_method_state": "missing",
+  "payment_method_label": null,
+  "apprelay_spend_policy": "disabled_until_payment_verified",
+  "command_pack_owner_repos": ["sourcegrid-labs"]
+}
+```
+
+CommandDeck must not store raw payment details, provider keys, Stripe secrets,
+payment tokens, card numbers, CVC/CVV values, or environment secrets. A future
+SourceGrid API may return non-sensitive payment readiness state or a masked
+display label, but payment method storage stays in SourceGrid.
+
+## CLI
+
+Phase 1 provides a local status command:
+
+```sh
+npm run command:local -- sourcegrid:status --config commanddeck.config.example.json
+```
+
+The command validates local attachment metadata and reports whether AppRelay
+spend is allowed. It does not call SourceGrid, AppRelay, Stripe, GitHub, or any
+external service.
+
+## Spend Gate
+
+AppRelay spend requires all of:
+
+- `status: "attached"`;
+- `billing_owner: "sourcegrid_workspace"`;
+- `payment_method_state: "verified"`;
+- `apprelay_spend_policy: "enabled_after_payment_verified"`.
+
+Anything else must be treated as no-spend contract-only mode.
+
+## Credit Exhaustion
+
+If credits are exhausted or payment readiness is missing, CommandDeck must block
+only SourceGrid-billed runtime routes:
+
+- AppRelay reasoning;
+- AppRelay-generated summaries;
+- AppRelay-generated audio;
+- any future SourceGrid-billed runtime route.
+
+The following must remain available when locally permitted:
+
+- Siri, Shortcuts, Google voice, or other capture surfaces;
+- platform TTS speaking local response text;
+- exact local commands;
+- local read-only checks;
+- local draft-only routines;
+- permitted local scripts.
+
+The user-facing response should degrade gracefully, for example: "Credits are
+unavailable, so I cannot reason over the logs. I can still open the logs or run
+the fixed health check."

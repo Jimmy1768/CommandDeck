@@ -4,7 +4,7 @@ Status: Accepted for Phase 1 prototype.
 
 ## Context
 
-CommandKit now has contract validation, local shell tests, MVP evals, and safety
+CommandDeck now has contract validation, local shell tests, MVP evals, and safety
 evals. These checks should run together locally and in GitHub before changes are
 merged.
 

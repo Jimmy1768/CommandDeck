@@ -53,7 +53,7 @@ npm run command:local -- --request-file evals/fixtures/adapter_requests/google_v
 - Voice invocation is not approval.
 - Request files must not contain tokens, authorization headers, env values,
   provider keys, passwords, or secrets.
-- Google voice remains an input/output surface; it does not provide CommandKit
+- Google voice remains an input/output surface; it does not provide CommandDeck
   reasoning.
 
 The first Siri phrase format is:

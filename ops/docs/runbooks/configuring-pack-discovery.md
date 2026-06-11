@@ -1,6 +1,6 @@
 # Configuring Pack Discovery
 
-Use pack discovery declarations to describe where CommandKit may find command
+Use pack discovery declarations to describe where CommandDeck may find command
 packs later. Do not use them to run scripts.
 
 ## Safe Phase 1 Example
@@ -28,9 +28,13 @@ packs later. Do not use them to run scripts.
 
 ## Owner Repo Boundary
 
-SourceGrid command packs belong in `sourcegrid-labs`. CommandKit may later be
+SourceGrid command packs belong in `sourcegrid-labs`. CommandDeck may later be
 configured to read pack metadata from that repo, but this repository must not
 copy SourceGrid-specific scripts, credentials, or command packs into core.
+
+SourceGrid attachment is separate from pack discovery. CommandDeck attaches to a
+SourceGrid workspace for identity, entitlement, and billing readiness; owner
+repos are then declared as command-pack sources.
 
 Partner packs follow the same rule: keep pack ownership in the partner repo or
 a configured local folder.

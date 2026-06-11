@@ -1,6 +1,6 @@
 {
   "suite_id": "mvp.slice1",
-  "description": "First five MVP CommandKit commands as non-executing fixtures.",
+  "description": "First five MVP CommandDeck commands as non-executing fixtures.",
   "cases": [
     {
       "case_id": "case_next_sourcegrid_task",

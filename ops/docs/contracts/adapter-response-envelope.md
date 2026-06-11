@@ -1,6 +1,6 @@
 # Adapter Response Envelope
 
-CommandKit returns an adapter-facing response envelope with every local command
+CommandDeck returns an adapter-facing response envelope with every local command
 result. The envelope is for thin adapters such as Siri/Shortcuts, future Google
 voice surfaces, and display clients.
 
@@ -25,7 +25,7 @@ voice surfaces, and display clients.
 
 ## Voice Behavior
 
-For `requested_output: spoken_summary`, CommandKit sets
+For `requested_output: spoken_summary`, CommandDeck sets
 `response_mode: platform_tts`. Siri/Shortcuts or a future Google voice adapter
 may speak `spoken_text`. The adapter is not the reasoning layer.
 

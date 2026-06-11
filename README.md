@@ -1,6 +1,6 @@
-# CommandKit
+# CommandDeck
 
-CommandKit is a local-first workspace command shell prototype. It connects
+CommandDeck is a local-first workspace command shell prototype. It connects
 platform invocation adapters, starting with Siri and Apple Shortcuts, to
 permissioned command packs that assist a user's command flow on the PC command
 runner.
@@ -9,18 +9,20 @@ For SourceGrid, the first command runner is the user's Apple PC.
 The core use case is hands-off workspace control: start work modes, inspect
 local service state, open apps, switch devices, play media, prepare drafts, and
 run approved local routines. Phones, watches, glasses, and computers can be
-capture surfaces, but they never bypass the PC runner. CommandKit is not a
+capture surfaces, but they never bypass the PC runner. CommandDeck is not a
 replacement for Codex and is not the path for voice-driven code editing.
 
-This repository is the `command-kit` skeleton only. It is a second-class
-installable SourceGrid tool, sibling to OperatorKit. It is not AppRelay,
+This repository is the `CommandDeck` skeleton only. It is a core SourceGrid
+tool, sibling to OperatorKit and ManyMind. It is not AppRelay,
 OperatorKit, ManyMind, or a Golden Template app repo.
 
 ## Product Boundary
 
-CommandKit owns:
+CommandDeck owns:
 
 - command intake from thin adapters such as Siri/Shortcuts;
+- SourceGrid attachment status for identity, entitlement, and AppRelay billing
+  readiness;
 - actor identity and server-side permission checks;
 - command classification and conservative route selection;
 - local workspace command flow around the PC command runner;
@@ -28,11 +30,13 @@ CommandKit owns:
 - approval prompts for risky actions in future phases;
 - action record contracts and eval fixtures.
 
-CommandKit does not own company-specific or personal workspace scripts.
-SourceGrid command packs and scripts belong in `sourcegrid-labs`. Another user
-can attach CommandKit to their own assistant repo, such as `jimmys-assistant`,
-and keep their scripts there. Partner scripts belong in partner repos or
-configured local command folders.
+CommandDeck does not own company-specific or personal workspace scripts.
+CommandDeck attaches to a SourceGrid workspace for identity, entitlement,
+payment-method readiness, and AppRelay billing policy. SourceGrid command packs
+and scripts belong in `sourcegrid-labs`. Other users can attach CommandDeck
+through their SourceGrid account and then reference their own assistant repos as
+command-pack sources. Partner scripts belong in partner repos or configured
+local command folders.
 
 Code editing remains a PC development workflow inside Codex and the normal repo
 toolchain. If a command changes code, the user should be at the command runner
@@ -41,9 +45,14 @@ state available.
 
 Voice platforms such as Siri/Shortcuts and future Google voice adapters are
 input/output surfaces, not the reasoning layer. They can capture commands and
-speak or play responses. CommandKit owns permissions, routing, and records;
+speak or play responses. CommandDeck owns permissions, routing, and records;
 AppRelay owns LLM/runtime capability when model reasoning or future generated
 audio is needed.
+
+SourceGrid credits gate only SourceGrid-billed runtime paths such as AppRelay
+reasoning or future AppRelay audio. Credit exhaustion must not disable Siri or
+Google voice capture, platform TTS, exact local commands, local reads,
+draft-only local work, or permitted local scripts.
 
 The first invocation grammar is:
 
@@ -58,7 +67,7 @@ Hey Siri, command play focus music
 ```
 
 `Hey Siri` is owned by Apple. The device code and command are owned by
-CommandKit and the attached command pack. The initial reserved device code is
+CommandDeck and the declared command pack. The initial reserved device code is
 `command`, which routes to the locked-down local PC runner. Request payloads use
 generic capture surfaces such as `phone`, `watch`, `glasses`, or `computer`
 rather than iPhone, Android, or MacBook-specific names.
@@ -78,6 +87,7 @@ Allowed in this slice:
 Not allowed in this slice:
 
 - provider keys, secrets, or environment values;
+- raw payment method details, card data, or provider payment tokens;
 - production deploy, payment, infrastructure, customer-data, or secrets
   mutation;
 - calls to AppRelay, OperatorKit, or ManyMind;
@@ -136,10 +146,24 @@ owner repos, execute scripts, call providers, or enable `execute-now`.
 Run with an explicit local config:
 
 ```sh
-npm run command:local -- --config commandkit.config.example.json "What is my next SourceGrid task?"
+npm run command:local -- --config commanddeck.config.example.json "What is my next SourceGrid task?"
 ```
 
 Config is repo-relative and cannot enable record writes by default.
+
+Check SourceGrid attachment and AppRelay billing readiness:
+
+```sh
+npm run command:local -- sourcegrid:status --config commanddeck.config.example.json
+```
+
+This is contract-only in slice 1. It validates local attachment metadata and
+reports payment-method readiness without calling SourceGrid, AppRelay, Stripe,
+or any external service.
+
+If SourceGrid credits are unavailable, CommandDeck should degrade gracefully:
+fixed local commands can still run, while AppRelay reasoning routes return a
+clear no-credits/no-spend response.
 
 Run with a Siri/Shortcuts-shaped request fixture:
 
@@ -200,7 +224,7 @@ git. Action records are not execution records.
 
 ```text
 bin/                    Local CLI wrapper for the shell core
-commandkit.config.example.json  Safe local config example
+commanddeck.config.example.json  Safe local config example
 ops/docs/architecture/  Product and integration boundaries
 ops/docs/contracts/     Adapter, command-pack, permission, and record docs
 ops/docs/runbooks/      Local-only prototype operation notes
@@ -218,4 +242,5 @@ scripts/                Safe local developer helpers only
 
 This repo is ready for SourceGrid to add command-pack definitions later, but not
 ready to execute real workflows. Real command packs must remain permissioned,
-repo-local to their owner, and routed through the contracts defined here.
+repo-local to their owner, attached through SourceGrid identity and billing, and
+routed through the contracts defined here.

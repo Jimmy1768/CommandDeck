@@ -2,7 +2,7 @@
 
 This runbook covers the slice 1 skeleton only.
 
-CommandKit is for hands-off workspace command flow around the PC command runner.
+CommandDeck is for hands-off workspace command flow around the PC command runner.
 It is not a Codex replacement. If a task edits code, use Codex and the normal
 local development toolchain on the PC.
 
@@ -53,10 +53,10 @@ and read fixtures only.
 ## Use Local Config
 
 ```sh
-npm run command:local -- --config commandkit.config.example.json "What is my next SourceGrid task?"
+npm run command:local -- --config commanddeck.config.example.json "What is my next SourceGrid task?"
 ```
 
-If `commandkit.config.json` is absent, CommandKit uses safe built-in defaults.
+If `commanddeck.config.json` is absent, CommandDeck uses safe built-in defaults.
 Config cannot enable record writes by default in Phase 1.
 
 ## Use An Adapter Request File

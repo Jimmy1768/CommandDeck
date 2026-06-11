@@ -1,18 +1,22 @@
 # Command-Pack Contract
 
-A command pack declares commands that CommandKit may classify, evaluate,
+A command pack declares commands that CommandDeck may classify, evaluate,
 route, and record. It does not grant execution by itself.
 
 Command packs and scripts live outside this repository unless they are generic
-examples or tests. They belong in the owner repo that CommandKit is attached to.
-For SourceGrid, that owner repo is `sourcegrid-labs`. Another user might create
-a personal repo such as `jimmys-assistant` and put their local workspace scripts
-there. Partner command packs belong in partner repos or configured local
-folders.
+examples or tests. They belong in declared owner repos or configured local
+folders. For SourceGrid, that owner repo is `sourcegrid-labs`. Another user
+might create a personal repo such as `jimmys-assistant` and put their local
+workspace scripts there. Partner command packs belong in partner repos or
+configured local folders.
 
 Command packs should model exact workspace routines. For coding work, they may
 prepare the PC environment around Codex, but they should not turn
-CommandKit into a replacement coding agent.
+CommandDeck into a replacement coding agent.
+
+Simple deterministic routines should declare local routes and avoid AppRelay.
+SourceGrid credits are required only for AppRelay or other SourceGrid-billed
+runtime routes, not for exact local scripts or read-only local checks.
 
 ## Required Fields
 
@@ -50,6 +54,6 @@ All other effects must be represented as `blocked`, `contract_only`, or
 `evals/fixtures/command-packs/` contains generic validation fixtures only.
 
 Real owner-specific packs and scripts must stay in their owner repo or
-configured local command folder. CommandKit should load those packs through
+configured local command folder. CommandDeck should load those packs through
 configuration in a future phase; it should not absorb SourceGrid, personal
 assistant, or partner command scripts.

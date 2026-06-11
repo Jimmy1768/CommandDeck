@@ -4,7 +4,7 @@ Status: Accepted for Phase 1 prototype.
 
 ## Context
 
-CommandKit needs to load command packs from configured JSON files before owner
+CommandDeck needs to load command packs from configured JSON files before owner
 repos can be attached later. For SourceGrid, the owner repo is
 `sourcegrid-labs`. For another user, the owner repo might be a personal
 assistant repo such as `jimmys-assistant`. Loading a pack must not imply

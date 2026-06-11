@@ -1,7 +1,7 @@
 {
   "schema_version": "0.1",
-  "pack_id": "commandkit.mvp.slice1",
-  "owner": "command-kit",
+  "pack_id": "commanddeck.mvp.slice1",
+  "owner": "command-deck",
   "permissions": "contracts/permissions/permission-levels.json",
   "record_policy": {
     "record_schema": "contracts/records/action-record.schema.json",

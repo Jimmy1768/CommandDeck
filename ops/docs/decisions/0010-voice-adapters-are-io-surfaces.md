@@ -4,9 +4,9 @@ Status: Accepted for Phase 1 prototype.
 
 ## Context
 
-CommandKit's first voice-facing path is Siri/Shortcuts, with future room for
+CommandDeck's first voice-facing path is Siri/Shortcuts, with future room for
 Google voice and other platform adapters. The product boundary needs to be
-explicit that platform voice tools are not the CommandKit reasoning layer.
+explicit that platform voice tools are not the CommandDeck reasoning layer.
 
 ## Decision
 
@@ -17,8 +17,8 @@ They may capture user speech, send structured requests, speak response text, or
 play response audio in a later phase. They do not own command reasoning,
 permissions, routing, model/provider selection, or action records.
 
-AppRelay owns LLM/runtime capability when CommandKit needs model reasoning or
-future generated audio. CommandKit must not depend on Apple Intelligence for
+AppRelay owns LLM/runtime capability when CommandDeck needs model reasoning or
+future generated audio. CommandDeck must not depend on Apple Intelligence for
 reasoning.
 
 ## Consequences

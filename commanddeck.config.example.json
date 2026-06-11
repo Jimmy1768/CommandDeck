@@ -3,6 +3,19 @@
   "default_command_pack": "contracts/commands/mvp-commands.json",
   "default_record_dir": "records/actions",
   "default_write_records": false,
+  "sourcegrid_attachment": {
+    "schema_version": "0.1",
+    "status": "contract_only",
+    "sourcegrid_workspace_ref": "workspace_sourcegrid_fixture",
+    "sourcegrid_account_ref": "account_sourcegrid_fixture",
+    "billing_owner": "sourcegrid_workspace",
+    "payment_method_state": "missing",
+    "payment_method_label": null,
+    "apprelay_spend_policy": "disabled_until_payment_verified",
+    "command_pack_owner_repos": [
+      "sourcegrid-labs"
+    ]
+  },
   "command_pack_roots": [
     {
       "id": "fixture_command_packs",
@@ -21,7 +34,7 @@
     {
       "id": "local_user_packs_future",
       "kind": "local-folder",
-      "path": ".commandkit/command-packs",
+      "path": ".commanddeck/command-packs",
       "local_only": true,
       "enabled": false,
       "discovery_mode": "metadata_only"

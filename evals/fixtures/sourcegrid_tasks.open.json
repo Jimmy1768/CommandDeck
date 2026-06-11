@@ -4,7 +4,7 @@
   "items": [
     {
       "id": "task_001",
-      "title": "Review CommandKit repo skeleton",
+      "title": "Review CommandDeck repo skeleton",
       "priority": 1,
       "status": "open",
       "source": "planning fixture"

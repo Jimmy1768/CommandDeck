@@ -4,20 +4,23 @@
   "routes": [
     {
       "id": "local.fixture_read",
-      "system": "command-kit",
+      "system": "command-deck",
       "allowed_permission_levels": ["read-only"],
+      "credit_policy": "no_sourcegrid_credits_required",
       "real_integration": false
     },
     {
       "id": "local.draft_fixture",
-      "system": "command-kit",
+      "system": "command-deck",
       "allowed_permission_levels": ["draft-only"],
+      "credit_policy": "no_sourcegrid_credits_required",
       "real_integration": false
     },
     {
       "id": "operatorkit.dry_run_request",
       "system": "operatorkit",
       "allowed_permission_levels": ["approval-required"],
+      "credit_policy": "operator_policy_only_unless_apprelay_route_requested",
       "real_integration": false,
       "slice_1_behavior": "blocked_execute_now_disabled"
     },
@@ -25,6 +28,7 @@
       "id": "apprelay.summary",
       "system": "apprelay",
       "allowed_permission_levels": ["read-only"],
+      "credit_policy": "sourcegrid_credits_required_for_real_apprelay_spend",
       "real_integration": false,
       "slice_1_behavior": "fixture_summary_only"
     },
@@ -32,6 +36,7 @@
       "id": "manymind.source_packet_draft",
       "system": "manymind",
       "allowed_permission_levels": ["draft-only"],
+      "credit_policy": "no_sourcegrid_credits_required_in_phase_1",
       "real_integration": false,
       "slice_1_behavior": "contract_only"
     }

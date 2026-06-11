@@ -1,6 +1,6 @@
 # Adding Command Packs
 
-CommandKit Phase 1 can load and validate command-pack JSON files. It cannot
+CommandDeck Phase 1 can load and validate command-pack JSON files. It cannot
 execute real workflows.
 
 ## Where Packs Live
@@ -10,6 +10,10 @@ execute real workflows.
   example `jimmys-assistant`.
 - Partner packs live in partner repos or configured local command folders.
 - This repo may contain only generic examples, tests, and contract fixtures.
+
+CommandDeck attaches to SourceGrid first for identity, entitlement, and AppRelay
+billing readiness. Owner repos are command-pack sources only; they are not the
+payment or entitlement authority.
 
 Do not copy SourceGrid company scripts, personal assistant scripts, partner
 scripts, secrets, local env values, provider keys, or workflow credentials into
@@ -42,9 +46,10 @@ means the pack is ready for classification and fixture reads only.
 
 ## Future Integration
 
-Future command-pack discovery can point CommandKit at configured local folders
-or owner repos such as `sourcegrid-labs` or a user's personal assistant repo.
-The pack contract should remain stable: CommandKit classifies, checks
-permission, records action intent, and routes through declared boundaries.
-AppRelay, OperatorKit, and ManyMind integrations remain external contracts
-until a later phase explicitly implements them.
+Future command-pack discovery can point CommandDeck at configured local folders
+or owner repos such as `sourcegrid-labs` or a user's personal assistant repo
+after SourceGrid attachment is established. The pack contract should remain
+stable: CommandDeck classifies, checks permission, records action intent, and
+routes through declared boundaries. AppRelay, OperatorKit, and ManyMind
+integrations remain external contracts until a later phase explicitly implements
+them.

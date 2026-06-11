@@ -4,7 +4,7 @@ Status: Accepted for Phase 1 prototype.
 
 ## Context
 
-CommandKit needs a repeatable way to prove that command contracts, local shell
+CommandDeck needs a repeatable way to prove that command contracts, local shell
 classification, permission levels, route selection, and fixture-backed results
 stay aligned.
 

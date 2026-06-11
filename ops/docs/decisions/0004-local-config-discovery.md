@@ -4,7 +4,7 @@ Status: Accepted for Phase 1 prototype.
 
 ## Context
 
-CommandKit needs a stable way to discover the default command pack and action
+CommandDeck needs a stable way to discover the default command pack and action
 record directory without hardcoding all choices into the CLI. This must not
 create a path for secrets, provider keys, or implicit writes.
 
@@ -13,20 +13,20 @@ create a path for secrets, provider keys, or implicit writes.
 Support a repo-relative JSON config file. The default lookup path is:
 
 ```text
-commandkit.config.json
+commanddeck.config.json
 ```
 
 If no default config exists, the shell uses safe built-in defaults. A tracked
 example config lives at:
 
 ```text
-commandkit.config.example.json
+commanddeck.config.example.json
 ```
 
 Explicit config selection is available with:
 
 ```sh
-npm run command:local -- --config commandkit.config.example.json "What is my next SourceGrid task?"
+npm run command:local -- --config commanddeck.config.example.json "What is my next SourceGrid task?"
 ```
 
 Phase 1 config validation requires:
