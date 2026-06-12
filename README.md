@@ -322,6 +322,15 @@ npm run command:local -- --write-record "What is my next SourceGrid task?"
 Generated record JSON files are written under `records/actions/` and ignored by
 git. Action records are not execution records.
 
+Write a local custom-pack rejection audit explicitly:
+
+```sh
+npm run command:local -- pack:open --command-pack path/to/custom.cdeck-pack.json --write-audit
+```
+
+Generated audit JSON files are written under `.commanddeck/audit/pack-rejections/`
+and ignored by git.
+
 ## Repository Shape
 
 ```text

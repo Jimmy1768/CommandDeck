@@ -126,6 +126,15 @@ A rejection should return:
 Fix the manifest or use an approved route. Do not work around rejection by
 renaming the command or hiding behavior behind an alias.
 
+To save a local diagnostic while opening a pack:
+
+```sh
+npm run command:local -- pack:open --command-pack path/to/custom.cdeck-pack.json --write-audit
+```
+
+Audit files are written under `.commanddeck/audit/pack-rejections/` by default.
+They store sanitized validation errors, not script contents or secrets.
+
 ## Select The Pack
 
 The SourceGrid Labs console should send a selection manifest with:

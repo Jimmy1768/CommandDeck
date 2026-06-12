@@ -1,0 +1,39 @@
+{
+  "schema_version": "0.1",
+  "contract_kind": "pack-rejection-audit",
+  "event": "pack_command_rejected",
+  "storage_default": ".commanddeck/audit/pack-rejections",
+  "write_rule": "opt_in_local_write_only",
+  "redaction_rule": "secret_like_values_redacted_no_script_contents_stored",
+  "required": [
+    "schema_version",
+    "event",
+    "event_id",
+    "timestamp",
+    "status",
+    "rejection_phase",
+    "reason",
+    "command_pack_path",
+    "pack_id",
+    "errors"
+  ],
+  "allowed_rejection_phases": ["pack_load", "command_registration", "execution_request"],
+  "allowed_statuses": ["rejected"],
+  "forbidden_payloads": ["script_contents", "env_values", "secrets", "provider_tokens", "raw_authorization_headers"],
+  "properties": {
+    "schema_version": { "type": "string" },
+    "event": { "type": "string" },
+    "event_id": { "type": "string" },
+    "timestamp": { "type": "string" },
+    "status": { "type": "string" },
+    "rejection_phase": { "type": "string" },
+    "reason": { "type": "string" },
+    "command_pack_path": { "type": "string" },
+    "resolved_command_pack_path": { "type": ["string", "null"] },
+    "pack_id": { "type": ["string", "null"] },
+    "owner": { "type": ["string", "null"] },
+    "command_ids": { "type": "array" },
+    "errors": { "type": "array" },
+    "redaction_policy": { "type": "string" }
+  }
+}

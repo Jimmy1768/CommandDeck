@@ -11,6 +11,7 @@ const COMMAND_PACK_FILE_EXTENSION = '.cdeck-pack.json';
 const DEFAULT_COMMAND_PACK_PATH = 'contracts/commands/mvp-commands.cdeck-pack.json';
 const DEFAULT_RECORD_DIR = 'records/actions';
 const DEFAULT_PACK_STATE_PATH = '.commanddeck/state/recent-packs.json';
+const DEFAULT_PACK_REJECTION_AUDIT_DIR = '.commanddeck/audit/pack-rejections';
 const CUSTOM_PACK_CATALOG_DIR = 'command-packs';
 const PACK_SLUG_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 const RECENT_PACK_LIMIT = 10;
@@ -173,7 +174,10 @@ export async function runLocalCommand(input, options = {}) {
     rootDir,
     commandPackPath: options.commandPackPath,
     routes,
-    permissions
+    permissions,
+    writeAudit: options.writeAudit,
+    auditDir: options.auditDir,
+    timestamp
   });
   const runtimeActionRequirements = buildRuntimeActionRequirements({
     coreActionRequirements,
@@ -286,7 +290,15 @@ export async function resumeConceptCheckingQuestion(input, options = {}) {
   const answerText = input.command_text ?? input.commandText ?? '';
   const record = options.record ?? (await loadActionRecord({ rootDir, recordPath }));
   const coreActionRequirements = options.coreActionRequirements ?? (await loadCoreActionRequirements({ rootDir }));
-  const pack = options.pack ?? (await loadCommandPack({ rootDir, commandPackPath: options.commandPackPath }));
+  const pack =
+    options.pack ??
+    (await loadCommandPack({
+      rootDir,
+      commandPackPath: options.commandPackPath,
+      writeAudit: options.writeAudit,
+      auditDir: options.auditDir,
+      timestamp
+    }));
   const runtimeActionRequirements = buildRuntimeActionRequirements({
     coreActionRequirements,
     pack
@@ -446,7 +458,10 @@ export async function loadCommandPack(options = {}) {
     rootDir,
     commandPackPath,
     routes,
-    permissions
+    permissions,
+    writeAudit: options.writeAudit,
+    auditDir: options.auditDir,
+    timestamp: options.timestamp
   });
 }
 
@@ -465,7 +480,10 @@ export async function openCommandPack(options = {}) {
     commandPackPath,
     resolvedCommandPackPath,
     routes: options.routes,
-    permissions: options.permissions
+    permissions: options.permissions,
+    writeAudit: options.writeAudit,
+    auditDir: options.auditDir,
+    timestamp
   });
   const entry = {
     pack_id: pack.pack_id,
@@ -646,7 +664,9 @@ export async function applySourceGridPackSelection(selection, options = {}) {
     resolvedCommandPackPath: selectedPack.resolvedCommandPackPath,
     writeState: options.writeState,
     statePath: options.statePath,
-    timestamp: options.timestamp
+    timestamp: options.timestamp,
+    writeAudit: options.writeAudit,
+    auditDir: options.auditDir
   });
 
   return {
@@ -1816,6 +1836,31 @@ export async function writeActionRecordFile(record, options = {}) {
   };
 }
 
+export async function writePackRejectionAudit(event, options = {}) {
+  const rootDir = options.rootDir ?? path.resolve(import.meta.dirname, '../..');
+  const auditDir = resolveRecordDir(rootDir, options.auditDir ?? DEFAULT_PACK_REJECTION_AUDIT_DIR);
+  const timestamp = event.timestamp ?? new Date().toISOString();
+  const eventId =
+    event.event_id ?? stableId('pkr', [timestamp, event.event, event.command_pack_path, JSON.stringify(event.errors ?? [])]);
+  const filename = `${sanitizeFilenamePart(timestamp)}-${sanitizeFilenamePart(
+    event.pack_id ?? 'unknown-pack'
+  )}-${eventId}.json`;
+  const auditPath = path.join(auditDir, filename);
+  const auditEvent = {
+    ...event,
+    event_id: eventId,
+    timestamp
+  };
+
+  await mkdir(auditDir, { recursive: true });
+  await writeFile(auditPath, `${JSON.stringify(auditEvent, null, 2)}\n`, { flag: 'wx' });
+
+  return {
+    status: 'written',
+    audit_path: path.relative(rootDir, auditPath)
+  };
+}
+
 export async function withActionRecordLock(rootDir, recordPath, callback) {
   const resolvedPath = resolveRepoRelativePath(rootDir, recordPath);
   const lockPath = `${resolvedPath}.lock`;
@@ -1930,7 +1975,16 @@ async function readRepoRelativeJson(rootDir, relativePath) {
   return JSON.parse(contents);
 }
 
-async function loadValidatedCommandPack({ rootDir, commandPackPath, resolvedCommandPackPath, routes, permissions }) {
+async function loadValidatedCommandPack({
+  rootDir,
+  commandPackPath,
+  resolvedCommandPackPath,
+  routes,
+  permissions,
+  writeAudit,
+  auditDir,
+  timestamp
+}) {
   assertCommandPackManifestPath(commandPackPath);
 
   if (resolvedCommandPackPath) {
@@ -1949,10 +2003,80 @@ async function loadValidatedCommandPack({ rootDir, commandPackPath, resolvedComm
   const errors = validateCommandPack(pack, { routes: routeContracts, permissions: permissionContracts });
 
   if (errors.length > 0) {
-    throw new Error(`invalid command pack ${commandPackPath}: ${errors.join('; ')}`);
+    let auditWrite = null;
+
+    if (writeAudit) {
+      auditWrite = await writePackRejectionAudit(
+        buildPackRejectionAuditEvent({
+          pack,
+          commandPackPath,
+          resolvedCommandPackPath,
+          errors,
+          timestamp
+        }),
+        {
+          rootDir,
+          auditDir
+        }
+      );
+    }
+
+    const auditSuffix = auditWrite ? `; audit written to ${auditWrite.audit_path}` : '';
+    throw new Error(`invalid command pack ${commandPackPath}: ${errors.join('; ')}${auditSuffix}`);
   }
 
   return pack;
+}
+
+function buildPackRejectionAuditEvent({ pack, commandPackPath, resolvedCommandPackPath, errors, timestamp }) {
+  const sanitizedErrors = errors.map((error) => sanitizeAuditText(error));
+  const commandIds = Array.isArray(pack?.commands)
+    ? pack.commands
+        .map((command) => command?.command_id)
+        .filter((commandId) => typeof commandId === 'string' && commandId.length > 0)
+    : [];
+  const packId = typeof pack?.pack_id === 'string' ? pack.pack_id : null;
+  const eventId = stableId('pkr', [
+    timestamp ?? '',
+    commandPackPath ?? '',
+    resolvedCommandPackPath ?? '',
+    packId ?? '',
+    sanitizedErrors.join('|')
+  ]);
+
+  return {
+    schema_version: '0.1',
+    event: 'pack_command_rejected',
+    event_id: eventId,
+    timestamp: timestamp ?? new Date().toISOString(),
+    status: 'rejected',
+    rejection_phase: 'pack_load',
+    reason: 'invalid_command_pack',
+    command_pack_path: commandPackPath,
+    resolved_command_pack_path: resolvedCommandPackPath ?? null,
+    pack_id: packId,
+    owner: typeof pack?.owner === 'string' ? pack.owner : null,
+    command_ids: commandIds,
+    errors: sanitizedErrors,
+    redaction_policy: 'secret_like_values_redacted_no_script_contents_stored'
+  };
+}
+
+function sanitizeAuditText(value) {
+  return String(value)
+    .replace(
+      /\b(token|secret|password|authorization|api[_-]?key|cvv|cvc|payment[_-]?token)=([^&\s;]+)/gi,
+      '$1=[REDACTED]'
+    )
+    .replace(/\b(Bearer\s+)[A-Za-z0-9._~+/=-]+/gi, '$1[REDACTED]');
+}
+
+function sanitizeFilenamePart(value) {
+  return String(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80);
 }
 
 function buildStarterCommandPack({ packSlug, owner }) {

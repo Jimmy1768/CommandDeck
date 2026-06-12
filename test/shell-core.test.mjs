@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, readFile, stat, utimes, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, stat, utimes, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
@@ -1108,6 +1108,51 @@ test('rejects command packs with executable fields or unsafe sources', async () 
   const errors = validateCommandPack(unsafePack, { routes, permissions });
   assert.ok(errors.some((error) => error.includes('forbidden executable field script')));
   assert.ok(errors.some((error) => error.includes('source must be repo-relative under evals/fixtures')));
+});
+
+test('writes opt-in pack rejection audit records for invalid custom packs', async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'command-deck-pack-audit-'));
+  const routes = await readJson('contracts/routes/route-contracts.json');
+  const permissions = await readJson('contracts/permissions/permission-levels.json');
+  const pack = await readJson('contracts/commands/mvp-commands.cdeck-pack.json');
+  const unsafePack = structuredClone(pack);
+  const packPath = 'packs/unsafe.cdeck-pack.json';
+  const auditDir = 'records/pack-rejections';
+
+  unsafePack.commands[0].shell = 'do-not-store-script-contents';
+  unsafePack.commands[0].sources = ['https://example.test/private.json?token=abc123'];
+
+  await mkdir(path.join(tempRoot, 'packs'), { recursive: true });
+  await writeFile(path.join(tempRoot, packPath), `${JSON.stringify(unsafePack, null, 2)}\n`);
+
+  await assert.rejects(
+    () =>
+      loadCommandPack({
+        rootDir: tempRoot,
+        commandPackPath: packPath,
+        routes,
+        permissions,
+        writeAudit: true,
+        auditDir,
+        timestamp
+      }),
+    /audit written to records\/pack-rejections/
+  );
+
+  const auditFiles = await readdir(path.join(tempRoot, auditDir));
+  assert.equal(auditFiles.length, 1);
+
+  const audit = JSON.parse(await readFile(path.join(tempRoot, auditDir, auditFiles[0]), 'utf8'));
+  assert.equal(audit.event, 'pack_command_rejected');
+  assert.equal(audit.rejection_phase, 'pack_load');
+  assert.equal(audit.reason, 'invalid_command_pack');
+  assert.equal(audit.command_pack_path, packPath);
+  assert.equal(audit.pack_id, unsafePack.pack_id);
+  assert.ok(audit.command_ids.includes(unsafePack.commands[0].command_id));
+  assert.ok(audit.errors.some((error) => error.includes('forbidden executable field shell')));
+  assert.ok(audit.errors.some((error) => error.includes('token=[REDACTED]')));
+  assert.equal(JSON.stringify(audit).includes('abc123'), false);
+  assert.equal(JSON.stringify(audit).includes('do-not-store-script-contents'), false);
 });
 
 test('rejects invalid pack action requirements', async () => {

@@ -183,6 +183,10 @@ The rejection should include:
 - no execution;
 - an audit event named `pack_command_rejected`.
 
+Local audit writes are opt-in. Use `--write-audit` to write a rejection event
+under `.commanddeck/audit/pack-rejections/`. The event shape is defined in
+`contracts/records/pack-rejection-audit.schema.json`.
+
 ## Core Versus Pack
 
 Good candidates for core:

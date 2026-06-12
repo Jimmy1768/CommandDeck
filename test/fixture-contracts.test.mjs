@@ -76,6 +76,11 @@ test('command pack schema documents the Phase 1 loading boundary', async () => {
   );
   assert.equal(schema.custom_pack_enforcement.rejection_behavior.fallback_execution_allowed, false);
   assert.equal(schema.custom_pack_enforcement.audit_event, 'pack_command_rejected');
+  assert.equal(
+    schema.custom_pack_enforcement.audit_contract,
+    'contracts/records/pack-rejection-audit.schema.json'
+  );
+  assert.equal(schema.custom_pack_enforcement.audit_write_rule, 'opt_in_local_write_only');
   assert.equal(schema.action_requirements.schema, 'contracts/commands/action-requirements.schema.json');
   assert.equal(schema.action_requirements.core_requirements, 'contracts/commands/core-action-requirements.json');
   assert.equal(schema.action_requirements.core_runtime_source, 'contracts/commands/core-action-requirements.json');
@@ -90,6 +95,20 @@ test('command pack schema documents the Phase 1 loading boundary', async () => {
   assert.ok(schema.forbidden_command_fields.includes('handler'));
   assert.equal(schema.real_pack_locations.sourcegrid, 'sourcegrid-labs');
   assert.equal(schema.real_pack_locations.commanddeck_repo, 'generic examples and tests only');
+});
+
+test('pack rejection audit schema is opt-in and redacted', async () => {
+  const schema = await readJson('contracts/records/pack-rejection-audit.schema.json');
+
+  assert.equal(schema.contract_kind, 'pack-rejection-audit');
+  assert.equal(schema.event, 'pack_command_rejected');
+  assert.equal(schema.storage_default, '.commanddeck/audit/pack-rejections');
+  assert.equal(schema.write_rule, 'opt_in_local_write_only');
+  assert.equal(schema.redaction_rule, 'secret_like_values_redacted_no_script_contents_stored');
+  assert.ok(schema.required.includes('errors'));
+  assert.ok(schema.allowed_rejection_phases.includes('pack_load'));
+  assert.ok(schema.forbidden_payloads.includes('script_contents'));
+  assert.ok(schema.forbidden_payloads.includes('secrets'));
 });
 
 test('action requirements schema allows core and pack actions with CCQ fallback', async () => {

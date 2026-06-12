@@ -51,7 +51,10 @@
       "risky_allowed_request": "explicit_approval_required",
       "fallback_execution_allowed": false
     },
-    "audit_event": "pack_command_rejected"
+    "audit_event": "pack_command_rejected",
+    "audit_contract": "contracts/records/pack-rejection-audit.schema.json",
+    "audit_write_rule": "opt_in_local_write_only",
+    "audit_default_dir": ".commanddeck/audit/pack-rejections"
   },
   "action_requirements": {
     "schema": "contracts/commands/action-requirements.schema.json",

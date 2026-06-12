@@ -52,7 +52,9 @@ if (parsed.subcommand === 'pack:open') {
       await openCommandPack({
         commandPackPath: parsed.commandPack,
         writeState: parsed.writeState,
-        statePath: parsed.stateFile
+        statePath: parsed.stateFile,
+        writeAudit: parsed.writeAudit,
+        auditDir: parsed.auditDir
       }),
       null,
       2
@@ -96,7 +98,9 @@ if (parsed.subcommand === 'pack:apply-selection') {
         {
           config,
           writeState: parsed.writeState,
-          statePath: parsed.stateFile
+          statePath: parsed.stateFile,
+          writeAudit: parsed.writeAudit,
+          auditDir: parsed.auditDir
         }
       ),
       null,
@@ -171,6 +175,8 @@ if (parsed.subcommand === 'ccq:resume') {
     recordPath: parsed.recordFile,
     resumeToken: parsed.resumeToken,
     commandPackPath: parsed.commandPack ?? config.default_command_pack,
+    writeAudit: parsed.writeAudit,
+    auditDir: parsed.auditDir,
     writeRecord: parsed.writeRecord,
     recordDir: parsed.recordDir ?? config.default_record_dir
   });
@@ -200,7 +206,7 @@ if (parsed.requestFile && parsed.commandText) {
 
 if (!commandText) {
   console.error(
-    'Usage: command-deck [sourcegrid:status|pack:init|pack:open|pack:recent|pack:apply-selection|approval:apply|ccq:resume] [--request-file evals/fixtures/adapter_requests/apple_shortcuts.next_task.json] [--config commanddeck.config.json] [--command-pack contracts/commands/mvp-commands.cdeck-pack.json] [--pack-slug sourcegrid] [--owner sourcegrid] [--control-root /path/to/repo] [--selection-file evals/fixtures/pack_selections/local-exact.selection.json] [--record-file records/actions/rec_example.json] [--decision-file evals/fixtures/approval_decisions/example.json] [--resume-token ccq_example] [--write-record] [--write-state] [--record-dir records/actions] "What is my next SourceGrid task?"'
+    'Usage: command-deck [sourcegrid:status|pack:init|pack:open|pack:recent|pack:apply-selection|approval:apply|ccq:resume] [--request-file evals/fixtures/adapter_requests/apple_shortcuts.next_task.json] [--config commanddeck.config.json] [--command-pack contracts/commands/mvp-commands.cdeck-pack.json] [--pack-slug sourcegrid] [--owner sourcegrid] [--control-root /path/to/repo] [--selection-file evals/fixtures/pack_selections/local-exact.selection.json] [--record-file records/actions/rec_example.json] [--decision-file evals/fixtures/approval_decisions/example.json] [--resume-token ccq_example] [--write-record] [--write-state] [--write-audit] [--record-dir records/actions] [--audit-dir .commanddeck/audit/pack-rejections] "What is my next SourceGrid task?"'
   );
   process.exit(2);
 }
@@ -213,7 +219,9 @@ const commandInput = adapterRequest ?? {
 };
 
 const result = await runLocalCommand(commandInput, {
-  commandPackPath: parsed.commandPack ?? config.default_command_pack
+  commandPackPath: parsed.commandPack ?? config.default_command_pack,
+  writeAudit: parsed.writeAudit,
+  auditDir: parsed.auditDir
 });
 
 if (parsed.writeRecord) {
@@ -243,7 +251,9 @@ function parseArgs(args) {
   const commandParts = [];
   let writeRecord = false;
   let writeState = false;
+  let writeAudit = false;
   let recordDir = null;
+  let auditDir = null;
   let commandPack = null;
   let config = null;
   let stateFile = null;
@@ -275,8 +285,19 @@ function parseArgs(args) {
       continue;
     }
 
+    if (arg === '--write-audit') {
+      writeAudit = true;
+      continue;
+    }
+
     if (arg === '--record-dir') {
       recordDir = args[index + 1];
+      index += 1;
+      continue;
+    }
+
+    if (arg === '--audit-dir') {
+      auditDir = args[index + 1];
       index += 1;
       continue;
     }
@@ -354,7 +375,9 @@ function parseArgs(args) {
     commandText: commandParts.join(' ').trim(),
     writeRecord,
     writeState,
+    writeAudit,
     recordDir,
+    auditDir,
     commandPack,
     config,
     stateFile,
