@@ -237,6 +237,12 @@ Custom packs should live in the user's or company's own git repo. CommandDeck
 may load them only through a configured local-only control folder and a validated
 `*.cdeck-pack.json` selection manifest. `cdeck` means CommandDeck.
 
+Create a starter custom pack layout:
+
+```sh
+npm run command:local -- pack:init --control-root /path/to/owner-repo --pack-slug sourcegrid --owner sourcegrid
+```
+
 Run with an explicit local config:
 
 ```sh

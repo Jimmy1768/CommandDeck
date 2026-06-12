@@ -46,6 +46,22 @@ Allowed `discovery_mode` values:
 - `local-folder` roots are local-only declarations. They may point at a user's
   or company's own git repo/control folder.
 
+For custom packs, the control root should be the owner repo or local control
+folder root. The standardized V1 catalog under that root is:
+
+```text
+command-packs/
+  <pack_slug>/
+    <pack_slug>.cdeck-pack.json
+    README.md
+    fixtures/
+    scripts/
+```
+
+External custom selections must use
+`command-packs/<pack_slug>/<pack_slug>.cdeck-pack.json`. `pack_slug` is
+lowercase kebab-case.
+
 Pack discovery does not call AppRelay, OperatorKit, ManyMind, GitHub, shell
 scripts, provider APIs, or external services in Phase 1.
 

@@ -43,6 +43,10 @@ Configured local control folders may be outside the CommandDeck repo when they
 are declared as `local-folder` roots with `local_only: true`. This lets custom
 packs stay version controlled in the user's or company's own git repo.
 
+External custom pack roots should point at the owner repo or local control
+folder root. The standard selector path is
+`command-packs/<pack_slug>/<pack_slug>.cdeck-pack.json`.
+
 ## User Surfaces
 
 SourceGrid Labs owns the normal user UX:
@@ -82,6 +86,14 @@ A SourceGrid pack selection manifest must identify:
 For an external local control folder, `pack_path` is still relative to that
 folder. The browser or console must not send an absolute manifest path as
 authority.
+
+The selector should present manifests from:
+
+```text
+command-packs/<pack_slug>/<pack_slug>.cdeck-pack.json
+```
+
+`pack_slug` uses lowercase kebab-case.
 
 The manifest must not include executable fields, shell commands, scripts,
 secrets, provider keys, approvals, or execute-now instructions.

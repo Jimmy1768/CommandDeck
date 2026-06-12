@@ -10,6 +10,7 @@ import {
   loadCommandDeckConfig,
   loadRecentCommandPacks,
   loadSourceGridPackSelection,
+  initCommandPack,
   openCommandPack,
   resumeConceptCheckingQuestionFromFile,
   runLocalCommand,
@@ -52,6 +53,26 @@ if (parsed.subcommand === 'pack:open') {
         commandPackPath: parsed.commandPack,
         writeState: parsed.writeState,
         statePath: parsed.stateFile
+      }),
+      null,
+      2
+    )
+  );
+  process.exit(0);
+}
+
+if (parsed.subcommand === 'pack:init') {
+  if (!parsed.packSlug || !parsed.owner) {
+    console.error('Usage error: pack:init requires --pack-slug and --owner.');
+    process.exit(2);
+  }
+
+  console.log(
+    JSON.stringify(
+      await initCommandPack({
+        packSlug: parsed.packSlug,
+        owner: parsed.owner,
+        controlRoot: parsed.controlRoot
       }),
       null,
       2
@@ -179,7 +200,7 @@ if (parsed.requestFile && parsed.commandText) {
 
 if (!commandText) {
   console.error(
-    'Usage: command-deck [sourcegrid:status|pack:open|pack:recent|pack:apply-selection|approval:apply|ccq:resume] [--request-file evals/fixtures/adapter_requests/apple_shortcuts.next_task.json] [--config commanddeck.config.json] [--command-pack contracts/commands/mvp-commands.cdeck-pack.json] [--selection-file evals/fixtures/pack_selections/local-exact.selection.json] [--record-file records/actions/rec_example.json] [--decision-file evals/fixtures/approval_decisions/example.json] [--resume-token ccq_example] [--write-record] [--write-state] [--record-dir records/actions] "What is my next SourceGrid task?"'
+    'Usage: command-deck [sourcegrid:status|pack:init|pack:open|pack:recent|pack:apply-selection|approval:apply|ccq:resume] [--request-file evals/fixtures/adapter_requests/apple_shortcuts.next_task.json] [--config commanddeck.config.json] [--command-pack contracts/commands/mvp-commands.cdeck-pack.json] [--pack-slug sourcegrid] [--owner sourcegrid] [--control-root /path/to/repo] [--selection-file evals/fixtures/pack_selections/local-exact.selection.json] [--record-file records/actions/rec_example.json] [--decision-file evals/fixtures/approval_decisions/example.json] [--resume-token ccq_example] [--write-record] [--write-state] [--record-dir records/actions] "What is my next SourceGrid task?"'
   );
   process.exit(2);
 }
@@ -212,6 +233,7 @@ function parseArgs(args) {
   const subcommands = new Set([
     'sourcegrid:status',
     'attachment:status',
+    'pack:init',
     'pack:open',
     'pack:recent',
     'pack:apply-selection',
@@ -226,6 +248,9 @@ function parseArgs(args) {
   let config = null;
   let stateFile = null;
   let selectionFile = null;
+  let packSlug = null;
+  let owner = null;
+  let controlRoot = null;
   let requestFile = null;
   let recordFile = null;
   let decisionFile = null;
@@ -280,6 +305,24 @@ function parseArgs(args) {
       continue;
     }
 
+    if (arg === '--pack-slug') {
+      packSlug = args[index + 1];
+      index += 1;
+      continue;
+    }
+
+    if (arg === '--owner') {
+      owner = args[index + 1];
+      index += 1;
+      continue;
+    }
+
+    if (arg === '--control-root') {
+      controlRoot = args[index + 1];
+      index += 1;
+      continue;
+    }
+
     if (arg === '--request-file') {
       requestFile = args[index + 1];
       index += 1;
@@ -316,6 +359,9 @@ function parseArgs(args) {
     config,
     stateFile,
     selectionFile,
+    packSlug,
+    owner,
+    controlRoot,
     requestFile,
     recordFile,
     decisionFile,

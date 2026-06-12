@@ -27,6 +27,49 @@ Do not copy SourceGrid company scripts, personal assistant scripts, partner
 scripts, secrets, local env values, provider keys, or workflow credentials into
 this repo.
 
+## Standard Custom Pack Layout
+
+Custom pack repos and local control folders should use this V1 layout:
+
+```text
+<owner-control-repo>/
+  command-packs/
+    <pack_slug>/
+      <pack_slug>.cdeck-pack.json
+      README.md
+      fixtures/
+      scripts/
+```
+
+Create it with:
+
+```sh
+npm run command:local -- pack:init --control-root /path/to/owner-repo --pack-slug sourcegrid --owner sourcegrid
+```
+
+Rules:
+
+- `pack_slug` uses lowercase kebab-case, for example `sourcegrid` or
+  `jimmy-local`.
+- The selected manifest path is
+  `command-packs/<pack_slug>/<pack_slug>.cdeck-pack.json`.
+- `README.md` explains what the pack is for and who owns it.
+- `fixtures/` may hold pack-owned test or example data.
+- `scripts/` may hold owner-repo scripts, but selecting a pack does not grant
+  script execution by itself.
+
+Example:
+
+```text
+sourcegrid-labs/
+  command-packs/
+    sourcegrid/
+      sourcegrid.cdeck-pack.json
+      README.md
+      fixtures/
+      scripts/
+```
+
 ## Pack Readiness Checklist
 
 - Include `schema_version`, `pack_id`, `owner`, `permissions`,

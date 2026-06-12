@@ -181,6 +181,9 @@ test('pack discovery schema is metadata-only and non-executing', async () => {
   assert.equal(schema.pack_manifest_file_extension, '.cdeck-pack.json');
   assert.equal(schema.pack_selector_target, 'pack_manifest_file');
   assert.equal(schema.pack_selector_filter, '*.cdeck-pack.json');
+  assert.equal(schema.custom_pack_catalog_dir, 'command-packs');
+  assert.equal(schema.custom_pack_manifest_path_rule, 'command-packs/<pack_slug>/<pack_slug>.cdeck-pack.json');
+  assert.equal(schema.pack_slug_rule, 'lowercase-kebab');
   assert.deepEqual(schema.pack_selection_surfaces, ['open', 'recent']);
   assert.equal(schema.open_rule, 'validates_one_selected_pack_without_activating_multiple_profiles');
   assert.equal(schema.recent_rule, 'reads_local_recent_pack_state_without_loading_multiple_packs');
@@ -231,6 +234,9 @@ test('SourceGrid console bridge is selection metadata only', async () => {
   assert.equal(contract.active_pack_policy, 'single_active_pack_per_invocation');
   assert.equal(contract.pack_selector_target, 'pack_manifest_file');
   assert.equal(contract.pack_selector_filter, '*.cdeck-pack.json');
+  assert.equal(contract.custom_pack_catalog_dir, 'command-packs');
+  assert.equal(contract.custom_pack_manifest_path_rule, 'command-packs/<pack_slug>/<pack_slug>.cdeck-pack.json');
+  assert.equal(contract.pack_slug_rule, 'lowercase-kebab');
   assert.deepEqual(contract.pack_selection_surfaces, ['open', 'recent']);
   assert.deepEqual(contract.control_root_kinds, ['owner-repo', 'local-folder']);
   assert.equal(contract.selection_manifest_contract, 'contracts/bridge/sourcegrid-pack-selection.schema.json');
@@ -274,6 +280,9 @@ test('SourceGrid pack selection manifest is candidate metadata only', async () =
   assert.equal(schema.pack_path_rule, 'relative_to_configured_control_root');
   assert.equal(schema.pack_path_extension_rule, 'must_end_with_.cdeck-pack.json');
   assert.equal(schema.pack_selector_filter, '*.cdeck-pack.json');
+  assert.equal(schema.custom_pack_catalog_dir, 'command-packs');
+  assert.equal(schema.custom_pack_manifest_path_rule, 'command-packs/<pack_slug>/<pack_slug>.cdeck-pack.json');
+  assert.equal(schema.pack_slug_rule, 'lowercase-kebab');
   assert.equal(schema.local_apply_rule, 'pack_path_must_stay_inside_enabled_control_root');
   assert.equal(
     schema.external_local_folder_rule,

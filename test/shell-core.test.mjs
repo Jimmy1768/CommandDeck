@@ -17,6 +17,7 @@ import {
   loadCoreActionRequirements,
   loadRecentCommandPacks,
   loadSourceGridPackSelection,
+  initCommandPack,
   normalizeUtterance,
   openCommandPack,
   resumeConceptCheckingQuestion,
@@ -607,6 +608,67 @@ test('CLI supports pack open and recent surfaces', async () => {
   assert.equal(recent.recent_packs[0].pack_id, 'commanddeck.local-exact.slice2');
 });
 
+test('initializes a custom command pack layout with safe defaults', async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'command-deck-pack-init-'));
+
+  const initialized = await initCommandPack({
+    rootDir,
+    controlRoot: tempRoot,
+    packSlug: 'sourcegrid',
+    owner: 'sourcegrid'
+  });
+
+  assert.equal(initialized.status, 'initialized');
+  assert.equal(initialized.selector_pack_path, 'command-packs/sourcegrid/sourcegrid.cdeck-pack.json');
+  assert.equal(initialized.execution_enabled, false);
+
+  const manifest = JSON.parse(await readFile(initialized.manifest_path, 'utf8'));
+  const routes = await readJson('contracts/routes/route-contracts.json');
+  const permissions = await readJson('contracts/permissions/permission-levels.json');
+  assert.equal(manifest.pack_id, 'sourcegrid.sourcegrid');
+  assert.equal(manifest.commands[0].permission_level, 'read-only');
+  assert.deepEqual(validateCommandPack(manifest, { routes, permissions }), []);
+
+  await assert.rejects(
+    () =>
+      initCommandPack({
+        rootDir,
+        controlRoot: tempRoot,
+        packSlug: 'sourcegrid',
+        owner: 'sourcegrid'
+      }),
+    /refuses to overwrite existing file/
+  );
+});
+
+test('CLI initializes a custom command pack layout', async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'command-deck-pack-init-cli-'));
+  const output = spawnSync(
+    process.execPath,
+    [
+      'bin/command-deck.mjs',
+      'pack:init',
+      '--control-root',
+      tempRoot,
+      '--pack-slug',
+      'jimmy-local',
+      '--owner',
+      'jimmy'
+    ],
+    {
+      cwd: rootDir,
+      encoding: 'utf8'
+    }
+  );
+
+  assert.equal(output.status, 0, output.stderr);
+  const initialized = JSON.parse(output.stdout);
+  assert.equal(initialized.selector_pack_path, 'command-packs/jimmy-local/jimmy-local.cdeck-pack.json');
+
+  const manifest = JSON.parse(await readFile(initialized.manifest_path, 'utf8'));
+  assert.equal(manifest.pack_id, 'jimmy.jimmy-local');
+});
+
 test('applies a SourceGrid pack selection after local control-root validation', async () => {
   const selection = await loadSourceGridPackSelection({
     rootDir,
@@ -637,7 +699,8 @@ test('applies a SourceGrid pack selection after local control-root validation', 
 
 test('applies a pack selection from an external local-only control folder', async () => {
   const externalRoot = await mkdtemp(path.join(os.tmpdir(), 'command-deck-external-packs-'));
-  const packDir = path.join(externalRoot, 'sourcegrid-labs', 'command-packs', 'sourcegrid');
+  const controlRoot = path.join(externalRoot, 'sourcegrid-labs');
+  const packDir = path.join(controlRoot, 'command-packs', 'sourcegrid');
   const packFile = path.join(packDir, 'sourcegrid.cdeck-pack.json');
   const packContents = await readFile(
     path.join(rootDir, 'contracts/commands/local-exact-commands.cdeck-pack.json'),
@@ -655,7 +718,7 @@ test('applies a pack selection from an external local-only control folder', asyn
       {
         id: 'sourcegrid_labs_local',
         kind: 'local-folder',
-        path: packDir,
+        path: controlRoot,
         local_only: true,
         enabled: true,
         discovery_mode: 'metadata_only'
@@ -670,7 +733,7 @@ test('applies a pack selection from an external local-only control folder', asyn
     pack_ref: 'commanddeck.local-exact.slice2',
     pack_source_kind: 'local-folder',
     control_root_ref: 'sourcegrid_labs_local',
-    pack_path: 'sourcegrid.cdeck-pack.json',
+    pack_path: 'command-packs/sourcegrid/sourcegrid.cdeck-pack.json',
     selected_at: '2026-06-11T00:00:00.000Z'
   };
 
@@ -683,11 +746,30 @@ test('applies a pack selection from an external local-only control folder', asyn
   });
 
   assert.equal(applied.status, 'applied');
-  assert.equal(applied.active_command_pack, 'control-root:sourcegrid_labs_local/sourcegrid.cdeck-pack.json');
+  assert.equal(
+    applied.active_command_pack,
+    'control-root:sourcegrid_labs_local/command-packs/sourcegrid/sourcegrid.cdeck-pack.json'
+  );
   assert.equal(applied.resolved_command_pack_path, packFile);
   assert.equal(applied.opened_pack.pack.pack_id, 'commanddeck.local-exact.slice2');
   assert.equal(applied.opened_pack.recent_entry.command_pack_path, applied.active_command_pack);
   assert.equal(applied.opened_pack.recent_entry.resolved_command_pack_path, packFile);
+
+  await assert.rejects(
+    () =>
+      applySourceGridPackSelection(
+        {
+          ...selection,
+          pack_path: 'sourcegrid/sourcegrid.cdeck-pack.json'
+        },
+        {
+          rootDir,
+          config,
+          timestamp
+        }
+      ),
+    /external custom pack path must use command-packs\/<pack_slug>\/<pack_slug>\.cdeck-pack\.json/
+  );
 });
 
 test('rejects unsafe SourceGrid pack selection manifests', async () => {

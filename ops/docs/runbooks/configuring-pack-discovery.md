@@ -67,7 +67,7 @@ repo. Configure the local clone or control folder as a `local-folder` root:
 {
   "id": "sourcegrid_labs_local",
   "kind": "local-folder",
-  "path": "/Users/jimmy1768/Projects/sourcegrid-labs/command-packs",
+  "path": "/Users/jimmy1768/Projects/sourcegrid-labs",
   "local_only": true,
   "enabled": true,
   "discovery_mode": "metadata_only"
@@ -75,8 +75,29 @@ repo. Configure the local clone or control folder as a `local-folder` root:
 ```
 
 Selections from that root still use a relative `pack_path`, for example
-`sourcegrid/sourcegrid.cdeck-pack.json`. CommandDeck validates that the
-resolved file stays inside the configured root before loading it.
+`command-packs/sourcegrid/sourcegrid.cdeck-pack.json`. CommandDeck validates
+that the resolved file stays inside the configured root before loading it.
+
+The standard V1 custom pack layout is:
+
+```text
+<owner-control-repo>/
+  command-packs/
+    <pack_slug>/
+      <pack_slug>.cdeck-pack.json
+      README.md
+      fixtures/
+      scripts/
+```
+
+External local-folder selections must use
+`command-packs/<pack_slug>/<pack_slug>.cdeck-pack.json`.
+
+Use `pack:init` to create this layout safely:
+
+```sh
+npm run command:local -- pack:init --control-root /Users/jimmy1768/Projects/sourcegrid-labs --pack-slug sourcegrid --owner sourcegrid
+```
 
 ## Validation
 

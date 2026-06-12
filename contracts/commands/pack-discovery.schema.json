@@ -12,6 +12,9 @@
   "pack_manifest_file_extension": ".cdeck-pack.json",
   "pack_selector_target": "pack_manifest_file",
   "pack_selector_filter": "*.cdeck-pack.json",
+  "custom_pack_catalog_dir": "command-packs",
+  "custom_pack_manifest_path_rule": "command-packs/<pack_slug>/<pack_slug>.cdeck-pack.json",
+  "pack_slug_rule": "lowercase-kebab",
   "pack_selection_surfaces": ["open", "recent"],
   "open_rule": "validates_one_selected_pack_without_activating_multiple_profiles",
   "recent_rule": "reads_local_recent_pack_state_without_loading_multiple_packs",
@@ -40,6 +43,7 @@
   "future_owner_repos": ["sourcegrid-labs", "partner repos"],
   "notes": [
     "Discovery roots declare where packs may be found in later phases.",
+    "Custom pack control roots should point at the owner repo or local control folder root, not directly at a pack folder.",
     "External custom packs should live in user-owned git repos or local control folders.",
     "Phase 1 validation does not crawl owner repos, execute scripts, call providers, or load secrets.",
     "SourceGrid command packs remain in sourcegrid-labs."

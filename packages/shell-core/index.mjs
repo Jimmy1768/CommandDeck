@@ -11,6 +11,8 @@ const COMMAND_PACK_FILE_EXTENSION = '.cdeck-pack.json';
 const DEFAULT_COMMAND_PACK_PATH = 'contracts/commands/mvp-commands.cdeck-pack.json';
 const DEFAULT_RECORD_DIR = 'records/actions';
 const DEFAULT_PACK_STATE_PATH = '.commanddeck/state/recent-packs.json';
+const CUSTOM_PACK_CATALOG_DIR = 'command-packs';
+const PACK_SLUG_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 const RECENT_PACK_LIMIT = 10;
 const CCQ_TOKEN_TTL_SECONDS = 300;
 const ACTION_RECORD_LOCK_STALE_MS = 30_000;
@@ -499,6 +501,68 @@ export async function openCommandPack(options = {}) {
   return result;
 }
 
+export async function initCommandPack(options = {}) {
+  const rootDir = options.rootDir ?? path.resolve(import.meta.dirname, '../..');
+  const controlRoot = options.controlRoot ?? '.';
+  const packSlug = options.packSlug;
+  const owner = options.owner;
+
+  if (!packSlug) {
+    throw new Error('packSlug is required');
+  }
+
+  if (!owner) {
+    throw new Error('owner is required');
+  }
+
+  if (!PACK_SLUG_PATTERN.test(packSlug)) {
+    throw new Error('packSlug must be lowercase kebab-case');
+  }
+
+  if (!/^[a-z0-9][a-z0-9_.-]*$/.test(owner)) {
+    throw new Error('owner must be a stable lowercase identifier');
+  }
+
+  const resolvedControlRoot = resolvePackInitControlRoot(rootDir, controlRoot);
+  const packDir = path.join(resolvedControlRoot, CUSTOM_PACK_CATALOG_DIR, packSlug);
+  const manifestPath = path.join(packDir, `${packSlug}${COMMAND_PACK_FILE_EXTENSION}`);
+  const readmePath = path.join(packDir, 'README.md');
+  const fixturesDir = path.join(packDir, 'fixtures');
+  const scriptsDir = path.join(packDir, 'scripts');
+
+  for (const targetPath of [manifestPath, readmePath]) {
+    if (await pathExists(targetPath)) {
+      throw new Error(`pack:init refuses to overwrite existing file: ${targetPath}`);
+    }
+  }
+
+  await mkdir(fixturesDir, { recursive: true });
+  await mkdir(scriptsDir, { recursive: true });
+  await writeFile(manifestPath, `${JSON.stringify(buildStarterCommandPack({ packSlug, owner }), null, 2)}\n`, {
+    flag: 'wx'
+  });
+  await writeFile(readmePath, buildStarterCommandPackReadme({ packSlug, owner }), { flag: 'wx' });
+
+  return {
+    schema_version: '0.1',
+    status: 'initialized',
+    pack_slug: packSlug,
+    owner,
+    control_root: resolvedControlRoot,
+    pack_dir: packDir,
+    manifest_path: manifestPath,
+    selector_pack_path: `${CUSTOM_PACK_CATALOG_DIR}/${packSlug}/${packSlug}${COMMAND_PACK_FILE_EXTENSION}`,
+    created: {
+      manifest: manifestPath,
+      readme: readmePath,
+      fixtures_dir: fixturesDir,
+      scripts_dir: scriptsDir
+    },
+    execution_enabled: false,
+    overwrite_allowed: false
+  };
+}
+
 export async function loadRecentCommandPacks(options = {}) {
   const rootDir = options.rootDir ?? path.resolve(import.meta.dirname, '../..');
   const statePath = options.statePath ?? DEFAULT_PACK_STATE_PATH;
@@ -676,6 +740,10 @@ function resolveSelectionCommandPackPath(rootDir, config, selection) {
   }
 
   assertCommandPackManifestPath(selection.pack_path);
+
+  if (path.isAbsolute(controlRoot.path)) {
+    assertCustomPackCatalogPath(selection.pack_path);
+  }
 
   const resolvedRoot = path.isAbsolute(controlRoot.path)
     ? path.resolve(controlRoot.path)
@@ -1887,6 +1955,75 @@ async function loadValidatedCommandPack({ rootDir, commandPackPath, resolvedComm
   return pack;
 }
 
+function buildStarterCommandPack({ packSlug, owner }) {
+  return {
+    schema_version: '0.1',
+    pack_id: `${owner}.${packSlug}`,
+    owner,
+    permissions: 'contracts/permissions/permission-levels.json',
+    record_policy: {
+      record_schema: 'contracts/records/action-record.schema.json',
+      storage: 'local_action_record'
+    },
+    commands: [
+      {
+        command_id: `${packSlug}.starter_status`,
+        title: `Describe the ${packSlug} command pack.`,
+        example_utterances: [`Describe the ${packSlug} command pack.`],
+        permission_level: 'read-only',
+        route: 'local.fixture_read',
+        allowed_effects: ['read_local_fixture'],
+        forbidden_effects: ['state_change', 'external_call', 'execute_now'],
+        sources: ['evals/fixtures/generic/current_repo_summary.json']
+      }
+    ]
+  };
+}
+
+function buildStarterCommandPackReadme({ packSlug, owner }) {
+  return `# ${packSlug} CommandDeck Pack
+
+Owner: ${owner}
+
+This pack was created by \`pack:init\`.
+
+## Layout
+
+\`\`\`text
+command-packs/${packSlug}/
+  ${packSlug}${COMMAND_PACK_FILE_EXTENSION}
+  README.md
+  fixtures/
+  scripts/
+\`\`\`
+
+## Safety
+
+- Selecting this pack validates the manifest only.
+- Scripts in \`scripts/\` are not executable authority by themselves.
+- Do not store secrets, env files, provider keys, or credentials in this pack.
+- Add commands conservatively and keep risky actions approval-gated.
+
+## Next Steps
+
+1. Update the manifest command examples.
+2. Add pack-owned fixtures under \`fixtures/\` if needed.
+3. Validate with CommandDeck before selecting the pack.
+`;
+}
+
+function resolvePackInitControlRoot(rootDir, controlRoot) {
+  if (!controlRoot || typeof controlRoot !== 'string') {
+    throw new Error('controlRoot is required');
+  }
+
+  if (path.isAbsolute(controlRoot)) {
+    return path.resolve(controlRoot);
+  }
+
+  return resolveRepoRelativePath(rootDir, controlRoot);
+}
+
 function assertCommandPackManifestPath(commandPackPath) {
   if (!isCommandPackManifestPath(commandPackPath)) {
     throw new Error(`command pack manifest path must end with ${COMMAND_PACK_FILE_EXTENSION}`);
@@ -1895,6 +2032,22 @@ function assertCommandPackManifestPath(commandPackPath) {
 
 function isCommandPackManifestPath(commandPackPath) {
   return typeof commandPackPath === 'string' && commandPackPath.endsWith(COMMAND_PACK_FILE_EXTENSION);
+}
+
+function assertCustomPackCatalogPath(commandPackPath) {
+  const normalizedPath = commandPackPath.split(path.sep).join(path.posix.sep);
+  const parts = normalizedPath.split('/');
+
+  if (parts.length !== 3 || parts[0] !== CUSTOM_PACK_CATALOG_DIR) {
+    throw new Error(`external custom pack path must use ${CUSTOM_PACK_CATALOG_DIR}/<pack_slug>/<pack_slug>${COMMAND_PACK_FILE_EXTENSION}`);
+  }
+
+  const packSlug = parts[1];
+  const expectedFilename = `${packSlug}${COMMAND_PACK_FILE_EXTENSION}`;
+
+  if (!PACK_SLUG_PATTERN.test(packSlug) || parts[2] !== expectedFilename) {
+    throw new Error(`external custom pack path must use ${CUSTOM_PACK_CATALOG_DIR}/<pack_slug>/<pack_slug>${COMMAND_PACK_FILE_EXTENSION}`);
+  }
 }
 
 function resolveRepoRelativePath(rootDir, relativePath) {

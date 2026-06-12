@@ -26,6 +26,20 @@ The source-of-truth split is:
 - Custom packs live in the user's or company's own git repo or local control
   folder and are selected through configured `command_pack_roots`.
 
+Custom pack repos use this standard V1 layout:
+
+```text
+command-packs/
+  <pack_slug>/
+    <pack_slug>.cdeck-pack.json
+    README.md
+    fixtures/
+    scripts/
+```
+
+The manifest is the selected artifact. Other files in the folder do not grant
+execution authority by themselves.
+
 Command packs should model workspace routines that go beyond generic computer
 control. For coding work, they may prepare the PC environment around Codex, but
 they should not turn CommandDeck into a replacement coding agent.

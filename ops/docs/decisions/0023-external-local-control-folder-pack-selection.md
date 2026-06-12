@@ -24,6 +24,8 @@ when all of the following are true:
 - the root is enabled;
 - the selection manifest names the configured root;
 - `pack_path` is relative to that root;
+- `pack_path` follows the standard custom-pack layout from decision 0024:
+  `command-packs/<pack_slug>/<pack_slug>.cdeck-pack.json`;
 - the resolved file stays inside that root;
 - the selected file ends with `.cdeck-pack.json`;
 - the pack contract validates locally before it becomes active.
