@@ -66,6 +66,16 @@ test('command pack schema documents the Phase 1 loading boundary', async () => {
   assert.ok(schema.optional_command_fields.includes('runner_action'));
   assert.equal(schema.local_exact_runner.enabled_for_read_only, true);
   assert.equal(schema.local_exact_runner.execution_boundary, 'allowlisted_local_runner');
+  assert.equal(schema.custom_pack_enforcement.default_policy, 'deny_by_default');
+  assert.equal(schema.custom_pack_enforcement.pack_defined_runner_routes_allowed, false);
+  assert.equal(schema.custom_pack_enforcement.arbitrary_shell_passthrough_allowed, false);
+  assert.equal(schema.custom_pack_enforcement.hidden_script_execution_allowed, false);
+  assert.equal(
+    schema.custom_pack_enforcement.rejection_behavior.unsafe_runtime_request,
+    'execution_blocked_before_side_effects'
+  );
+  assert.equal(schema.custom_pack_enforcement.rejection_behavior.fallback_execution_allowed, false);
+  assert.equal(schema.custom_pack_enforcement.audit_event, 'pack_command_rejected');
   assert.equal(schema.action_requirements.schema, 'contracts/commands/action-requirements.schema.json');
   assert.equal(schema.action_requirements.core_requirements, 'contracts/commands/core-action-requirements.json');
   assert.equal(schema.action_requirements.core_runtime_source, 'contracts/commands/core-action-requirements.json');

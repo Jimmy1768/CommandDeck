@@ -36,6 +36,23 @@
     "runner_action_field": "runner_action",
     "allowed_source_protocol": "local://"
   },
+  "custom_pack_enforcement": {
+    "default_policy": "deny_by_default",
+    "pack_authority": "declare_intents_targets_requirements_and_approved_routes_only",
+    "execution_authority": "none_without_commanddeck_policy_and_runner_validation",
+    "capability_registry_owner": "commanddeck_core",
+    "pack_defined_runner_routes_allowed": false,
+    "arbitrary_shell_passthrough_allowed": false,
+    "hidden_script_execution_allowed": false,
+    "rejection_behavior": {
+      "bad_pack_shape": "pack_load_rejected",
+      "bad_command_declaration": "command_registration_rejected",
+      "unsafe_runtime_request": "execution_blocked_before_side_effects",
+      "risky_allowed_request": "explicit_approval_required",
+      "fallback_execution_allowed": false
+    },
+    "audit_event": "pack_command_rejected"
+  },
   "action_requirements": {
     "schema": "contracts/commands/action-requirements.schema.json",
     "core_requirements": "contracts/commands/core-action-requirements.json",

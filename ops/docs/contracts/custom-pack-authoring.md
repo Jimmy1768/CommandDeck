@@ -103,6 +103,29 @@ slots that core does not know about.
   explicit runner policy.
 - Do not use CommandDeck to replace Codex for code implementation prompts.
 
+## If A Command Is Rejected
+
+CommandDeck rejects unsafe custom-pack commands before execution. Rejection is
+not a partial run and does not fall back to shell execution.
+
+Common rejection cases:
+
+- the manifest contains forbidden executable fields;
+- a command references an unknown or pack-defined runner route;
+- a command declares forbidden effects such as production writes or external
+  provider calls;
+- runtime behavior requests a stronger capability than the command declared.
+
+A rejection should return:
+
+- a short user-facing explanation;
+- a developer diagnostic naming the pack, command, field, value, and rule;
+- no execution;
+- a `pack_command_rejected` audit event.
+
+Fix the manifest or use an approved route. Do not work around rejection by
+renaming the command or hiding behavior behind an alias.
+
 ## Select The Pack
 
 The SourceGrid Labs console should send a selection manifest with:

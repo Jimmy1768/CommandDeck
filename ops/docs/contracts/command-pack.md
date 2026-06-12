@@ -40,6 +40,31 @@ command-packs/
 The manifest is the selected artifact. Other files in the folder do not grant
 execution authority by themselves.
 
+## Custom Pack Capability Boundary
+
+Custom packs are deny-by-default. They may declare workspace-specific intents,
+targets, required slots, examples, approved routes, and risk metadata. They do
+not grant execution authority by themselves.
+
+The enforcement chain is:
+
+```text
+schema -> capability registry -> risk policy -> approval check -> runner validation -> audit log
+```
+
+If a pack violates the contract, CommandDeck must fail closed:
+
+- bad pack shape rejects the pack load;
+- bad command declaration rejects command registration;
+- unsafe runtime request is blocked before side effects;
+- risky but allowed request requires explicit approval;
+- rejected commands do not fall back to arbitrary execution.
+
+Users may keep scripts in `scripts/`, but CommandDeck does not run them unless a
+future explicit runner policy allows the route and the structured request passes
+validation. AppRelay output must also resolve back into the same structured
+contract before execution.
+
 Command packs should model workspace routines that go beyond generic computer
 control. For coding work, they may prepare the PC environment around Codex, but
 they should not turn CommandDeck into a replacement coding agent.
@@ -145,6 +170,18 @@ script path.
 
 The allowlist is owned by CommandDeck core, not by the command pack. Command
 packs must not embed shell, executable, or handler fields.
+
+## Rejection Output
+
+When CommandDeck rejects a pack command, it should return a useful failure
+instead of silently ignoring the command or trying a fallback execution path.
+
+The rejection should include:
+
+- a short user-facing message for the current surface;
+- a developer diagnostic with pack, command, field, value, and violated rule;
+- no execution;
+- an audit event named `pack_command_rejected`.
 
 ## Core Versus Pack
 
