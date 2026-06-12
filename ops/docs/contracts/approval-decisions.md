@@ -17,11 +17,13 @@ Required fields:
 The decision scope must match the action record's `approval_request` target and
 action.
 
-## Phase 1 Behavior
+## Current Behavior
 
 - Denied decisions keep the action blocked.
-- Approved decisions still keep execution blocked because execute-now and
-  external dispatch are disabled in Phase 1.
+- Approved decisions still keep contract-only routes blocked because execute-now
+  and external dispatch remain disabled.
+- Approved decisions may execute a built-in allowlisted local control action
+  when the action record route declares that boundary.
 - Expired decisions are rejected.
 - Voice invocation is not approval.
 - Adapter request files cannot carry approval decisions.

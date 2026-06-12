@@ -238,6 +238,26 @@ test('loads the default command pack through validation', async () => {
   assert.equal(pack.commands.length, 5);
 });
 
+test('loads the exact local command pack through validation', async () => {
+  const pack = await loadCommandPack({
+    rootDir,
+    commandPackPath: 'contracts/commands/local-exact-commands.json'
+  });
+
+  assert.equal(pack.pack_id, 'commanddeck.local-exact.slice2');
+  assert.equal(pack.commands.length, 4);
+});
+
+test('loads the approval-gated local command pack through validation', async () => {
+  const pack = await loadCommandPack({
+    rootDir,
+    commandPackPath: 'contracts/commands/local-approved-commands.json'
+  });
+
+  assert.equal(pack.pack_id, 'commanddeck.local-approved.slice2');
+  assert.equal(pack.commands.length, 2);
+});
+
 test('runs with an explicit repo-relative command pack path', async () => {
   const result = await runLocalCommand(
     {
@@ -252,6 +272,121 @@ test('runs with an explicit repo-relative command pack path', async () => {
 
   assert.equal(result.record.command_id, 'mvp.apprelay_changes_today');
   assert.equal(result.record.result.data.real_apprelay_read, false);
+});
+
+test('executes an allowlisted local repo status command with an injected executor', async () => {
+  const result = await runLocalCommand(
+    {
+      command_text: 'What is the status of this repo?'
+    },
+    {
+      rootDir,
+      timestamp,
+      commandPackPath: 'contracts/commands/local-exact-commands.json',
+      executor: async (spec) => {
+        assert.equal(spec.command, 'git');
+        assert.deepEqual(spec.args, ['status', '--short', '--branch']);
+        assert.equal(spec.cwd, rootDir);
+        return {
+          exitCode: 0,
+          stdout: '## main...origin/main [ahead 2]\n M README.md\n?? contracts/commands/local-exact-commands.json\n',
+          stderr: ''
+        };
+      }
+    }
+  );
+
+  assert.equal(result.record.command_id, 'local.repo_status');
+  assert.equal(result.record.action_key, 'repo.status');
+  assert.equal(result.record.result.status, 'executed_local_exact_command');
+  assert.equal(result.record.approval_status, 'not_required');
+  assert.equal(result.record.sources_used[0], 'local://git/status');
+  assert.match(result.response_text, /Repo status: main\.\.\.origin\/main \[ahead 2\]; 2 local file changes\./);
+  assert.deepEqual(result.record.result.data.changed_entries, [' M README.md', '?? contracts/commands/local-exact-commands.json']);
+});
+
+test('executes an allowlisted local Puma status command with an injected executor', async () => {
+  const result = await runLocalCommand(
+    {
+      command_text: 'Is Puma running?'
+    },
+    {
+      rootDir,
+      timestamp,
+      commandPackPath: 'contracts/commands/local-exact-commands.json',
+      executor: async (spec) => {
+        assert.equal(spec.command, 'ps');
+        assert.deepEqual(spec.args, ['-ef']);
+        return {
+          exitCode: 0,
+          stdout: 'UID PID PPID C STIME TTY TIME CMD\njimmy 123 1 0 10:00 ?? 0:00.10 puma 6.4.0 (tcp://127.0.0.1:3000)\n',
+          stderr: ''
+        };
+      }
+    }
+  );
+
+  assert.equal(result.record.command_id, 'local.puma_status');
+  assert.equal(result.record.action_key, 'service.puma_status');
+  assert.equal(result.record.result.status, 'executed_local_exact_command');
+  assert.equal(result.record.result.data.running, true);
+  assert.equal(result.record.result.data.process_count, 1);
+  assert.match(result.response_text, /Puma appears to be running in 1 process\./);
+});
+
+test('fails closed when an allowlisted local runner action errors', async () => {
+  const result = await runLocalCommand(
+    {
+      command_text: 'Show recent commits.'
+    },
+    {
+      rootDir,
+      timestamp,
+      commandPackPath: 'contracts/commands/local-exact-commands.json',
+      executor: async () => ({
+        exitCode: 1,
+        stdout: '',
+        stderr: 'git repository missing'
+      })
+    }
+  );
+
+  assert.equal(result.record.command_id, 'local.repo_recent_commits');
+  assert.equal(result.record.result.status, 'failed_closed');
+  assert.equal(result.record.follow_up_owner, 'human_operator');
+  assert.match(result.response_text, /Allowlisted local runner action failed/);
+  assert.match(result.response_text, /git repository missing/);
+});
+
+test('approval-gated local command requests approval without executing', async () => {
+  let executorCalled = false;
+  const result = await runLocalCommand(
+    {
+      command_text: 'Open the SourceGrid dashboard.'
+    },
+    {
+      rootDir,
+      timestamp,
+      commandPackPath: 'contracts/commands/local-approved-commands.json',
+      executor: async () => {
+        executorCalled = true;
+        throw new Error('should not run');
+      }
+    }
+  );
+
+  assert.equal(executorCalled, false);
+  assert.equal(result.record.command_id, 'local.open_sourcegrid_dashboard');
+  assert.equal(result.record.action_key, 'workspace.open_sourcegrid_dashboard');
+  assert.equal(result.record.approval_status, 'requested_pending');
+  assert.equal(result.record.result.status, 'approval_requested');
+  assert.deepEqual(result.record.approval_request, {
+    target: 'SourceGrid dashboard in the default browser',
+    action: 'open the dashboard',
+    risk: 'launches a GUI app and may reveal workspace context on screen',
+    expected_record: 'action record updated after approval decision'
+  });
+  assert.match(result.response_text, /Approval is required before open the dashboard\./);
 });
 
 test('rejects command packs with executable fields or unsafe sources', async () => {
@@ -306,6 +441,53 @@ test('CLI accepts an explicit command pack without writing records', async () =>
   assert.equal(output.status, 0, output.stderr);
   const parsed = JSON.parse(output.stdout);
   assert.equal(parsed.record.command_id, 'mvp.next_sourcegrid_task');
+  assert.equal(parsed.record_write.status, 'not_written');
+});
+
+test('CLI can execute an exact local repo status pack without writing records', async () => {
+  const output = spawnSync(
+    process.execPath,
+    [
+      'bin/command-deck.mjs',
+      '--command-pack',
+      'contracts/commands/local-exact-commands.json',
+      'What is the status of this repo?'
+    ],
+    {
+      cwd: rootDir,
+      encoding: 'utf8'
+    }
+  );
+
+  assert.equal(output.status, 0, output.stderr);
+  const parsed = JSON.parse(output.stdout);
+  assert.equal(parsed.record.command_id, 'local.repo_status');
+  assert.equal(parsed.record.action_key, 'repo.status');
+  assert.equal(parsed.record.result.status, 'executed_local_exact_command');
+  assert.equal(parsed.record_write.status, 'not_written');
+});
+
+test('CLI can apply an approval decision and report the current decision status', async () => {
+  const output = spawnSync(
+    process.execPath,
+    [
+      'bin/command-deck.mjs',
+      'approval:apply',
+      '--record-file',
+      'evals/fixtures/action_records/operatorkit_dry_run.blocked.json',
+      '--decision-file',
+      'evals/fixtures/approval_decisions/operatorkit_dry_run.expired.json'
+    ],
+    {
+      cwd: rootDir,
+      encoding: 'utf8'
+    }
+  );
+
+  assert.equal(output.status, 0, output.stderr);
+  const parsed = JSON.parse(output.stdout);
+  assert.equal(parsed.decision_status, 'rejected_expired');
+  assert.equal(parsed.approval_status, 'blocked_execute_now_disabled');
   assert.equal(parsed.record_write.status, 'not_written');
 });
 
@@ -720,7 +902,7 @@ test('safety eval CLI prints passing report without writing by default', async (
 test('applies denied approval decision without execution', async () => {
   const record = await readJson('evals/fixtures/action_records/operatorkit_dry_run.blocked.json');
   const decision = await readJson('evals/fixtures/approval_decisions/operatorkit_dry_run.denied.json');
-  const result = applyApprovalDecision(record, decision, {
+  const result = await applyApprovalDecision(record, decision, {
     now: '2026-06-11T00:10:00.000Z'
   });
 
@@ -732,7 +914,7 @@ test('applies denied approval decision without execution', async () => {
 test('approved approval decision still cannot execute in Phase 1', async () => {
   const record = await readJson('evals/fixtures/action_records/operatorkit_dry_run.blocked.json');
   const decision = await readJson('evals/fixtures/approval_decisions/operatorkit_dry_run.approved.json');
-  const result = applyApprovalDecision(record, decision, {
+  const result = await applyApprovalDecision(record, decision, {
     now: '2026-06-11T00:10:00.000Z'
   });
 
@@ -744,12 +926,62 @@ test('approved approval decision still cannot execute in Phase 1', async () => {
 test('expired approval decision is rejected', async () => {
   const record = await readJson('evals/fixtures/action_records/operatorkit_dry_run.blocked.json');
   const decision = await readJson('evals/fixtures/approval_decisions/operatorkit_dry_run.expired.json');
-  const result = applyApprovalDecision(record, decision, {
+  const result = await applyApprovalDecision(record, decision, {
     now: '2026-06-11T00:10:00.000Z'
   });
 
   assert.equal(result.decision_status, 'rejected_expired');
   assert.ok(result.errors.includes('approval decision is expired'));
+});
+
+test('approved local action decision executes allowlisted action when enabled', async () => {
+  const pending = await runLocalCommand(
+    {
+      actor_ref: 'director',
+      command_text: 'Open the CommandDeck repo.'
+    },
+    {
+      rootDir,
+      timestamp,
+      commandPackPath: 'contracts/commands/local-approved-commands.json'
+    }
+  );
+  const decision = {
+    decision_id: 'appr_local_repo_open',
+    record_id: pending.record.record_id,
+    actor_ref: 'director',
+    decision: 'approved',
+    decided_at: '2026-06-11T00:05:00.000Z',
+    reason: 'approved for local desktop use',
+    scope: {
+      target: pending.record.approval_request.target,
+      action: pending.record.approval_request.action
+    },
+    expires_at: '2026-06-11T01:00:00.000Z'
+  };
+
+  const result = await applyApprovalDecision(pending.record, decision, {
+    now: '2026-06-11T00:10:00.000Z',
+    executeApprovedLocalActions: true,
+    rootDir,
+    executor: async (spec) => {
+      assert.equal(spec.command, 'open');
+      assert.deepEqual(spec.args, ['.']);
+      assert.equal(spec.cwd, rootDir);
+      return {
+        exitCode: 0,
+        stdout: '',
+        stderr: ''
+      };
+    }
+  });
+
+  assert.equal(result.decision_status, 'approved_executed_local_action');
+  assert.equal(result.approval_status, 'approved');
+  assert.equal(result.result.status, 'executed_local_approved_action');
+  assert.equal(result.record.action_key, 'workspace.open_commanddeck_repo');
+  assert.equal(result.record.follow_up_owner, null);
+  assert.match(result.result.summary, /Opened the current CommandDeck repo\./);
 });
 
 test('approval decision scope must match approval request', async () => {

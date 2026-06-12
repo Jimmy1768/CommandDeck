@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { ALLOWLISTED_LOCAL_RUNNER_ACTIONS, runAllowlistedLocalAction } from './local-runner.mjs';
 
 const DEFAULT_ACTOR = 'local_prototype';
 const DEFAULT_ADAPTER = 'local_cli';
@@ -89,6 +90,7 @@ const ALLOWED_ADAPTERS = new Set(['apple_shortcuts', 'google_voice', 'local_cli'
 const ALLOWED_REQUESTED_OUTPUTS = new Set(['spoken_summary', 'display_text', 'json']);
 const ALLOWED_SURFACE_HINTS = new Set(['phone', 'watch', 'glasses', 'computer']);
 const ALLOWED_TARGET_RUNNERS = new Set(['command']);
+const ALLOWED_LOCAL_RUNNER_PERMISSION_LEVELS = new Set(['read-only', 'approval-required']);
 const REQUIRED_COMMAND_FIELDS = [
   'command_id',
   'title',
@@ -122,24 +124,55 @@ export async function runLocalCommand(input, options = {}) {
       input,
       timestamp,
       commandText,
-      summary: 'CommandDeck could not classify this command from the slice 1 command pack.'
+      summary: 'CommandDeck could not classify this command from the active command pack.'
     });
   }
 
   const route = routes.routes.find((candidate) => candidate.id === command.route);
-  if (!route || route.real_integration !== false) {
+  if (!route) {
     return buildFailureRecord({
       input,
       timestamp,
       commandText,
       command,
-      summary: 'Command route is missing or not contract-only.'
+      summary: 'Command route is missing.'
+    });
+  }
+  let result;
+
+  try {
+    if (isLocalExactCommand(route, command)) {
+      if (command.permission_level === 'approval-required') {
+        result = blockedApprovalResultFor(command);
+      } else {
+        result = await runAllowlistedLocalAction(command.runner_action, {
+          rootDir,
+          executor: options.executor
+        });
+      }
+    } else if (route.real_integration === false) {
+      const sources = await Promise.all(command.sources.map((source) => readJson(rootDir, source)));
+      result = evaluateFixtureCommand(command, sources);
+    } else {
+      return buildFailureRecord({
+        input,
+        timestamp,
+        commandText,
+        command,
+        summary: 'Command route is not available for local execution.'
+      });
+    }
+  } catch (error) {
+    return buildFailureRecord({
+      input,
+      timestamp,
+      commandText,
+      command,
+      summary: `Allowlisted local runner action failed: ${error.message}`
     });
   }
 
-  const sources = await Promise.all(command.sources.map((source) => readJson(rootDir, source)));
-  const result = evaluateFixtureCommand(command, sources);
-  const approvalStatus = approvalStatusFor(command.permission_level);
+  const approvalStatus = approvalStatusFor(command, route);
   const responseText = responseFor(result, approvalStatus);
   const record = {
     record_id: stableId('rec', [command.command_id, commandText, timestamp]),
@@ -154,7 +187,7 @@ export async function runLocalCommand(input, options = {}) {
     route: command.route,
     sources_used: command.sources,
     model_provider_route: null,
-    action_key: null,
+    action_key: command.runner_action ?? null,
     approval_request: approvalRequestFor(command),
     result,
     errors: [],
@@ -239,6 +272,28 @@ export async function loadAdapterRequest(options = {}) {
   return request;
 }
 
+export async function loadActionRecord(options = {}) {
+  const rootDir = options.rootDir ?? path.resolve(import.meta.dirname, '../..');
+  const recordPath = options.recordPath;
+
+  if (!recordPath) {
+    throw new Error('recordPath is required');
+  }
+
+  return readRepoRelativeJson(rootDir, recordPath);
+}
+
+export async function loadApprovalDecision(options = {}) {
+  const rootDir = options.rootDir ?? path.resolve(import.meta.dirname, '../..');
+  const decisionPath = options.decisionPath;
+
+  if (!decisionPath) {
+    throw new Error('decisionPath is required');
+  }
+
+  return readRepoRelativeJson(rootDir, decisionPath);
+}
+
 export async function runEvalSuite(options = {}) {
   const rootDir = options.rootDir ?? path.resolve(import.meta.dirname, '../..');
   const suitePath = options.suitePath ?? 'evals/cases/mvp.slice1.cases.json';
@@ -292,7 +347,7 @@ export async function runApprovalDecisionEvalSuite(options = {}) {
   for (const evalCase of suite.cases ?? []) {
     const record = await readRepoRelativeJson(rootDir, evalCase.record_fixture);
     const decision = await readRepoRelativeJson(rootDir, evalCase.decision_fixture);
-    const decisionResult = applyApprovalDecision(record, decision, {
+    const decisionResult = await applyApprovalDecision(record, decision, {
       now: evalCase.now
     });
     const checks = compareApprovalDecisionEvalCase(evalCase, decisionResult);
@@ -442,7 +497,7 @@ export function validateApprovalDecision(record, decision, options = {}) {
   return errors;
 }
 
-export function applyApprovalDecision(record, decision, options = {}) {
+export async function applyApprovalDecision(record, decision, options = {}) {
   const errors = validateApprovalDecision(record, decision, options);
   const expired = errors.includes('approval decision is expired');
 
@@ -467,8 +522,33 @@ export function applyApprovalDecision(record, decision, options = {}) {
       decision_status: 'denied_no_execution',
       approval_status: 'denied',
       result: record.result,
+      record: {
+        ...record,
+        approval_status: 'denied',
+        follow_up_owner: 'human_operator'
+      },
       errors: []
     };
+  }
+
+  if (options.executeApprovedLocalActions) {
+    const execution = await executeApprovedLocalAction(record, {
+      rootDir: options.rootDir,
+      executor: options.executor,
+      routes: options.routes
+    });
+
+    if (execution.executed) {
+      return {
+        decision_id: decision.decision_id,
+        record_id: record.record_id,
+        decision_status: 'approved_executed_local_action',
+        approval_status: 'approved',
+        result: execution.record.result,
+        record: execution.record,
+        errors: []
+      };
+    }
   }
 
   return {
@@ -477,6 +557,10 @@ export function applyApprovalDecision(record, decision, options = {}) {
     decision_status: 'approved_execution_disabled',
     approval_status: 'approved',
     result: record.result,
+    record: {
+      ...record,
+      approval_status: 'approved'
+    },
     errors: []
   };
 }
@@ -914,6 +998,10 @@ export function validateCommandPack(pack, { routes, permissions }) {
       }
     }
 
+    if ('runner_action' in command && typeof command.runner_action !== 'string') {
+      errors.push(`${commandId} runner_action must be a string`);
+    }
+
     if (!allowedPermissionLevels.has(command.permission_level)) {
       errors.push(`${commandId} has unsupported permission level ${command.permission_level}`);
     }
@@ -922,12 +1010,16 @@ export function validateCommandPack(pack, { routes, permissions }) {
     if (!route) {
       errors.push(`${commandId} references unknown route ${command.route}`);
     } else {
-      if (route.real_integration !== false) {
-        errors.push(`${commandId} route ${command.route} is not contract-only`);
-      }
-
       if (!route.allowed_permission_levels.includes(command.permission_level)) {
         errors.push(`${commandId} permission ${command.permission_level} is not allowed by route ${command.route}`);
+      }
+
+      if (route.real_integration !== false && !isLocalExactCommand(route, command)) {
+        errors.push(`${commandId} route ${command.route} is not an allowed local exact runner route`);
+      }
+
+      if (route.real_integration === false && 'runner_action' in command) {
+        errors.push(`${commandId} runner_action requires a local exact runner route`);
       }
     }
 
@@ -952,9 +1044,23 @@ export function validateCommandPack(pack, { routes, permissions }) {
       errors.push(`${commandId} sources must be an array`);
     } else {
       for (const source of command.sources) {
-        if (!isSafeFixtureSource(source)) {
+        if (command.runner_action) {
+          if (!isSafeLocalSource(source)) {
+            errors.push(`${commandId} runner_action sources must use local:// descriptors: ${source}`);
+          }
+        } else if (!isSafeFixtureSource(source)) {
           errors.push(`${commandId} source must be repo-relative under evals/fixtures: ${source}`);
         }
+      }
+    }
+
+    if (command.runner_action) {
+      if (!ALLOWED_LOCAL_RUNNER_PERMISSION_LEVELS.has(command.permission_level)) {
+        errors.push(`${commandId} runner_action commands must remain read-only or approval-required in this slice`);
+      }
+
+      if (!ALLOWLISTED_LOCAL_RUNNER_ACTIONS.includes(command.runner_action)) {
+        errors.push(`${commandId} runner_action is not allowlisted by the shell core: ${command.runner_action}`);
       }
     }
   }
@@ -968,10 +1074,26 @@ export async function writeActionRecord(record, options = {}) {
   const recordPath = path.join(recordDir, `${record.record_id}.json`);
 
   await mkdir(recordDir, { recursive: true });
-  await writeFile(recordPath, `${JSON.stringify(record, null, 2)}\n`, { flag: 'wx' });
+  await writeFile(recordPath, `${JSON.stringify(record, null, 2)}\n`, { flag: options.overwrite ? 'w' : 'wx' });
 
   return {
     record_path: path.relative(rootDir, recordPath)
+  };
+}
+
+export async function writeActionRecordFile(record, options = {}) {
+  const rootDir = options.rootDir ?? path.resolve(import.meta.dirname, '../..');
+  const recordPath = options.recordPath;
+
+  if (!recordPath) {
+    throw new Error('recordPath is required');
+  }
+
+  const resolvedPath = resolveRepoRelativePath(rootDir, recordPath);
+  await writeFile(resolvedPath, `${JSON.stringify(record, null, 2)}\n`, { flag: options.overwrite ? 'w' : 'wx' });
+
+  return {
+    record_path: path.relative(rootDir, resolvedPath)
   };
 }
 
@@ -1055,6 +1177,25 @@ function isSafeFixtureSource(source) {
 
   const normalized = path.posix.normalize(source);
   return normalized === source && normalized.startsWith('evals/fixtures/') && !normalized.includes('../');
+}
+
+function isSafeLocalSource(source) {
+  if (typeof source !== 'string' || !source.startsWith('local://')) {
+    return false;
+  }
+
+  const descriptor = source.slice('local://'.length);
+  return descriptor.length > 0 && !descriptor.startsWith('/') && !descriptor.includes('../');
+}
+
+function isLocalExactCommand(route, command) {
+  return (
+    route?.system === 'command-deck' &&
+    route?.execution_boundary === 'allowlisted_local_runner' &&
+    typeof command?.runner_action === 'string' &&
+    Array.isArray(route.allowed_runner_actions) &&
+    route.allowed_runner_actions.includes(command.runner_action)
+  );
 }
 
 function validateDiscoveryRootPath(root, { rootDir, prefix, errors }) {
@@ -1167,8 +1308,62 @@ function evaluateFixtureCommand(command, sources) {
   }
 }
 
-function approvalStatusFor(permissionLevel) {
-  return permissionLevel === 'approval-required' ? 'blocked_execute_now_disabled' : 'not_required';
+async function executeApprovedLocalAction(record, options = {}) {
+  const rootDir = options.rootDir ?? path.resolve(import.meta.dirname, '../..');
+  const routes = options.routes ?? (await readJson(rootDir, 'contracts/routes/route-contracts.json'));
+  const route = routes.routes.find((candidate) => candidate.id === record.route);
+
+  if (!route || route.execution_boundary !== 'allowlisted_local_runner' || typeof record.action_key !== 'string') {
+    return { executed: false };
+  }
+
+  if (!Array.isArray(route.allowed_runner_actions) || !route.allowed_runner_actions.includes(record.action_key)) {
+    return { executed: false };
+  }
+
+  try {
+    const result = await runAllowlistedLocalAction(record.action_key, {
+      rootDir,
+      executor: options.executor
+    });
+
+    return {
+      executed: true,
+      record: {
+        ...record,
+        approval_status: 'approved',
+        result,
+        errors: [],
+        follow_up_owner: null
+      }
+    };
+  } catch (error) {
+    return {
+      executed: true,
+      record: {
+        ...record,
+        approval_status: 'approved',
+        result: {
+          status: 'failed_closed',
+          summary: `Approved local action failed: ${error.message}`
+        },
+        errors: [`Approved local action failed: ${error.message}`],
+        follow_up_owner: 'human_operator'
+      }
+    };
+  }
+}
+
+function approvalStatusFor(command, route) {
+  if (command.permission_level !== 'approval-required') {
+    return 'not_required';
+  }
+
+  if (isLocalExactCommand(route, command)) {
+    return 'requested_pending';
+  }
+
+  return 'blocked_execute_now_disabled';
 }
 
 function followUpOwnerFor(permissionLevel) {
@@ -1189,11 +1384,26 @@ function approvalRequestFor(command) {
 }
 
 function responseFor(result, approvalStatus) {
+  if (approvalStatus === 'requested_pending') {
+    return result.summary;
+  }
+
   if (approvalStatus === 'blocked_execute_now_disabled') {
     return `${result.summary} Approval would be required in a future phase.`;
   }
 
   return result.summary;
+}
+
+function blockedApprovalResultFor(command) {
+  return {
+    status: 'approval_requested',
+    summary: `Approval is required before ${command.approval_prompt.action}.`,
+    data: {
+      pending_runner_action: command.runner_action,
+      approval_target: command.approval_prompt.target
+    }
+  };
 }
 
 function buildFailureRecord({ input, timestamp, commandText, command, summary }) {

@@ -1,13 +1,16 @@
 # No Real Actions Boundary
 
-Slice 1 is contract-only. The repo must not perform real integrations or
-state-changing work.
+The default MVP path is contract-only. The repo must not perform real external
+integrations or state-changing work.
 
 Allowed:
 
 - validate JSON fixtures;
 - document route contracts;
 - draft example responses;
+- run built-in allowlisted local read-only commands;
+- execute built-in allowlisted local control commands only after a separate
+  approval decision;
 - model action record shapes.
 
 Forbidden:

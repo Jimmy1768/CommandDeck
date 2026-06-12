@@ -34,8 +34,15 @@ records are fixtures only.
 
 ## Record Rule
 
-Approval-required commands in slice 1 must produce a record whose result is
+Approval-required contract-only commands must produce a record whose result is
 blocked, not executed.
+
+Approval-gated local control commands may produce:
+
+- `approval_status: requested_pending` before the decision is applied;
+- `approval_status: approved` after an approved decision executes the built-in
+  allowlisted local action;
+- `approval_status: denied` after a denied decision.
 
 Approval-required records must include `approval_request` with:
 

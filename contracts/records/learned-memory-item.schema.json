@@ -1,0 +1,115 @@
+{
+  "schema_version": "0.1",
+  "contract_kind": "learned-memory-item",
+  "type": "object",
+  "required": [
+    "memory_id",
+    "memory_kind",
+    "status",
+    "actor_ref",
+    "scope",
+    "match",
+    "resolved_intent",
+    "resolution_source",
+    "confirmation_source",
+    "saved_at"
+  ],
+  "optional": ["supersedes_memory_id", "notes"],
+  "allowed_memory_kinds": ["resolved_interpretation"],
+  "allowed_statuses": ["active", "superseded", "forgotten"],
+  "allowed_scope_kinds": ["workspace", "surface_workspace"],
+  "allowed_match_kinds": ["exact_phrase", "normalized_phrase", "alias"],
+  "allowed_resolution_sources": [
+    "fast_lane",
+    "capable_lane",
+    "human_clarification"
+  ],
+  "allowed_confirmation_sources": ["explicit_user_confirmation"],
+  "persistence_rule": "memory_items_exist_only_after_explicit_user_confirmation",
+  "runtime_read_rule": "only_active_memory_items_may_be_used_at_runtime",
+  "scope_rule": "workspace_scope_lives_on_memory_metadata_not_inside_resolved_intent",
+  "active_uniqueness_rule": "at_most_one_active_memory_item_per_scope_and_match",
+  "supersede_rule": "replacement_creates_new_active_item_and_marks_prior_item_superseded",
+  "conflict_rule": "unresolved_active_conflicts_force_checking_question",
+  "alias_rule": "aliases_resolve_targets_not_hidden_actions_in_v1",
+  "properties": {
+    "memory_id": { "type": "string" },
+    "memory_kind": { "enum": ["resolved_interpretation"] },
+    "status": { "enum": ["active", "superseded", "forgotten"] },
+    "actor_ref": { "type": "string" },
+    "scope": {
+      "type": "object",
+      "required": ["scope_kind", "workspace_ref"],
+      "properties": {
+        "scope_kind": { "enum": ["workspace", "surface_workspace"] },
+        "workspace_ref": { "type": "string" },
+        "surface_ref": { "type": ["string", "null"] }
+      }
+    },
+    "match": {
+      "type": "object",
+      "required": ["match_kind", "value"],
+      "properties": {
+        "match_kind": { "enum": ["exact_phrase", "normalized_phrase", "alias"] },
+        "value": { "type": "string" }
+      }
+    },
+    "resolved_intent": {
+      "type": "object",
+      "required": [
+        "action",
+        "target_kind",
+        "target_ref",
+        "capability_source",
+        "route",
+        "risk_tier",
+        "approval_required"
+      ],
+      "properties": {
+        "action": { "type": "string" },
+        "target_kind": {
+          "enum": [
+            "app",
+            "url",
+            "dashboard",
+            "repo",
+            "service",
+            "media",
+            "device",
+            "workflow",
+            "data_view",
+            "runtime",
+            "delegate"
+          ]
+        },
+        "target_ref": {
+          "type": "string",
+          "pattern": "^(core|pack|delegate)\\.[a-z0-9_]+(\\.[a-z0-9_]+)*$"
+        },
+        "capability_source": { "enum": ["core", "pack"] },
+        "route": { "type": "string" },
+        "risk_tier": {
+          "enum": [
+            "informational",
+            "local_control",
+            "workspace_mutation",
+            "delegated_agentic"
+          ]
+        },
+        "approval_required": { "type": "boolean" },
+        "surface_ref": { "type": ["string", "null"] },
+        "context_bindings": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    },
+    "resolution_source": {
+      "enum": ["fast_lane", "capable_lane", "human_clarification"]
+    },
+    "confirmation_source": { "enum": ["explicit_user_confirmation"] },
+    "saved_at": { "type": "string", "format": "date-time" },
+    "supersedes_memory_id": { "type": ["string", "null"] },
+    "notes": { "type": ["string", "null"] }
+  }
+}

@@ -4,6 +4,7 @@ import { access } from 'node:fs/promises';
 import path from 'node:path';
 import { test } from 'node:test';
 import { validateCommandPack } from '../packages/shell-core/index.mjs';
+import { ALLOWLISTED_LOCAL_RUNNER_ACTIONS } from '../packages/shell-core/local-runner.mjs';
 
 const root = path.resolve(import.meta.dirname, '..');
 
@@ -57,10 +58,42 @@ test('command pack schema documents the Phase 1 loading boundary', async () => {
   assert.equal(schema.execute_now_enabled, false);
   assert.ok(schema.required.includes('schema_version'));
   assert.deepEqual(schema.allowed_permission_levels, ['read-only', 'draft-only', 'approval-required']);
-  assert.deepEqual(schema.allowed_source_roots, ['evals/fixtures/']);
+  assert.deepEqual(schema.allowed_source_roots, ['evals/fixtures/', 'local://']);
+  assert.ok(schema.optional_command_fields.includes('runner_action'));
+  assert.equal(schema.local_exact_runner.enabled_for_read_only, true);
+  assert.equal(schema.local_exact_runner.execution_boundary, 'allowlisted_local_runner');
   assert.ok(schema.forbidden_command_fields.includes('handler'));
   assert.equal(schema.real_pack_locations.sourcegrid, 'sourcegrid-labs');
-  assert.equal(schema.real_pack_locations.command_kit_repo, 'generic examples and tests only');
+  assert.equal(schema.real_pack_locations.commanddeck_repo, 'generic examples and tests only');
+});
+
+test('local exact command pack declares allowlisted runner actions only', async () => {
+  const pack = await readJson('contracts/commands/local-exact-commands.json');
+  const routes = await readJson('contracts/routes/route-contracts.json');
+  const permissions = await readJson('contracts/permissions/permission-levels.json');
+  const errors = validateCommandPack(pack, { routes, permissions });
+
+  assert.equal(pack.pack_id, 'commanddeck.local-exact.slice2');
+  assert.deepEqual(errors, []);
+  assert.equal(pack.commands.length, 4);
+  assert.ok(pack.commands.every((command) => command.route === 'local.exact_read'));
+  assert.ok(pack.commands.every((command) => ALLOWLISTED_LOCAL_RUNNER_ACTIONS.includes(command.runner_action)));
+  assert.ok(pack.commands.every((command) => command.sources.every((source) => source.startsWith('local://'))));
+});
+
+test('local approved command pack stays approval-gated and allowlisted', async () => {
+  const pack = await readJson('contracts/commands/local-approved-commands.json');
+  const routes = await readJson('contracts/routes/route-contracts.json');
+  const permissions = await readJson('contracts/permissions/permission-levels.json');
+  const errors = validateCommandPack(pack, { routes, permissions });
+
+  assert.equal(pack.pack_id, 'commanddeck.local-approved.slice2');
+  assert.deepEqual(errors, []);
+  assert.equal(pack.commands.length, 2);
+  assert.ok(pack.commands.every((command) => command.route === 'local.exact_control'));
+  assert.ok(pack.commands.every((command) => command.permission_level === 'approval-required'));
+  assert.ok(pack.commands.every((command) => ALLOWLISTED_LOCAL_RUNNER_ACTIONS.includes(command.runner_action)));
+  assert.ok(pack.commands.every((command) => command.approval_prompt));
 });
 
 test('pack discovery schema is metadata-only and non-executing', async () => {
@@ -121,7 +154,7 @@ test('command routes and permission levels match route contracts', async () => {
   const routes = await readJson('contracts/routes/route-contracts.json');
   const routeById = new Map(routes.routes.map((route) => [route.id, route]));
 
-  assert.equal(routes.integration_mode, 'contract_only');
+  assert.equal(routes.integration_mode, 'hybrid_local_exact_preview');
 
   for (const command of pack.commands) {
     const route = routeById.get(command.route);
@@ -137,6 +170,36 @@ test('command routes and permission levels match route contracts', async () => {
     } else if (route.id.startsWith('local.')) {
       assert.equal(route.credit_policy, 'no_sourcegrid_credits_required');
     }
+  }
+});
+
+test('local exact read route is the only real integration in the core contract', async () => {
+  const routes = await readJson('contracts/routes/route-contracts.json');
+  const exactRoute = routes.routes.find((route) => route.id === 'local.exact_read');
+  const exactControlRoute = routes.routes.find((route) => route.id === 'local.exact_control');
+
+  assert.ok(exactRoute);
+  assert.equal(exactRoute.system, 'command-deck');
+  assert.equal(exactRoute.real_integration, true);
+  assert.equal(exactRoute.execution_boundary, 'allowlisted_local_runner');
+  assert.deepEqual(exactRoute.allowed_runner_actions, [
+    'repo.status',
+    'repo.recent_commits',
+    'service.puma_status',
+    'service.sidekiq_status'
+  ]);
+
+  assert.ok(exactControlRoute);
+  assert.equal(exactControlRoute.system, 'command-deck');
+  assert.equal(exactControlRoute.real_integration, true);
+  assert.equal(exactControlRoute.execution_boundary, 'allowlisted_local_runner');
+  assert.deepEqual(exactControlRoute.allowed_runner_actions, [
+    'workspace.open_sourcegrid_dashboard',
+    'workspace.open_commanddeck_repo'
+  ]);
+
+  for (const route of routes.routes.filter((route) => !['local.exact_read', 'local.exact_control'].includes(route.id))) {
+    assert.equal(route.real_integration, false, `${route.id} must remain contract-only`);
   }
 });
 
@@ -240,4 +303,76 @@ test('adapter response fixtures are safe for Siri spoken output', async () => {
 
   assert.equal(blocked.approval_status, 'blocked_execute_now_disabled');
   assert.match(blocked.spoken_text, /Approval would be required/);
+});
+
+test('resolved intent contract keeps routing explicit and target space bounded', async () => {
+  const contract = await readJson('contracts/records/resolved-intent.schema.json');
+
+  assert.equal(contract.contract_kind, 'resolved-intent');
+  assert.deepEqual(contract.required, [
+    'action',
+    'target_kind',
+    'target_ref',
+    'capability_source',
+    'route',
+    'risk_tier',
+    'approval_required'
+  ]);
+  assert.deepEqual(contract.allowed_capability_sources, ['core', 'pack']);
+  assert.deepEqual(contract.allowed_target_kinds, [
+    'app',
+    'url',
+    'dashboard',
+    'repo',
+    'service',
+    'media',
+    'device',
+    'workflow',
+    'data_view',
+    'runtime',
+    'delegate'
+  ]);
+  assert.deepEqual(contract.allowed_risk_tiers, [
+    'informational',
+    'local_control',
+    'workspace_mutation',
+    'delegated_agentic'
+  ]);
+  assert.equal(contract.target_ref_rule, 'namespaced_identifier_with_core_pack_or_delegate_prefix');
+  assert.equal(contract.route_rule, 'resolved_intent_must_keep_explicit_route_selection');
+  assert.equal(contract.approval_rule, 'resolved_intent_never_bypasses_existing_approval_requirements');
+});
+
+test('learned memory item contract requires user-confirmed scoped memory only', async () => {
+  const contract = await readJson('contracts/records/learned-memory-item.schema.json');
+
+  assert.equal(contract.contract_kind, 'learned-memory-item');
+  assert.deepEqual(contract.allowed_memory_kinds, ['resolved_interpretation']);
+  assert.deepEqual(contract.allowed_statuses, ['active', 'superseded', 'forgotten']);
+  assert.deepEqual(contract.allowed_scope_kinds, ['workspace', 'surface_workspace']);
+  assert.deepEqual(contract.allowed_match_kinds, ['exact_phrase', 'normalized_phrase', 'alias']);
+  assert.deepEqual(contract.allowed_resolution_sources, [
+    'fast_lane',
+    'capable_lane',
+    'human_clarification'
+  ]);
+  assert.deepEqual(contract.allowed_confirmation_sources, ['explicit_user_confirmation']);
+  assert.equal(contract.persistence_rule, 'memory_items_exist_only_after_explicit_user_confirmation');
+  assert.equal(contract.runtime_read_rule, 'only_active_memory_items_may_be_used_at_runtime');
+  assert.equal(contract.scope_rule, 'workspace_scope_lives_on_memory_metadata_not_inside_resolved_intent');
+  assert.equal(contract.active_uniqueness_rule, 'at_most_one_active_memory_item_per_scope_and_match');
+  assert.equal(contract.supersede_rule, 'replacement_creates_new_active_item_and_marks_prior_item_superseded');
+  assert.equal(contract.conflict_rule, 'unresolved_active_conflicts_force_checking_question');
+  assert.equal(contract.alias_rule, 'aliases_resolve_targets_not_hidden_actions_in_v1');
+
+  const nestedIntent = contract.properties.resolved_intent;
+  assert.deepEqual(nestedIntent.required, [
+    'action',
+    'target_kind',
+    'target_ref',
+    'capability_source',
+    'route',
+    'risk_tier',
+    'approval_required'
+  ]);
 });

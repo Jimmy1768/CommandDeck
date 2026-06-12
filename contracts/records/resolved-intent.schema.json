@@ -1,0 +1,86 @@
+{
+  "schema_version": "0.1",
+  "contract_kind": "resolved-intent",
+  "type": "object",
+  "required": [
+    "action",
+    "target_kind",
+    "target_ref",
+    "capability_source",
+    "route",
+    "risk_tier",
+    "approval_required"
+  ],
+  "optional": ["surface_ref", "context_bindings"],
+  "allowed_capability_sources": ["core", "pack"],
+  "allowed_target_kinds": [
+    "app",
+    "url",
+    "dashboard",
+    "repo",
+    "service",
+    "media",
+    "device",
+    "workflow",
+    "data_view",
+    "runtime",
+    "delegate"
+  ],
+  "allowed_risk_tiers": [
+    "informational",
+    "local_control",
+    "workspace_mutation",
+    "delegated_agentic"
+  ],
+  "target_ref_rule": "namespaced_identifier_with_core_pack_or_delegate_prefix",
+  "target_ref_examples": [
+    "core.current_repo",
+    "core.music_app",
+    "pack.sourcegrid_ops_dashboard",
+    "pack.main_web_service",
+    "delegate.apprelay"
+  ],
+  "route_rule": "resolved_intent_must_keep_explicit_route_selection",
+  "approval_rule": "resolved_intent_never_bypasses_existing_approval_requirements",
+  "properties": {
+    "action": {
+      "type": "string",
+      "description": "Stable routing action identifier, not a raw natural-language sentence."
+    },
+    "target_kind": {
+      "enum": [
+        "app",
+        "url",
+        "dashboard",
+        "repo",
+        "service",
+        "media",
+        "device",
+        "workflow",
+        "data_view",
+        "runtime",
+        "delegate"
+      ]
+    },
+    "target_ref": {
+      "type": "string",
+      "pattern": "^(core|pack|delegate)\\.[a-z0-9_]+(\\.[a-z0-9_]+)*$"
+    },
+    "capability_source": { "enum": ["core", "pack"] },
+    "route": { "type": "string" },
+    "risk_tier": {
+      "enum": [
+        "informational",
+        "local_control",
+        "workspace_mutation",
+        "delegated_agentic"
+      ]
+    },
+    "approval_required": { "type": "boolean" },
+    "surface_ref": { "type": ["string", "null"] },
+    "context_bindings": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    }
+  }
+}

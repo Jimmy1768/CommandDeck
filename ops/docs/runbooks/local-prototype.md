@@ -1,10 +1,15 @@
 # Local Prototype Runbook
 
-This runbook covers the slice 1 skeleton only.
+This runbook covers the slice 1 deterministic skeleton plus the slice 2 exact
+local preview commands.
 
 CommandDeck is for hands-off workspace command flow around the PC command runner.
 It is not a Codex replacement. If a task edits code, use Codex and the normal
 local development toolchain on the PC.
+
+For the plain-language reference on understanding, clarification, risk tiers,
+and memory writes, see
+[Understanding And Memory](/Users/jimmy1768/Projects/CommandDeck/ops/docs/contracts/understanding-and-memory.md:1).
 
 ## Validate Contracts And Fixtures
 
@@ -41,14 +46,45 @@ The command reads contract and fixture JSON, then prints a response and action
 record shape to stdout. It does not write records, call external systems, or
 execute commands.
 
+## Run An Exact Local Preview Command
+
+```sh
+npm run command:local -- --command-pack contracts/commands/local-exact-commands.json "What is the status of this repo?"
+```
+
+This pack uses CommandDeck-owned `runner_action` keys, not shell in the pack.
+It can execute only the built-in allowlisted read-only commands:
+
+- `What is the status of this repo?`
+- `Show recent commits.`
+- `Is Puma running?`
+- `Is Sidekiq running?`
+
+## Run An Approval-Gated Local Control Preview Command
+
+```sh
+npm run command:local -- --command-pack contracts/commands/local-approved-commands.json "Open the SourceGrid dashboard."
+```
+
+This returns an action record with `approval_status: requested_pending`. To
+apply a separate human decision:
+
+```sh
+npm run command:local -- approval:apply --record-file records/actions/rec_example.json --decision-file path/to/decision.json
+```
+
+If the approved record uses a built-in allowlisted local control route,
+CommandDeck may execute it at this step.
+
 ## Select A Command Pack
 
 ```sh
 npm run command:local -- --command-pack contracts/commands/mvp-commands.json "What is my next SourceGrid task?"
 ```
 
-Command-pack paths must be repo-relative. Phase 1 packs may classify commands
-and read fixtures only.
+Command-pack paths must be repo-relative. The default MVP pack remains
+fixture-only. The exact-local preview pack can execute built-in allowlisted
+read-only runner actions.
 
 ## Use Local Config
 

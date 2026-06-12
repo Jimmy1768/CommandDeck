@@ -1,7 +1,22 @@
 {
   "schema_version": "0.1",
-  "integration_mode": "contract_only",
+  "integration_mode": "hybrid_local_exact_preview",
   "routes": [
+    {
+      "id": "local.exact_read",
+      "system": "command-deck",
+      "allowed_permission_levels": ["read-only"],
+      "credit_policy": "no_sourcegrid_credits_required",
+      "real_integration": true,
+      "execution_boundary": "allowlisted_local_runner",
+      "allowed_runner_actions": [
+        "repo.status",
+        "repo.recent_commits",
+        "service.puma_status",
+        "service.sidekiq_status"
+      ],
+      "slice_2_behavior": "execute_allowlisted_local_read_only_command"
+    },
     {
       "id": "local.fixture_read",
       "system": "command-deck",
@@ -15,6 +30,20 @@
       "allowed_permission_levels": ["draft-only"],
       "credit_policy": "no_sourcegrid_credits_required",
       "real_integration": false
+    },
+    {
+      "id": "local.exact_control",
+      "system": "command-deck",
+      "allowed_permission_levels": ["approval-required"],
+      "credit_policy": "no_sourcegrid_credits_required",
+      "real_integration": true,
+      "execution_boundary": "allowlisted_local_runner",
+      "allowed_runner_actions": [
+        "workspace.open_sourcegrid_dashboard",
+        "workspace.open_commanddeck_repo"
+      ],
+      "approval_gate": "human_decision_required_before_execution",
+      "slice_2_behavior": "execute_allowlisted_local_state_change_after_approval"
     },
     {
       "id": "operatorkit.dry_run_request",

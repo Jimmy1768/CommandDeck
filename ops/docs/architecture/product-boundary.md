@@ -14,9 +14,29 @@ interface itself.
 It is intentionally separate from Codex, execution systems, model dispatch, and
 decision-support workspaces.
 
+## Two Axes
+
+CommandDeck is easiest to reason about as two separate axes:
+
+- capability source:
+  - `core`: generic built-in actions and engine behavior owned by CommandDeck;
+  - `pack`: workspace-specific routines owned by a company, partner, or user.
+- execution mode:
+  - exact/local/deterministic;
+  - capable/AppRelay-mediated.
+
+Those axes are orthogonal. A routine may come from core or from a pack, and it
+may be exact/local or AppRelay-mediated depending on what the command needs.
+
+For the first platform target, core is Apple-first. Siri and Shortcuts reduce
+the amount of new infrastructure CommandDeck must build, so a default Apple-PC
+action set is a valid product choice rather than an architectural violation.
+
 ## Owns
 
 - Adapter intake contracts for Siri/Shortcuts and future thin surfaces.
+- Generic built-in actions that are reusable across users on the active
+  platform target.
 - SourceGrid attachment status for identity, entitlement, and AppRelay billing
   readiness.
 - Command text normalization and command classification.
@@ -42,6 +62,10 @@ decision-support workspaces.
 - Siri wake-word handling, speech-to-text, or device microphone permissions.
 - Autonomous background actions.
 
+Pack-owned capability is still routed through CommandDeck core for intake,
+classification, permission, approval, runner boundaries, and records. Pack does
+not mean "outside the engine"; it means "outside the built-in capability set."
+
 ## Code Editing Boundary
 
 If editing code, the user works from the PC in Codex or the normal local
@@ -53,11 +77,16 @@ This is especially important for SourceGrid and similar repos where local
 services such as Puma, Sidekiq, databases, simulators, browser sessions, and
 local credentials live on the PC runner.
 
-## Slice 1 Boundary
+## Current Boundary
 
-This skeleton only defines contracts, docs, and fixtures. It must not perform
-real state-changing work. Read-only and draft-only examples are represented as
-fixtures, not integrations.
+The default MVP path still defines contracts, docs, and fixtures. Current
+preview execution is limited to:
+
+- built-in exact local read-only actions;
+- built-in approval-gated local control actions.
+
+Workspace-specific mutable automation still belongs in command packs and needs a
+later owner-pack execution contract.
 
 SourceGrid attachment is represented as local, non-sensitive metadata only.
 CommandDeck may report payment-method readiness, but SourceGrid remains the

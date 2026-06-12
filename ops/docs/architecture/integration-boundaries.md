@@ -3,6 +3,15 @@
 CommandDeck routes to neighboring systems by contract. It does not embed their
 internal behavior.
 
+The important architecture split is:
+
+- capability source: `core` versus `pack`;
+- execution mode: exact/local versus AppRelay-mediated.
+
+AppRelay is part of execution mode, not a replacement for the core/pack split.
+Either a core action or a pack action may eventually need AppRelay when the
+command is not exact enough to stay deterministic.
+
 ## Codex
 
 Codex remains the coding interface for repo reasoning, code edits, tests,
@@ -34,8 +43,7 @@ model/runtime providers for CommandDeck. They may capture commands and speak or
 play responses, but AppRelay remains the LLM/runtime path.
 
 Slice 1 status: no AppRelay calls. Fixtures may describe an intended
-`apprelay.summary` route, but validation requires `integration_mode` to be
-`contract_only`.
+`apprelay.summary` route, but validation still keeps that path contract-only.
 
 ## OperatorKit
 
@@ -66,3 +74,8 @@ Workspace command packs may include PC-command routines such as opening apps,
 switching devices, starting local services, or preparing drafts after future
 execution boundaries are defined. Those routines belong in owner repos or
 configured local folders, not in CommandDeck core.
+
+At the same time, CommandDeck core may still own a default built-in action set
+for the active platform target. In the current design that means Apple-first
+computer-control primitives layered on top of Siri/Shortcuts capture, while
+owner packs hold workspace-specific automation.

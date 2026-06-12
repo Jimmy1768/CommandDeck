@@ -22,9 +22,16 @@
     "forbidden_effects",
     "sources"
   ],
+  "optional_command_fields": ["runner_action", "approval_prompt"],
   "allowed_permission_levels": ["read-only", "draft-only", "approval-required"],
-  "allowed_source_roots": ["evals/fixtures/"],
+  "allowed_source_roots": ["evals/fixtures/", "local://"],
   "forbidden_command_fields": ["script", "scripts", "shell", "executable", "handler", "env", "secrets"],
+  "local_exact_runner": {
+    "enabled_for_read_only": true,
+    "execution_boundary": "allowlisted_local_runner",
+    "runner_action_field": "runner_action",
+    "allowed_source_protocol": "local://"
+  },
   "forbidden_allowed_effects": [
     "payment",
     "production_deploy",
@@ -44,6 +51,6 @@
   "real_pack_locations": {
     "sourcegrid": "sourcegrid-labs",
     "partners": "partner repos or configured local command folders",
-    "command_kit_repo": "generic examples and tests only"
+    "commanddeck_repo": "generic examples and tests only"
   }
 }

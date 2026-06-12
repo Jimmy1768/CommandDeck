@@ -1,0 +1,52 @@
+{
+  "schema_version": "0.1",
+  "pack_id": "commanddeck.local-approved.slice2",
+  "owner": "command-deck",
+  "permissions": "contracts/permissions/permission-levels.json",
+  "record_policy": {
+    "record_schema": "contracts/records/action-record.schema.json",
+    "slice_2_storage": "opt_in_local_action_record_with_approval_update"
+  },
+  "commands": [
+    {
+      "command_id": "local.open_sourcegrid_dashboard",
+      "title": "Open the SourceGrid dashboard.",
+      "example_utterances": [
+        "Open the SourceGrid dashboard.",
+        "Open SourceGrid dashboard."
+      ],
+      "permission_level": "approval-required",
+      "route": "local.exact_control",
+      "runner_action": "workspace.open_sourcegrid_dashboard",
+      "allowed_effects": ["request_human_approval", "run_allowlisted_local_command_after_approval"],
+      "forbidden_effects": ["execute_without_approval", "external_call", "provider_call"],
+      "sources": ["local://open/sourcegrid-dashboard"],
+      "approval_prompt": {
+        "target": "SourceGrid dashboard in the default browser",
+        "action": "open the dashboard",
+        "risk": "launches a GUI app and may reveal workspace context on screen",
+        "expected_record": "action record updated after approval decision"
+      }
+    },
+    {
+      "command_id": "local.open_commanddeck_repo",
+      "title": "Open the CommandDeck repo.",
+      "example_utterances": [
+        "Open the CommandDeck repo.",
+        "Open this repo."
+      ],
+      "permission_level": "approval-required",
+      "route": "local.exact_control",
+      "runner_action": "workspace.open_commanddeck_repo",
+      "allowed_effects": ["request_human_approval", "run_allowlisted_local_command_after_approval"],
+      "forbidden_effects": ["execute_without_approval", "external_call", "provider_call"],
+      "sources": ["local://open/current-repo"],
+      "approval_prompt": {
+        "target": "current CommandDeck repo in Finder",
+        "action": "open the repo",
+        "risk": "launches a GUI app and changes local desktop state",
+        "expected_record": "action record updated after approval decision"
+      }
+    }
+  ]
+}

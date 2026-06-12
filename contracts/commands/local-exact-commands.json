@@ -1,0 +1,68 @@
+{
+  "schema_version": "0.1",
+  "pack_id": "commanddeck.local-exact.slice2",
+  "owner": "command-deck",
+  "permissions": "contracts/permissions/permission-levels.json",
+  "record_policy": {
+    "record_schema": "contracts/records/action-record.schema.json",
+    "slice_2_storage": "opt_in_local_action_record"
+  },
+  "commands": [
+    {
+      "command_id": "local.repo_status",
+      "title": "What is the status of this repo?",
+      "example_utterances": [
+        "What is the status of this repo?",
+        "Show repo status."
+      ],
+      "permission_level": "read-only",
+      "route": "local.exact_read",
+      "runner_action": "repo.status",
+      "allowed_effects": ["read_local_state", "run_allowlisted_local_command"],
+      "forbidden_effects": ["state_change", "external_call", "provider_call"],
+      "sources": ["local://git/status"]
+    },
+    {
+      "command_id": "local.repo_recent_commits",
+      "title": "Show recent commits.",
+      "example_utterances": [
+        "Show recent commits.",
+        "What are the recent commits?"
+      ],
+      "permission_level": "read-only",
+      "route": "local.exact_read",
+      "runner_action": "repo.recent_commits",
+      "allowed_effects": ["read_local_state", "run_allowlisted_local_command"],
+      "forbidden_effects": ["state_change", "external_call", "provider_call"],
+      "sources": ["local://git/log"]
+    },
+    {
+      "command_id": "local.puma_status",
+      "title": "Is Puma running?",
+      "example_utterances": [
+        "Is Puma running?",
+        "Check Puma status."
+      ],
+      "permission_level": "read-only",
+      "route": "local.exact_read",
+      "runner_action": "service.puma_status",
+      "allowed_effects": ["read_local_state", "run_allowlisted_local_command"],
+      "forbidden_effects": ["state_change", "external_call", "provider_call"],
+      "sources": ["local://process/puma"]
+    },
+    {
+      "command_id": "local.sidekiq_status",
+      "title": "Is Sidekiq running?",
+      "example_utterances": [
+        "Is Sidekiq running?",
+        "Check Sidekiq status."
+      ],
+      "permission_level": "read-only",
+      "route": "local.exact_read",
+      "runner_action": "service.sidekiq_status",
+      "allowed_effects": ["read_local_state", "run_allowlisted_local_command"],
+      "forbidden_effects": ["state_change", "external_call", "provider_call"],
+      "sources": ["local://process/sidekiq"]
+    }
+  ]
+}

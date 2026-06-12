@@ -1,7 +1,15 @@
 # Adding Command Packs
 
-CommandDeck Phase 1 can load and validate command-pack JSON files. It cannot
-execute real workflows.
+CommandDeck can load and validate command-pack JSON files. The default MVP path
+is fixture-only. A separate built-in preview pack can execute allowlisted local
+read-only runner actions.
+
+Use this split when deciding where a new capability belongs:
+
+- put it in core if it is a generic reusable computer-control primitive for the
+  active platform target;
+- put it in a pack if it is a workspace-specific routine for SourceGrid or a
+  particular user.
 
 ## Where Packs Live
 
@@ -23,11 +31,13 @@ this repo.
 
 - Include `schema_version`, `pack_id`, `owner`, `permissions`,
   `record_policy`, and `commands`.
-- Keep command sources under `evals/fixtures/` for Phase 1 examples.
+- Keep command sources under `evals/fixtures/` for fixture-backed examples.
+- Use `local://` sources only when the command uses a built-in `runner_action`.
 - Use only `read-only`, `draft-only`, or `approval-required` permission levels.
 - Keep `execute-now` disabled.
 - Use routes from `contracts/routes/route-contracts.json`.
-- Keep routes contract-only with `real_integration: false`.
+- Keep owner-pack routes contract-only with `real_integration: false`.
+- Use `local.exact_read` only for CommandDeck-owned built-in preview commands.
 - Add `approval_prompt` for every `approval-required` command.
 - Do not include executable fields such as `script`, `shell`, `handler`, `env`,
   or `secrets`.
@@ -40,9 +50,11 @@ Run:
 npm run verify
 ```
 
-The verification gate checks the built-in MVP pack, generic fixture packs, route
-contracts, permission levels, source paths, and safety evals. Passing validation
-means the pack is ready for classification and fixture reads only.
+The verification gate checks the built-in MVP pack, the built-in exact local
+preview pack, generic fixture packs, route contracts, permission levels, source
+paths, and safety evals. Passing validation means the pack is ready for
+classification and, when applicable, built-in allowlisted local read-only
+actions only.
 
 ## Future Integration
 

@@ -16,11 +16,44 @@ This repository is the `CommandDeck` skeleton only. It is a core SourceGrid
 tool, sibling to OperatorKit and ManyMind. It is not AppRelay,
 OperatorKit, ManyMind, or a Golden Template app repo.
 
+## Mental Model
+
+CommandDeck has two capability sources:
+
+- `core`: generic built-in actions and runner behavior owned by CommandDeck;
+- `pack`: company-specific or user-specific commands owned by the attached
+  workspace repo or local command folder.
+
+That split is separate from execution mode:
+
+- exact/local/deterministic commands run through local runner boundaries;
+- capable commands use AppRelay when reasoning, ambiguity handling,
+  summarization, or generation is needed.
+
+So a command can be:
+
+- core + exact/local;
+- pack + exact/local;
+- core + AppRelay-mediated in a future phase;
+- pack + AppRelay-mediated in a future phase.
+
+The first platform target is Apple-first because Siri and Shortcuts provide a
+thin invocation layer with minimal new infrastructure. That lets CommandDeck
+ship a default built-in action set for Apple PCs before expanding to other
+capture surfaces or platform adapters.
+
+For the user-facing explanation of how CommandDeck decides whether it
+understands a command, when it asks a checking question, and how saved memory
+works, see [Understanding And Memory](/Users/jimmy1768/Projects/CommandDeck/ops/docs/contracts/understanding-and-memory.md:1).
+The machine-readable counterparts are [Resolved Intent Contract](/Users/jimmy1768/Projects/CommandDeck/ops/docs/contracts/resolved-intent.md:1) and [Learned Memory Item Contract](/Users/jimmy1768/Projects/CommandDeck/ops/docs/contracts/learned-memory-item.md:1).
+
 ## Product Boundary
 
 CommandDeck owns:
 
 - command intake from thin adapters such as Siri/Shortcuts;
+- generic built-in local actions that are reusable across users on the current
+  platform target;
 - SourceGrid attachment status for identity, entitlement, and AppRelay billing
   readiness;
 - actor identity and server-side permission checks;
@@ -72,15 +105,31 @@ CommandDeck and the declared command pack. The initial reserved device code is
 generic capture surfaces such as `phone`, `watch`, `glasses`, or `computer`
 rather than iPhone, Android, or MacBook-specific names.
 
+In product terms, CommandDeck is not just "control the computer." It uses the
+computer as the execution surface for both generic built-in actions and
+workspace-specific automation that previously required mouse and keyboard work
+outside Codex.
+
 ## Current Slice
 
-Implementation slice 1 is a repo skeleton. It defines docs, contracts, fixtures,
-and deterministic validation only.
+The default path remains the slice 1 deterministic skeleton. It defines docs,
+contracts, fixtures, and deterministic validation.
+
+This repo now also includes a slice 2 preview path for exact local read-only
+commands. That preview uses a separate command pack and a built-in allowlisted
+runner boundary for safe local checks such as repo status, recent commits,
+Puma status, and Sidekiq status.
+
+It also includes an approval-gated local control preview. That path creates an
+action record and approval request first, then executes only after a separate
+approval decision is applied.
 
 Allowed in this slice:
 
 - read-only fixtures;
 - draft-only fixtures;
+- exact local read-only commands through allowlisted runner actions;
+- approval-gated local GUI actions through allowlisted runner actions;
 - contract documentation;
 - local validation tests.
 
@@ -91,6 +140,7 @@ Not allowed in this slice:
 - production deploy, payment, infrastructure, customer-data, or secrets
   mutation;
 - calls to AppRelay, OperatorKit, or ManyMind;
+- arbitrary local shell execution from command packs;
 - execute-now actions;
 - SourceGrid-specific command scripts copied into this repo.
 
@@ -129,14 +179,45 @@ npm run command:local -- "What is my next SourceGrid task?"
 The local shell prints a response plus an action-record-shaped JSON object. It
 does not write records or call external systems.
 
+Preview an exact local read-only command through the allowlisted runner:
+
+```sh
+npm run command:local -- --command-pack contracts/commands/local-exact-commands.json "What is the status of this repo?"
+```
+
+Other built-in exact local preview commands:
+
+```sh
+npm run command:local -- --command-pack contracts/commands/local-exact-commands.json "Show recent commits."
+npm run command:local -- --command-pack contracts/commands/local-exact-commands.json "Is Puma running?"
+npm run command:local -- --command-pack contracts/commands/local-exact-commands.json "Is Sidekiq running?"
+```
+
+Preview an approval-gated local control command:
+
+```sh
+npm run command:local -- --command-pack contracts/commands/local-approved-commands.json "Open the SourceGrid dashboard."
+```
+
+Apply a separate approval decision to an approval-required action record:
+
+```sh
+npm run command:local -- approval:apply --record-file records/actions/rec_example.json --decision-file evals/fixtures/approval_decisions/operatorkit_dry_run.denied.json
+```
+
 Select a repo-relative command pack explicitly:
 
 ```sh
 npm run command:local -- --command-pack contracts/commands/mvp-commands.json "What is my next SourceGrid task?"
 ```
 
-Command-pack loading is contract-only. Loaded packs cannot include executable
-fields, external integrations, or sources outside `evals/fixtures/` in Phase 1.
+The MVP pack remains contract-only. Loaded packs cannot include executable
+fields, external integrations, or sources outside `evals/fixtures/` in slice 1.
+The exact-local preview pack may use `runner_action` keys that map to
+CommandDeck-owned allowlisted local commands, plus `local://` source
+descriptors.
+The approval-gated local preview pack uses the same built-in runner boundary,
+but approval-required commands stay pending until a human decision is applied.
 Generic example packs live under `evals/fixtures/command-packs/`; real
 SourceGrid packs belong in `sourcegrid-labs` or configured local command
 folders.

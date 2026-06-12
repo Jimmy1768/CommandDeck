@@ -46,14 +46,16 @@ Allowed only after explicit confirmation in later phases:
 - write operator records;
 - dispatch an OperatorKit task;
 - run local scripts;
+- open local apps, folders, or dashboards through an allowlisted runner action;
 - create or update local files;
 - commit locally when the workflow allows it;
 - update internal non-production state.
 
 The approval prompt must include target, action, risk, and expected record.
 
-Slice 1 status: approval-required commands cannot execute. They can only return
-a blocked or draft response.
+Current status: contract-only approval routes still cannot execute. Built-in
+allowlisted local control routes may create an approval request first and then
+execute only after a separate human decision is applied.
 
 ## Execute-Now
 

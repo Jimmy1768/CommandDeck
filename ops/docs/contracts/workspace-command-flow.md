@@ -8,6 +8,19 @@ Phones, watches, glasses, and computers can be capture surfaces. They capture th
 command and return status, but they do not execute scripts or bypass the PC
 runner.
 
+## Capability Sources
+
+Workspace routines can come from two places:
+
+- `core`: generic built-in actions such as opening, playing, pausing, checking
+  status, or other reusable computer-control primitives;
+- `pack`: workspace-specific automation such as SourceGrid routines or a user's
+  personal operating scripts.
+
+Pack capability is still executed through CommandDeck core. The difference is
+where the routine definition and customization live, not whether the engine is
+involved.
+
 ## Intended Command Domains
 
 Future command packs may define permissioned routines for:
@@ -23,6 +36,12 @@ Exact local routines should not require AppRelay or SourceGrid credits. They
 should run through deterministic command-pack matches and local permission
 checks. AppRelay is reserved for reasoning, summarization, ambiguity resolution,
 or generated response modes.
+
+This means "simple" versus "capable" is a separate split from `core` versus
+`pack`:
+
+- simple/exact commands can come from core or pack;
+- capable/AppRelay-mediated commands can also come from core or pack.
 
 ## First Mode
 
@@ -69,9 +88,21 @@ If editing code, work from the PC in Codex or the normal local development
 toolchain. CommandDeck may prepare or inspect the workspace, but it does not
 edit code by voice and does not replace Codex.
 
-## Phase 1 Boundary
+## Current Boundary
 
-This repository defines only contracts, fixtures, and deterministic validation.
-Workspace commands that open apps, switch devices, run services, or mutate
-local state require a later execution boundary, permission tests, approval
-rules, and action records.
+The default MVP path still defines contracts, fixtures, and deterministic
+validation only.
+
+The first execution preview is now available for CommandDeck-owned core actions
+on Apple PCs:
+
+- exact local read-only actions such as repo status, recent commits, Puma
+  status, and Sidekiq status;
+- approval-gated local control actions such as opening a dashboard or repo.
+
+These built-in actions prove the engine and the Apple-first invocation surface.
+They are not the full pack execution story.
+
+Workspace commands that open apps, switch devices, start services, or mutate
+local state in owner-specific ways still require a later owner-pack runner
+contract, permission tests, and approval rules.
