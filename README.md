@@ -59,6 +59,7 @@ CommandDeck owns:
   readiness;
 - actor identity and server-side permission checks;
 - command classification and conservative route selection;
+- route-family based optional dependencies;
 - local workspace command flow around the PC command runner;
 - read-only answers and draft-only artifacts in the local prototype;
 - approval prompts for risky actions in future phases;
@@ -354,4 +355,8 @@ scripts/                Safe local developer helpers only
 This repo is ready for SourceGrid to add command-pack definitions later, but not
 ready to execute real workflows. Real command packs must remain permissioned,
 repo-local to their owner, attached through SourceGrid identity and billing, and
-routed through the contracts defined here.
+routed through the contracts defined here. CommandDeck does not require
+OperatorKit globally; OperatorKit is needed only for `operatorkit.workflow`
+routes. Local core and custom-pack routes remain available without OperatorKit
+when policy allows them. The custom-pack write route
+`local.pack_write_approved` is contract-only until a future write policy exists.

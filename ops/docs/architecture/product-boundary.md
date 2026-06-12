@@ -16,17 +16,19 @@ decision-support workspaces.
 
 ## Two Axes
 
-CommandDeck is easiest to reason about as two separate axes:
+CommandDeck is easiest to reason about through route families:
 
-- capability source:
-  - `core`: generic built-in actions and engine behavior owned by CommandDeck;
-  - `pack`: workspace-specific routines owned by a company, partner, or user.
-- execution mode:
-  - exact/local/deterministic;
-  - capable/AppRelay-mediated.
+- `core.local`: generic built-in platform/computer actions.
+- `pack.local_read`: workspace-specific read/status/query/draft routines.
+- `pack.local_write_approved`: deterministic workspace-specific writes after
+  explicit approval.
+- `apprelay.reasoning`: reasoning, summarization, generation, or ambiguity
+  handling.
+- `operatorkit.workflow`: workflow coordination, staged automation, heartbeat,
+  handoff, and accountability.
 
-Those axes are orthogonal. A routine may come from core or from a pack, and it
-may be exact/local or AppRelay-mediated depending on what the command needs.
+CommandDeck routes by capability, not by product dependency. A custom pack does
+not automatically require OperatorKit or AppRelay.
 
 For the first platform target, core is Apple-first. Siri and Shortcuts reduce
 the amount of new infrastructure CommandDeck must build, so a default Apple-PC
@@ -57,7 +59,7 @@ action set is a valid product choice rather than an architectural violation.
 - Payment method storage or raw billing credentials.
 - Provider credential storage.
 - AppRelay model/provider routing internals.
-- OperatorKit workflow queues or execution records.
+- OperatorKit workflow queues, heartbeat state, or execution records.
 - ManyMind rooms, sleeves, source packets, or meeting state.
 - Siri wake-word handling, speech-to-text, or device microphone permissions.
 - Autonomous background actions.

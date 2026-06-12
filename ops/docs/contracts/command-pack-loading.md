@@ -37,11 +37,15 @@ not combine packs. `pack:recent` reads local recent-pack UI state.
 - Packs must include `schema_version: 0.1`.
 - Commands must include all required command-pack fields.
 - Routes must exist in `contracts/routes/route-contracts.json`.
+- Route family decides optional dependencies. Custom packs do not automatically
+  require OperatorKit.
 - Contract-only packs must use routes with `real_integration: false`.
 - Exact local preview packs may use `local.exact_read` with a built-in
   `runner_action`.
 - Approval-gated local preview packs may use `local.exact_control` with a
   built-in `runner_action` plus `approval_prompt`.
+- Custom packs may declare `local.pack_write_approved` for future
+  approval-gated writes, but the route is contract-only and cannot execute yet.
 - Permission levels must exclude `execute-now`.
 - Approval-required commands must define `approval_prompt`.
 - Fixture sources must stay under `evals/fixtures/`.
@@ -56,6 +60,11 @@ Loading a command pack authorizes classification plus one of:
 
 It does not authorize arbitrary local script execution, external calls, file
 mutation, OperatorKit dispatch, AppRelay calls, or ManyMind calls.
+`local.pack_write_approved` is a declared future route, not write authority.
+
+If a selected route requires an optional dependency such as OperatorKit or
+AppRelay and that dependency is not configured, CommandDeck must fail closed
+with setup guidance. It must not fall back to shell execution or another route.
 
 Persisting recent-pack UI state requires `--write-state`. By default,
 `pack:open` is read-only and reports `recent_write.status: not_written`.

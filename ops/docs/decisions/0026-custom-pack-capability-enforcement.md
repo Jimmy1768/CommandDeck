@@ -9,8 +9,10 @@ Users can keep scripts in their own git repo or local control folder, but a
 script existing beside a pack must not automatically make it executable through
 CommandDeck.
 
-CommandDeck must stay the command layer. OperatorKit is the action layer.
-AppRelay may reason about ambiguity, but it must not bypass pack policy.
+CommandDeck must stay the command layer. OperatorKit is an optional route for
+workflow coordination, staged automation, heartbeat, handoff, and
+accountability. AppRelay may reason about ambiguity, but it must not bypass pack
+policy.
 
 ## Decision
 
@@ -64,7 +66,8 @@ rule: pack commands may only use approved runner routes
   authoritative.
 - Learning memory may improve phrase matching, but it cannot create new
   execution capabilities.
-- OperatorKit must re-check structured permissions at the runner boundary.
+- Route-specific dependencies must re-check structured permissions at their
+  boundaries.
 
 ## Non-Goals
 

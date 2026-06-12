@@ -434,6 +434,16 @@ test('command routes and permission levels match route contracts', async () => {
   const routeById = new Map(routes.routes.map((route) => [route.id, route]));
 
   assert.equal(routes.integration_mode, 'hybrid_local_exact_preview');
+  assert.equal(routes.route_family_model.selection_rule, 'route_by_capability_not_product_dependency');
+  assert.equal(routes.route_family_model.operator_kit_dependency_rule, 'optional_route_dependency_only');
+  assert.equal(routes.route_family_model.custom_pack_rule, 'custom_packs_do_not_imply_operatorkit');
+  assert.equal(
+    routes.route_family_model.missing_optional_dependency_behavior,
+    'blocked_setup_response_no_fallback'
+  );
+  assert.ok(routes.route_family_model.allowed_route_families.includes('pack.local_read'));
+  assert.ok(routes.route_family_model.allowed_route_families.includes('pack.local_write_approved'));
+  assert.ok(routes.route_family_model.allowed_route_families.includes('operatorkit.workflow'));
 
   for (const command of pack.commands) {
     const route = routeById.get(command.route);
@@ -443,9 +453,18 @@ test('command routes and permission levels match route contracts', async () => {
       route.allowed_permission_levels.includes(command.permission_level),
       `${command.command_id} permission must be allowed by ${command.route}`
     );
+    assert.ok(
+      routes.route_family_model.allowed_route_families.includes(route.route_family),
+      `${command.route} must use a known route family`
+    );
 
     if (route.system === 'apprelay') {
+      assert.equal(route.route_family, 'apprelay.reasoning');
       assert.equal(route.credit_policy, 'sourcegrid_credits_required_for_real_apprelay_spend');
+    } else if (route.system === 'operatorkit') {
+      assert.equal(route.route_family, 'operatorkit.workflow');
+      assert.equal(route.dependency.required_globally, false);
+      assert.equal(route.dependency.missing_behavior, 'blocked_setup_response_no_fallback');
     } else if (route.id.startsWith('local.')) {
       assert.equal(route.credit_policy, 'no_sourcegrid_credits_required');
     }
@@ -456,9 +475,11 @@ test('local exact read route is the only real integration in the core contract',
   const routes = await readJson('contracts/routes/route-contracts.json');
   const exactRoute = routes.routes.find((route) => route.id === 'local.exact_read');
   const exactControlRoute = routes.routes.find((route) => route.id === 'local.exact_control');
+  const packWriteRoute = routes.routes.find((route) => route.id === 'local.pack_write_approved');
 
   assert.ok(exactRoute);
   assert.equal(exactRoute.system, 'command-deck');
+  assert.equal(exactRoute.route_family, 'core.local');
   assert.equal(exactRoute.real_integration, true);
   assert.equal(exactRoute.execution_boundary, 'allowlisted_local_runner');
   assert.deepEqual(exactRoute.allowed_runner_actions, [
@@ -470,12 +491,22 @@ test('local exact read route is the only real integration in the core contract',
 
   assert.ok(exactControlRoute);
   assert.equal(exactControlRoute.system, 'command-deck');
+  assert.equal(exactControlRoute.route_family, 'core.local');
   assert.equal(exactControlRoute.real_integration, true);
   assert.equal(exactControlRoute.execution_boundary, 'allowlisted_local_runner');
   assert.deepEqual(exactControlRoute.allowed_runner_actions, [
     'workspace.open_sourcegrid_dashboard',
     'workspace.open_commanddeck_repo'
   ]);
+
+  assert.ok(packWriteRoute);
+  assert.equal(packWriteRoute.system, 'command-deck');
+  assert.equal(packWriteRoute.route_family, 'pack.local_write_approved');
+  assert.deepEqual(packWriteRoute.allowed_permission_levels, ['approval-required']);
+  assert.equal(packWriteRoute.real_integration, false);
+  assert.equal(packWriteRoute.slice_2_behavior, 'blocked_contract_only_pending_pack_write_policy');
+  assert.ok(packWriteRoute.forbidden_effects.includes('raw_sql_passthrough'));
+  assert.ok(packWriteRoute.forbidden_effects.includes('production_write'));
 
   for (const route of routes.routes.filter((route) => !['local.exact_read', 'local.exact_control'].includes(route.id))) {
     assert.equal(route.real_integration, false, `${route.id} must remain contract-only`);

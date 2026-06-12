@@ -79,6 +79,8 @@ sourcegrid-labs/
 - Use only `read-only`, `draft-only`, or `approval-required` permission levels.
 - Keep `execute-now` disabled.
 - Use routes from `contracts/routes/route-contracts.json`.
+- Pick the route family by capability. Custom packs do not automatically require
+  OperatorKit.
 - Keep owner-pack routes contract-only with `real_integration: false`.
 - Use `local.exact_read` only for CommandDeck-owned built-in preview commands.
 - Add `approval_prompt` for every `approval-required` command.
@@ -89,6 +91,16 @@ sourcegrid-labs/
   effects, and runner allowlists.
 - Do not include executable fields such as `script`, `shell`, `handler`, `env`,
   or `secrets`.
+
+Route-family guidance:
+
+- `pack.local_read`: read/status/query/draft commands.
+- `pack.local_write_approved`: deterministic scoped writes with explicit
+  approval. Use concrete route `local.pack_write_approved`; it is contract-only
+  until a future write policy exists.
+- `apprelay.reasoning`: ambiguity handling, summarization, or generation.
+- `operatorkit.workflow`: workflow coordination, staged automation, heartbeat,
+  handoff, and accountability.
 
 ## Validation
 

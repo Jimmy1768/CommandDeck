@@ -3,14 +3,26 @@
 CommandDeck routes to neighboring systems by contract. It does not embed their
 internal behavior.
 
-The important architecture split is:
+The important architecture split is route family. CommandDeck routes by
+capability, not by product dependency.
 
-- capability source: `core` versus `pack`;
-- execution mode: exact/local versus AppRelay-mediated.
+V1 route families:
 
-AppRelay is part of execution mode, not a replacement for the core/pack split.
-Either a core action or a pack action may eventually need AppRelay when the
-command is not exact enough to stay deterministic.
+- `core.local`: built-in computer/platform actions.
+- `pack.local_read`: custom-pack read/status/query/draft commands.
+- `pack.local_write_approved`: deterministic custom-pack writes after explicit
+  approval.
+- `apprelay.reasoning`: ambiguity resolution, summarization, generation, or
+  other LLM-mediated work.
+- `operatorkit.workflow`: workflow coordination, staged automation, heartbeat,
+  handoff, and accountability.
+
+AppRelay and OperatorKit are optional route dependencies. A custom pack does not
+automatically require either one.
+
+`pack.local_write_approved` has a concrete V1 route,
+`local.pack_write_approved`, but that route is contract-only. It does not grant
+write authority until a future pack-write policy is accepted.
 
 ## Codex
 
@@ -47,9 +59,17 @@ Slice 1 status: no AppRelay calls. Fixtures may describe an intended
 
 ## OperatorKit
 
-CommandDeck may request bounded workflow dry runs or dispatches after future
-approval gates. OperatorKit remains responsible for execution queues, node
-profiles, authority levels, returns, and execution records.
+CommandDeck may route to OperatorKit when the selected route family is
+`operatorkit.workflow`. This covers workflow coordination, staged automation,
+heartbeat, handoff, and accountability.
+
+OperatorKit is not a global CommandDeck dependency. Custom packs can use local
+read/status/query routes, approved local write routes, or AppRelay reasoning
+routes without OperatorKit.
+
+If an OperatorKit route is selected and OperatorKit is not configured,
+CommandDeck must return a blocked setup response. It must not fall back to shell
+execution or silently substitute another route.
 
 Slice 1 status: no OperatorKit calls. The dry-run MVP command is represented as
 approval-required and blocked from execution.

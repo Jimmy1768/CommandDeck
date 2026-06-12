@@ -113,5 +113,7 @@ SourceGrid Labs can choose which pack the user wants.
 CommandDeck local runner decides whether that pack is locally valid and safe to
 use.
 
-OperatorKit remains the action layer. AppRelay remains the reasoning/audio path.
-Codex remains the coding interface.
+Route family decides dependencies. OperatorKit is required only for
+`operatorkit.workflow` routes. AppRelay is required only for
+`apprelay.reasoning` routes. Local core and custom-pack routes remain available
+without either dependency when policy allows them.

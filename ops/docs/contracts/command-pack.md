@@ -73,6 +73,31 @@ Simple deterministic routines should declare local routes and avoid AppRelay.
 SourceGrid credits are required only for AppRelay or other SourceGrid-billed
 runtime routes, not for exact local scripts or read-only local checks.
 
+## Route Families
+
+CommandDeck routes by capability, not by product dependency. A custom pack does
+not automatically require OperatorKit.
+
+V1 route families:
+
+- `core.local`: built-in computer/platform actions.
+- `pack.local_read`: custom-pack read/status/query/draft commands.
+- `pack.local_write_approved`: deterministic custom-pack writes after explicit
+  approval.
+- `apprelay.reasoning`: ambiguity resolution, summarization, generation, or
+  other LLM-mediated work.
+- `operatorkit.workflow`: workflow coordination, staged automation, heartbeat,
+  handoff, and accountability.
+
+If a command uses an optional route dependency that is not configured,
+CommandDeck must return a blocked setup response and must not fall back to shell
+execution.
+
+The concrete V1 route for `pack.local_write_approved` is
+`local.pack_write_approved`. It is contract-only and must remain blocked until a
+future pack-write policy defines execution, environment, approval, and audit
+requirements.
+
 Pack routines are often best understood as "use the computer to automate work
 that used to require mouse and keyboard outside Codex." That is broader than
 generic built-in computer control, but still narrower than becoming the coding

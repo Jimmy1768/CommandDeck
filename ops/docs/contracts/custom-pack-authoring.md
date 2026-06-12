@@ -93,6 +93,28 @@ Edit `<pack_slug>.cdeck-pack.json` to add commands. Each command needs:
 Use pack-level `action_requirements` when a pack-specific action needs required
 slots that core does not know about.
 
+## Choose The Route Family
+
+Custom packs do not automatically require OperatorKit. Choose the route family
+by what the command does:
+
+- Use `pack.local_read` for read/status/query/draft commands.
+- Use `pack.local_write_approved` for deterministic writes that are scoped,
+  safe, and approval-gated.
+- Use `apprelay.reasoning` when the command needs ambiguity handling,
+  summarization, or generation.
+- Use `operatorkit.workflow` only for workflow coordination, staged automation,
+  heartbeat, handoff, or accountability.
+
+If a command uses `operatorkit.workflow` and OperatorKit is not configured,
+CommandDeck blocks the command and should tell the user to clone and configure
+OperatorKit from GitHub. If the command was mislabeled, change the route family
+instead of installing OperatorKit.
+
+The concrete V1 route for `pack.local_write_approved` is
+`local.pack_write_approved`. It is contract-only for now. Approval may be
+requested, but execution remains blocked until a future pack-write policy exists.
+
 ## Safety Rules
 
 - Keep deterministic local reads read-only.
@@ -101,7 +123,7 @@ slots that core does not know about.
   or `secrets` in a command pack.
 - Do not assume files in `scripts/` can run. Script execution requires a future
   explicit runner policy.
-- Do not use CommandDeck to replace Codex for code implementation prompts.
+- Do not use raw spoken SQL or raw shell passthrough.
 
 ## If A Command Is Rejected
 

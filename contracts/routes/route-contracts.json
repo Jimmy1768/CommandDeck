@@ -1,10 +1,26 @@
 {
   "schema_version": "0.1",
   "integration_mode": "hybrid_local_exact_preview",
+  "route_family_model": {
+    "selection_rule": "route_by_capability_not_product_dependency",
+    "operator_kit_dependency_rule": "optional_route_dependency_only",
+    "custom_pack_rule": "custom_packs_do_not_imply_operatorkit",
+    "missing_optional_dependency_behavior": "blocked_setup_response_no_fallback",
+    "allowed_route_families": [
+      "core.local",
+      "pack.local_read",
+      "pack.local_write_approved",
+      "apprelay.reasoning",
+      "operatorkit.workflow",
+      "manymind.decision_support"
+    ],
+    "operator_kit_setup_hint": "clone_and_configure_operator_kit_when_an_operatorkit_workflow_route_is_required"
+  },
   "routes": [
     {
       "id": "local.exact_read",
       "system": "command-deck",
+      "route_family": "core.local",
       "allowed_permission_levels": ["read-only"],
       "credit_policy": "no_sourcegrid_credits_required",
       "real_integration": true,
@@ -20,6 +36,7 @@
     {
       "id": "local.fixture_read",
       "system": "command-deck",
+      "route_family": "pack.local_read",
       "allowed_permission_levels": ["read-only"],
       "credit_policy": "no_sourcegrid_credits_required",
       "real_integration": false
@@ -27,6 +44,7 @@
     {
       "id": "local.draft_fixture",
       "system": "command-deck",
+      "route_family": "pack.local_read",
       "allowed_permission_levels": ["draft-only"],
       "credit_policy": "no_sourcegrid_credits_required",
       "real_integration": false
@@ -34,6 +52,7 @@
     {
       "id": "local.exact_control",
       "system": "command-deck",
+      "route_family": "core.local",
       "allowed_permission_levels": ["approval-required"],
       "credit_policy": "no_sourcegrid_credits_required",
       "real_integration": true,
@@ -46,16 +65,47 @@
       "slice_2_behavior": "execute_allowlisted_local_state_change_after_approval"
     },
     {
+      "id": "local.pack_write_approved",
+      "system": "command-deck",
+      "route_family": "pack.local_write_approved",
+      "allowed_permission_levels": ["approval-required"],
+      "credit_policy": "no_sourcegrid_credits_required",
+      "real_integration": false,
+      "approval_gate": "human_decision_required_before_future_execution",
+      "slice_2_behavior": "blocked_contract_only_pending_pack_write_policy",
+      "allowed_effects_future": [
+        "scoped_dev_or_test_write",
+        "create_dummy_record",
+        "run_named_non_production_mutation"
+      ],
+      "forbidden_effects": [
+        "raw_sql_passthrough",
+        "production_write",
+        "customer_data_mutation",
+        "secret_write",
+        "external_provider_mutation"
+      ]
+    },
+    {
       "id": "operatorkit.dry_run_request",
       "system": "operatorkit",
+      "route_family": "operatorkit.workflow",
       "allowed_permission_levels": ["approval-required"],
       "credit_policy": "operator_policy_only_unless_apprelay_route_requested",
+      "dependency": {
+        "required_globally": false,
+        "required_for_route_family": true,
+        "package": "operator-kit",
+        "missing_behavior": "blocked_setup_response_no_fallback",
+        "setup_hint": "clone_and_configure_operator_kit_from_github_then_add_local_path_or_endpoint_to_commanddeck_config"
+      },
       "real_integration": false,
       "slice_1_behavior": "blocked_execute_now_disabled"
     },
     {
       "id": "apprelay.summary",
       "system": "apprelay",
+      "route_family": "apprelay.reasoning",
       "allowed_permission_levels": ["read-only"],
       "credit_policy": "sourcegrid_credits_required_for_real_apprelay_spend",
       "real_integration": false,
@@ -64,6 +114,7 @@
     {
       "id": "manymind.source_packet_draft",
       "system": "manymind",
+      "route_family": "manymind.decision_support",
       "allowed_permission_levels": ["draft-only"],
       "credit_policy": "no_sourcegrid_credits_required_in_phase_1",
       "real_integration": false,
