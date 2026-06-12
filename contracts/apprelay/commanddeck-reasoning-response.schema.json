@@ -1,0 +1,50 @@
+{
+  "schema_version": "0.1",
+  "contract_kind": "apprelay-commanddeck-reasoning-response",
+  "client_type": "internal_ops_tool",
+  "client_key": "commanddeck",
+  "purpose": "command_routing_reasoning",
+  "allowed_outcomes": [
+    "resolved_intent",
+    "concept_checking_question",
+    "unsupported",
+    "memory_candidate"
+  ],
+  "runtime_rule": "commanddeck_must_revalidate_before_routing",
+  "candidate_memory_runtime_rule": "candidate_memory_is_not_live_runtime_memory",
+  "required_fields": [
+    "schema_version",
+    "outcome",
+    "confidence",
+    "reasoning_summary"
+  ],
+  "forbidden_fields": [
+    "shell",
+    "script",
+    "sql",
+    "approval_decision",
+    "execute_now",
+    "new_route_definition",
+    "activate_memory"
+  ],
+  "outcome_requirements": {
+    "resolved_intent": [
+      "command_id",
+      "route",
+      "slots"
+    ],
+    "concept_checking_question": [
+      "question",
+      "missing_slots",
+      "candidate_intents"
+    ],
+    "unsupported": [
+      "reason"
+    ],
+    "memory_candidate": [
+      "normalized_phrase",
+      "maps_to_command_id",
+      "requires_user_confirmation"
+    ]
+  }
+}

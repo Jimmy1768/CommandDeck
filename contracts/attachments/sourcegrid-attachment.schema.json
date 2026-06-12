@@ -5,6 +5,19 @@
   "billing_owner": "sourcegrid_workspace",
   "commanddeck_stores_payment_data": false,
   "apprelay_cost_owner": "sourcegrid_workspace",
+  "apprelay_client_contract": {
+    "client_type": "internal_ops_tool",
+    "client_key": "commanddeck",
+    "purpose": "command_routing_reasoning",
+    "tenant_context_source": "sourcegrid_workspace_attachment",
+    "normal_tenant_chat_surface": false,
+    "model_selection_owner": "apprelay",
+    "commanddeck_sends_model_name": false,
+    "no_execution_authority": true,
+    "no_memory_activation": true,
+    "memory_writeback_requires_user_confirmation": true,
+    "required_output_contract": "contracts/apprelay/commanddeck-reasoning-response.schema.json"
+  },
   "sourcegrid_credit_gate_scope": [
     "apprelay_reasoning",
     "apprelay_audio",

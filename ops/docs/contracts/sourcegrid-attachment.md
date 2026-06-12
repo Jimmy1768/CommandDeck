@@ -60,6 +60,25 @@ The command validates local attachment metadata and reports whether AppRelay
 spend is allowed. It does not call SourceGrid, AppRelay, Stripe, GitHub, or any
 external service.
 
+## AppRelay Client Contract
+
+CommandDeck uses AppRelay as an internal ops client, not a normal tenant chat
+surface.
+
+```text
+client_type: internal_ops_tool
+client_key: commanddeck
+purpose: command_routing_reasoning
+```
+
+SourceGrid workspace/account context still supplies entitlement, billing, and
+memory scope. AppRelay owns model/provider selection. CommandDeck sends
+reasoning purpose and constraints, not a model name.
+
+CommandDeck AppRelay responses must not grant execution authority, approval
+authority, new route definitions, or live memory activation. Memory writeback
+requires user confirmation.
+
 ## Spend Gate
 
 AppRelay spend requires all of:

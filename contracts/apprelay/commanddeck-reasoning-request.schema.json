@@ -1,0 +1,60 @@
+{
+  "schema_version": "0.1",
+  "contract_kind": "apprelay-commanddeck-reasoning-request",
+  "client_type": "internal_ops_tool",
+  "client_key": "commanddeck",
+  "purpose": "command_routing_reasoning",
+  "model_selection_owner": "apprelay",
+  "commanddeck_sends_model_name": false,
+  "required_output_contract": "contracts/apprelay/commanddeck-reasoning-response.schema.json",
+  "required_fields": [
+    "schema_version",
+    "client_type",
+    "client_key",
+    "purpose",
+    "sourcegrid_workspace_ref",
+    "sourcegrid_account_ref",
+    "surface",
+    "reasoning_task",
+    "escalation_reason",
+    "required_output_schema",
+    "latency_class",
+    "risk_tier",
+    "sensitivity",
+    "cost_class",
+    "uncertainty_behavior",
+    "user_utterance",
+    "active_command_context"
+  ],
+  "allowed_reasoning_tasks": [
+    "intent_resolution",
+    "slot_extraction",
+    "summarization",
+    "generation"
+  ],
+  "allowed_escalation_reasons": [
+    "ambiguous_intent",
+    "missing_slots",
+    "summarization_required",
+    "generation_required",
+    "fast_lane_failed"
+  ],
+  "allowed_uncertainty_behavior": ["return_concept_checking_question"],
+  "forbidden_fields": [
+    "model",
+    "provider",
+    "shell",
+    "script",
+    "sql",
+    "approval_decision",
+    "execute_now",
+    "activate_memory"
+  ],
+  "authority_limits": {
+    "no_execution_authority": true,
+    "no_approval_authority": true,
+    "no_route_creation": true,
+    "no_memory_activation": true,
+    "memory_writeback_requires_user_confirmation": true
+  }
+}

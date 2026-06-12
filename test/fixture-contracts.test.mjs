@@ -235,6 +235,14 @@ test('SourceGrid attachment schema keeps billing anchor outside owner repos', as
   assert.equal(schema.attachment_owner, 'sourcegrid');
   assert.equal(schema.billing_owner, 'sourcegrid_workspace');
   assert.equal(schema.commanddeck_stores_payment_data, false);
+  assert.equal(schema.apprelay_client_contract.client_type, 'internal_ops_tool');
+  assert.equal(schema.apprelay_client_contract.client_key, 'commanddeck');
+  assert.equal(schema.apprelay_client_contract.purpose, 'command_routing_reasoning');
+  assert.equal(schema.apprelay_client_contract.model_selection_owner, 'apprelay');
+  assert.equal(schema.apprelay_client_contract.commanddeck_sends_model_name, false);
+  assert.equal(schema.apprelay_client_contract.no_execution_authority, true);
+  assert.equal(schema.apprelay_client_contract.no_memory_activation, true);
+  assert.equal(schema.apprelay_client_contract.memory_writeback_requires_user_confirmation, true);
   assert.equal(schema.owner_repo_role, 'command_pack_source_only');
   assert.equal(schema.sourcegrid_labs_console_role, 'primary_commanddeck_pack_management_surface');
   assert.equal(schema.commanddeck_local_runner_role, 'local_validation_and_execution_boundary');
@@ -247,6 +255,40 @@ test('SourceGrid attachment schema keeps billing anchor outside owner repos', as
   assert.ok(schema.allowed_payment_method_states.includes('verified'));
   assert.ok(schema.forbidden_local_payment_fields.includes('card_number'));
   assert.ok(schema.forbidden_local_payment_fields.includes('stripe_secret_key'));
+});
+
+test('AppRelay CommandDeck reasoning contracts are internal ops only', async () => {
+  const request = await readJson('contracts/apprelay/commanddeck-reasoning-request.schema.json');
+  const response = await readJson('contracts/apprelay/commanddeck-reasoning-response.schema.json');
+
+  assert.equal(request.contract_kind, 'apprelay-commanddeck-reasoning-request');
+  assert.equal(request.client_type, 'internal_ops_tool');
+  assert.equal(request.client_key, 'commanddeck');
+  assert.equal(request.purpose, 'command_routing_reasoning');
+  assert.equal(request.model_selection_owner, 'apprelay');
+  assert.equal(request.commanddeck_sends_model_name, false);
+  assert.ok(request.required_fields.includes('sourcegrid_workspace_ref'));
+  assert.ok(request.required_fields.includes('required_output_schema'));
+  assert.ok(request.forbidden_fields.includes('model'));
+  assert.ok(request.forbidden_fields.includes('shell'));
+  assert.equal(request.authority_limits.no_execution_authority, true);
+  assert.equal(request.authority_limits.no_memory_activation, true);
+  assert.equal(request.authority_limits.memory_writeback_requires_user_confirmation, true);
+
+  assert.equal(response.contract_kind, 'apprelay-commanddeck-reasoning-response');
+  assert.equal(response.client_type, 'internal_ops_tool');
+  assert.equal(response.client_key, 'commanddeck');
+  assert.deepEqual(response.allowed_outcomes, [
+    'resolved_intent',
+    'concept_checking_question',
+    'unsupported',
+    'memory_candidate'
+  ]);
+  assert.equal(response.runtime_rule, 'commanddeck_must_revalidate_before_routing');
+  assert.equal(response.candidate_memory_runtime_rule, 'candidate_memory_is_not_live_runtime_memory');
+  assert.ok(response.forbidden_fields.includes('approval_decision'));
+  assert.ok(response.forbidden_fields.includes('execute_now'));
+  assert.ok(response.outcome_requirements.memory_candidate.includes('requires_user_confirmation'));
 });
 
 test('SourceGrid console bridge is selection metadata only', async () => {

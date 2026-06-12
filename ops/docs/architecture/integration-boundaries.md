@@ -42,6 +42,18 @@ AppRelay remains responsible for provider selection, model routing, cost
 controls, tool dispatch policies, provider credentials, and future generated
 audio when needed.
 
+CommandDeck calls AppRelay as an internal ops client:
+
+```text
+client_type: internal_ops_tool
+client_key: commanddeck
+purpose: command_routing_reasoning
+```
+
+This is not a normal tenant assistant chat surface. CommandDeck sends task
+metadata, constraints, risk, sensitivity, and required output schema. AppRelay
+owns model/provider selection.
+
 AppRelay can create cost, so CommandDeck must not enable AppRelay spend until a
 SourceGrid workspace attachment and payment-method readiness check have passed.
 SourceGrid is the billing anchor for AppRelay usage; owner repos are not.
