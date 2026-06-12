@@ -111,6 +111,10 @@ CommandDeck blocks the command and should tell the user to clone and configure
 OperatorKit from GitHub. If the command was mislabeled, change the route family
 instead of installing OperatorKit.
 
+The canonical blocked status for this case is
+`blocked_missing_optional_dependency`. Treat it as either a setup task or a pack
+authoring fix, not as permission to bypass the route.
+
 The concrete V1 route for `pack.local_write_approved` is
 `local.pack_write_approved`. It is contract-only for now. Approval may be
 requested, but execution remains blocked until a future pack-write policy exists.

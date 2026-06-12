@@ -41,3 +41,7 @@ exists. Until then, adapters speak text.
 Approval-required commands return a spoken/displayable blocked response. Voice
 invocation is not approval. The adapter response points to the action record
 through `record_ref`; it does not execute the action.
+
+Missing optional dependencies also return spoken/displayable blocked responses.
+The spoken/display text should include setup guidance and the authoring fix
+hint from the action record result.

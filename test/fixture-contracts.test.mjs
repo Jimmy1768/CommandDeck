@@ -340,9 +340,32 @@ test('SourceGrid pack selection manifest is candidate metadata only', async () =
 test('action record schema models concept-checking questions as non-execution', async () => {
   const schema = await readJson('contracts/records/action-record.schema.json');
   const ccq = await readJson('contracts/records/concept-checking-question.schema.json');
+  const missingDependency = await readJson('contracts/records/missing-optional-dependency.response.json');
 
   assert.equal(schema.contract_kind, 'action-record');
   assert.ok(schema.allowed_result_statuses.includes('needs_clarification'));
+  assert.ok(schema.allowed_result_statuses.includes('blocked_missing_optional_dependency'));
+  assert.equal(
+    schema.missing_optional_dependency_rule,
+    'block_with_setup_guidance_and_authoring_fix_hint'
+  );
+  assert.deepEqual(schema.missing_optional_dependency_required_fields, [
+    'route',
+    'route_family',
+    'missing_dependency',
+    'setup_required',
+    'can_retry_after_setup',
+    'setup_hint',
+    'authoring_fix_hint'
+  ]);
+  assert.equal(missingDependency.contract_kind, 'missing-optional-dependency-response');
+  assert.equal(missingDependency.result_status, 'blocked_missing_optional_dependency');
+  assert.equal(missingDependency.record_result.route_family, 'operatorkit.workflow');
+  assert.equal(missingDependency.record_result.missing_dependency, 'operator-kit');
+  assert.equal(missingDependency.record_result.setup_required, true);
+  assert.equal(missingDependency.record_result.can_retry_after_setup, true);
+  assert.match(missingDependency.record_result.setup_hint, /Clone and configure OperatorKit/);
+  assert.match(missingDependency.record_result.authoring_fix_hint, /change the command route family/);
   assert.equal(schema.clarification_contract, 'contracts/records/concept-checking-question.schema.json');
   assert.equal(schema.clarification_rule, 'needs_clarification_is_not_failure_approval_or_execution');
   assert.equal(schema.ccq_state_storage_rule, 'ccq_state_is_stored_in_local_action_record');

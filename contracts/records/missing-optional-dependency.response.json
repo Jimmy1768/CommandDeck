@@ -1,0 +1,17 @@
+{
+  "schema_version": "0.1",
+  "contract_kind": "missing-optional-dependency-response",
+  "result_status": "blocked_missing_optional_dependency",
+  "adapter_response_mode": "platform_tts_or_display_text",
+  "route_dependency_rule": "missing_optional_dependency_blocks_without_fallback",
+  "record_result": {
+    "status": "blocked_missing_optional_dependency",
+    "summary": "This command requires OperatorKit workflow support, but OperatorKit is not configured.",
+    "route_family": "operatorkit.workflow",
+    "missing_dependency": "operator-kit",
+    "setup_required": true,
+    "can_retry_after_setup": true,
+    "setup_hint": "Clone and configure OperatorKit from GitHub, then add its local path or endpoint to CommandDeck config.",
+    "authoring_fix_hint": "If this command is not workflow coordination, change the command route family in the pack."
+  }
+}

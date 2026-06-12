@@ -32,6 +32,28 @@ records are fixtures only.
 - `denied`;
 - `blocked_execute_now_disabled`.
 
+## Missing Optional Dependency
+
+When a selected route requires an optional dependency that is not configured,
+the action record must use:
+
+- `result.status: blocked_missing_optional_dependency`;
+- `setup_required: true`;
+- `can_retry_after_setup: true`;
+- `missing_dependency`;
+- `route_family`;
+- `setup_hint`;
+- `authoring_fix_hint`.
+
+The response must distinguish dependency setup from pack authoring mistakes:
+
+- If the route is correct, the user can install/configure the dependency and
+  retry.
+- If the route is wrong, the pack author should change the route family.
+
+CommandDeck must not fall back to shell execution or silently substitute another
+route.
+
 ## Record Rule
 
 Approval-required contract-only commands must produce a record whose result is

@@ -6,6 +6,7 @@
     "answered_from_fixture",
     "drafted_fixture_only",
     "blocked_contract_only",
+    "blocked_missing_optional_dependency",
     "blocked_pending_approval",
     "approval_requested",
     "executed_local_allowlisted_action",
@@ -14,6 +15,16 @@
   ],
   "clarification_contract": "contracts/records/concept-checking-question.schema.json",
   "clarification_rule": "needs_clarification_is_not_failure_approval_or_execution",
+  "missing_optional_dependency_rule": "block_with_setup_guidance_and_authoring_fix_hint",
+  "missing_optional_dependency_required_fields": [
+    "route",
+    "route_family",
+    "missing_dependency",
+    "setup_required",
+    "can_retry_after_setup",
+    "setup_hint",
+    "authoring_fix_hint"
+  ],
   "ccq_state_storage_rule": "ccq_state_is_stored_in_local_action_record",
   "ccq_state_persistence_rule": "local_auditable_state_not_durable_memory",
   "ccq_resume_token_rule": "short_lived_one_use_token_validated_from_action_record",
@@ -80,6 +91,12 @@
       "properties": {
         "status": { "type": "string" },
         "summary": { "type": "string" },
+        "route_family": { "type": "string" },
+        "missing_dependency": { "type": "string" },
+        "setup_required": { "type": "boolean" },
+        "can_retry_after_setup": { "type": "boolean" },
+        "setup_hint": { "type": "string" },
+        "authoring_fix_hint": { "type": "string" },
         "clarification": {
           "type": "object",
           "required": [
