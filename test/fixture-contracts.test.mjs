@@ -243,6 +243,15 @@ test('SourceGrid attachment schema keeps billing anchor outside owner repos', as
   assert.equal(schema.apprelay_client_contract.no_execution_authority, true);
   assert.equal(schema.apprelay_client_contract.no_memory_activation, true);
   assert.equal(schema.apprelay_client_contract.memory_writeback_requires_user_confirmation, true);
+  assert.equal(schema.apprelay_scope_proof_contract.preferred_transport, 'sourcegrid_brokered');
+  assert.equal(schema.apprelay_scope_proof_contract.direct_apprelay_call_allowed, false);
+  assert.equal(
+    schema.apprelay_scope_proof_contract.direct_apprelay_secret_policy,
+    'commanddeck_cli_must_not_store_long_lived_apprelay_signing_secret'
+  );
+  assert.equal(schema.apprelay_scope_proof_contract.runtime_mode, 'sourcegrid_internal_ops');
+  assert.ok(schema.apprelay_scope_proof_contract.authorization_critical_groups.includes('request_identity'));
+  assert.ok(schema.apprelay_scope_proof_contract.authorization_critical_groups.includes('sourcegrid_scope_proof'));
   assert.equal(schema.owner_repo_role, 'command_pack_source_only');
   assert.equal(schema.sourcegrid_labs_console_role, 'primary_commanddeck_pack_management_surface');
   assert.equal(schema.commanddeck_local_runner_role, 'local_validation_and_execution_boundary');
@@ -265,11 +274,36 @@ test('AppRelay CommandDeck reasoning contracts are internal ops only', async () 
   assert.equal(request.client_type, 'internal_ops_tool');
   assert.equal(request.client_key, 'commanddeck');
   assert.equal(request.purpose, 'command_routing_reasoning');
+  assert.equal(request.runtime_mode, 'sourcegrid_internal_ops');
   assert.equal(request.model_selection_owner, 'apprelay');
   assert.equal(request.commanddeck_sends_model_name, false);
-  assert.ok(request.required_fields.includes('sourcegrid_workspace_ref'));
+  assert.equal(request.request_transport_recommendation, 'sourcegrid_brokered');
+  assert.equal(
+    request.direct_apprelay_secret_policy,
+    'commanddeck_cli_must_not_store_long_lived_apprelay_signing_secret'
+  );
+  assert.ok(request.required_fields.includes('request_identity'));
+  assert.ok(request.required_fields.includes('sourcegrid_scope_proof'));
+  assert.ok(request.required_fields.includes('active_local_context'));
+  assert.ok(request.required_fields.includes('authority_constraints'));
+  assert.ok(request.required_fields.includes('runtime_task'));
   assert.ok(request.required_fields.includes('required_output_schema'));
+  assert.ok(request.request_identity.authorization_critical.includes('request_id'));
+  assert.equal(request.request_identity.required_values.client_type, 'internal_ops_tool');
+  assert.equal(request.request_identity.required_values.runtime_mode, 'sourcegrid_internal_ops');
+  assert.ok(request.sourcegrid_scope_proof.authorization_critical.includes('sourcegrid_workspace_id'));
+  assert.ok(request.sourcegrid_scope_proof.authorization_critical.includes('apprelay_runtime_entitlement'));
+  assert.equal(request.sourcegrid_scope_proof.entitlement_rule, 'must_allow_sourcegrid_billed_apprelay_runtime');
+  assert.ok(request.active_local_context.authorization_critical.includes('active_pack_digest'));
+  assert.equal(request.authority_constraints.required_values.no_execution_authority, true);
+  assert.equal(request.authority_constraints.required_values.memory_read_scope, 'approved_active_only');
+  assert.equal(
+    request.authority_constraints.required_values.memory_writeback_policy,
+    'candidate_only_requires_explicit_user_confirmation'
+  );
+  assert.equal(request.runtime_task.default_route_work_type, 'commanddeck.command_routing_reasoning.standard');
   assert.ok(request.forbidden_fields.includes('model'));
+  assert.ok(request.forbidden_fields.includes('long_lived_apprelay_secret'));
   assert.ok(request.forbidden_fields.includes('shell'));
   assert.equal(request.authority_limits.no_execution_authority, true);
   assert.equal(request.authority_limits.no_memory_activation, true);
@@ -282,13 +316,20 @@ test('AppRelay CommandDeck reasoning contracts are internal ops only', async () 
     'resolved_intent',
     'concept_checking_question',
     'unsupported',
-    'memory_candidate'
+    'memory_candidate',
+    'rejected'
   ]);
+  assert.ok(response.allowed_rejection_statuses.includes('rejected_missing_scope_proof'));
+  assert.ok(response.allowed_rejection_statuses.includes('rejected_stale_scope_proof'));
+  assert.ok(response.allowed_rejection_statuses.includes('rejected_not_entitled'));
+  assert.ok(response.allowed_rejection_statuses.includes('rejected_invalid_client_identity'));
+  assert.ok(response.allowed_rejection_statuses.includes('rejected_scope_hash_mismatch'));
   assert.equal(response.runtime_rule, 'commanddeck_must_revalidate_before_routing');
   assert.equal(response.candidate_memory_runtime_rule, 'candidate_memory_is_not_live_runtime_memory');
   assert.ok(response.forbidden_fields.includes('approval_decision'));
   assert.ok(response.forbidden_fields.includes('execute_now'));
   assert.ok(response.outcome_requirements.memory_candidate.includes('requires_user_confirmation'));
+  assert.ok(response.outcome_requirements.rejected.includes('rejection_status'));
 });
 
 test('SourceGrid console bridge is selection metadata only', async () => {

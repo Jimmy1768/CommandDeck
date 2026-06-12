@@ -8,7 +8,15 @@
     "resolved_intent",
     "concept_checking_question",
     "unsupported",
-    "memory_candidate"
+    "memory_candidate",
+    "rejected"
+  ],
+  "allowed_rejection_statuses": [
+    "rejected_missing_scope_proof",
+    "rejected_stale_scope_proof",
+    "rejected_not_entitled",
+    "rejected_invalid_client_identity",
+    "rejected_scope_hash_mismatch"
   ],
   "runtime_rule": "commanddeck_must_revalidate_before_routing",
   "candidate_memory_runtime_rule": "candidate_memory_is_not_live_runtime_memory",
@@ -45,6 +53,10 @@
       "normalized_phrase",
       "maps_to_command_id",
       "requires_user_confirmation"
+    ],
+    "rejected": [
+      "rejection_status",
+      "reason"
     ]
   }
 }

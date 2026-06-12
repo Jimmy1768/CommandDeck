@@ -18,6 +18,20 @@
     "memory_writeback_requires_user_confirmation": true,
     "required_output_contract": "contracts/apprelay/commanddeck-reasoning-response.schema.json"
   },
+  "apprelay_scope_proof_contract": {
+    "preferred_transport": "sourcegrid_brokered",
+    "direct_apprelay_call_allowed": false,
+    "direct_apprelay_secret_policy": "commanddeck_cli_must_not_store_long_lived_apprelay_signing_secret",
+    "runtime_mode": "sourcegrid_internal_ops",
+    "required_request_contract": "contracts/apprelay/commanddeck-reasoning-request.schema.json",
+    "authorization_critical_groups": [
+      "request_identity",
+      "sourcegrid_scope_proof",
+      "active_local_context",
+      "authority_constraints",
+      "runtime_task"
+    ]
+  },
   "sourcegrid_credit_gate_scope": [
     "apprelay_reasoning",
     "apprelay_audio",

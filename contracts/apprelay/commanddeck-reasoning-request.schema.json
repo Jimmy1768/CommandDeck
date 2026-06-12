@@ -4,28 +4,102 @@
   "client_type": "internal_ops_tool",
   "client_key": "commanddeck",
   "purpose": "command_routing_reasoning",
+  "runtime_mode": "sourcegrid_internal_ops",
   "model_selection_owner": "apprelay",
   "commanddeck_sends_model_name": false,
   "required_output_contract": "contracts/apprelay/commanddeck-reasoning-response.schema.json",
+  "request_transport_recommendation": "sourcegrid_brokered",
+  "direct_apprelay_secret_policy": "commanddeck_cli_must_not_store_long_lived_apprelay_signing_secret",
   "required_fields": [
     "schema_version",
-    "client_type",
-    "client_key",
-    "purpose",
-    "sourcegrid_workspace_ref",
-    "sourcegrid_account_ref",
-    "surface",
-    "reasoning_task",
-    "escalation_reason",
+    "request_identity",
+    "sourcegrid_scope_proof",
+    "active_local_context",
+    "authority_constraints",
+    "runtime_task",
     "required_output_schema",
-    "latency_class",
-    "risk_tier",
-    "sensitivity",
-    "cost_class",
-    "uncertainty_behavior",
-    "user_utterance",
-    "active_command_context"
+    "user_utterance"
   ],
+  "request_identity": {
+    "authorization_critical": [
+      "client_key",
+      "client_type",
+      "runtime_mode",
+      "purpose",
+      "request_id",
+      "idempotency_key"
+    ],
+    "required_values": {
+      "client_key": "commanddeck",
+      "client_type": "internal_ops_tool",
+      "runtime_mode": "sourcegrid_internal_ops",
+      "purpose": "command_routing_reasoning"
+    }
+  },
+  "sourcegrid_scope_proof": {
+    "authorization_critical": [
+      "sourcegrid_organization_id",
+      "sourcegrid_account_id",
+      "sourcegrid_workspace_id",
+      "sourcegrid_user_id",
+      "apprelay_runtime_entitlement",
+      "issued_at",
+      "expires_at",
+      "attachment_scope_hash"
+    ],
+    "audit_or_routing_metadata": [
+      "actor_ref",
+      "device_ref",
+      "session_ref",
+      "attachment_version"
+    ],
+    "entitlement_rule": "must_allow_sourcegrid_billed_apprelay_runtime"
+  },
+  "active_local_context": {
+    "authorization_critical": [
+      "active_pack_ref",
+      "active_pack_digest",
+      "control_folder_ref",
+      "control_folder_digest"
+    ],
+    "audit_or_routing_metadata": [
+      "adapter",
+      "surface_hint",
+      "device_code",
+      "commanddeck_version"
+    ]
+  },
+  "authority_constraints": {
+    "authorization_critical": [
+      "no_execution_authority",
+      "no_memory_activation",
+      "memory_read_scope",
+      "memory_writeback_policy"
+    ],
+    "required_values": {
+      "no_execution_authority": true,
+      "no_memory_activation": true,
+      "memory_read_scope": "approved_active_only",
+      "memory_writeback_policy": "candidate_only_requires_explicit_user_confirmation"
+    }
+  },
+  "runtime_task": {
+    "authorization_critical": [
+      "route_work_type",
+      "required_output_schema"
+    ],
+    "audit_or_routing_metadata": [
+      "reasoning_task",
+      "escalation_reason",
+      "latency_class",
+      "risk_tier",
+      "sensitivity",
+      "cost_class",
+      "constraints",
+      "task_metadata"
+    ],
+    "default_route_work_type": "commanddeck.command_routing_reasoning.standard"
+  },
   "allowed_reasoning_tasks": [
     "intent_resolution",
     "slot_extraction",
@@ -43,6 +117,7 @@
   "forbidden_fields": [
     "model",
     "provider",
+    "long_lived_apprelay_secret",
     "shell",
     "script",
     "sql",

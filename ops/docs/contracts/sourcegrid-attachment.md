@@ -79,6 +79,29 @@ CommandDeck AppRelay responses must not grant execution authority, approval
 authority, new route definitions, or live memory activation. Memory writeback
 requires user confirmation.
 
+## AppRelay Scope Proof
+
+V1 should route CommandDeck AppRelay reasoning through SourceGrid as broker.
+The local CommandDeck CLI must not store a long-lived AppRelay signing secret.
+
+Before AppRelay accepts a CommandDeck internal-ops reasoning request, the
+request must prove:
+
+- CommandDeck client identity: `internal_ops_tool` / `commanddeck`;
+- runtime mode: `sourcegrid_internal_ops`;
+- purpose: `command_routing_reasoning`;
+- SourceGrid organization/account/workspace/user scope;
+- entitlement to consume SourceGrid-billed AppRelay runtime;
+- issue and expiry timestamps;
+- attachment version or scope hash;
+- active pack/control folder identity and digest;
+- authority constraints: no execution, no live memory activation, approved
+  active memory reads only, and candidate-only memory writeback after explicit
+  user confirmation.
+
+AppRelay should reject requests with missing, stale, invalid, or not-entitled
+scope proof instead of attempting best-effort reasoning.
+
 ## Spend Gate
 
 AppRelay spend requires all of:
