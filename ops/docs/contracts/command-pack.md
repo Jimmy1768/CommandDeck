@@ -3,6 +3,10 @@
 A command pack declares commands that CommandDeck may classify, evaluate,
 route, and record. It does not grant execution by itself.
 
+Pack manifests use the filename extension `.cdeck-pack.json`, where `cdeck`
+means CommandDeck. User-facing selectors should filter for `*.cdeck-pack.json`
+and pass the selected manifest path into local validation.
+
 CommandDeck core and command packs are complementary, not competing models:
 
 - core owns generic, reusable platform actions and engine policy;
@@ -14,6 +18,13 @@ folders. For SourceGrid, that owner repo is `sourcegrid-labs`. Another user
 might create a personal repo such as `jimmys-assistant` and put their local
 workspace scripts there. Partner command packs belong in partner repos or
 configured local folders.
+
+The source-of-truth split is:
+
+- CommandDeck-owned core packs live in this repository and are updated by
+  CommandDeck maintainers.
+- Custom packs live in the user's or company's own git repo or local control
+  folder and are selected through configured `command_pack_roots`.
 
 Command packs should model workspace routines that go beyond generic computer
 control. For coding work, they may prepare the PC environment around Codex, but
@@ -36,6 +47,8 @@ interface itself.
 - `commands`: list of command definitions.
 - `permissions`: permission policy references.
 - `record_policy`: expected record destination and retention intent.
+- optional `action_requirements`: pack-level required-slot rules for
+  pack-specific actions.
 
 Each command requires:
 
@@ -49,6 +62,38 @@ Each command requires:
 - `sources`;
 - `runner_action` when the command uses the built-in exact local runner;
 - `approval_prompt` when permission is `approval-required`.
+
+## Action Requirements
+
+CommandDeck core owns the shared action requirements schema. Core actions use
+`contracts/commands/core-action-requirements.json`.
+
+Packs may declare pack-level requirements for pack-specific actions, but they
+must follow the shared schema in
+`contracts/commands/action-requirements.schema.json`.
+
+Action requirements define:
+
+- required slots;
+- optional slots;
+- conditionally required slots;
+- allowed target kinds;
+- defaulting rules;
+- risk tier;
+- whether approval may be required;
+- the concept-checking question to ask when required information is missing.
+
+If an action is missing a required slot, or a conditional slot cannot be safely
+defaulted from active context, CommandDeck should ask the concept-checking
+question instead of guessing.
+
+Pack action requirements are clarification metadata only. They are loaded only
+from the active command pack, they do not create global grammar, and they do not
+grant execution authority.
+
+After a pack CCQ resume, the merged command must still resolve to an allowed
+command in the active pack. If it does not resolve, CommandDeck must fail closed
+or ask another CCQ.
 
 ## Sources
 
@@ -79,8 +124,8 @@ All other effects must be represented as `blocked`, `contract_only`, or
 
 ## Exact Local Runner Preview
 
-`contracts/commands/local-exact-commands.json` shows the first built-in exact
-local runner path. These commands stay read-only, route through
+`contracts/commands/local-exact-commands.cdeck-pack.json` shows the first
+built-in exact local runner path. These commands stay read-only, route through
 `local.exact_read`, and reference a `runner_action` key rather than a shell
 script path.
 
@@ -105,10 +150,10 @@ Good candidates for packs:
 
 ## Pack Locations
 
-`contracts/commands/mvp-commands.json` is the built-in MVP fixture pack.
-`contracts/commands/local-exact-commands.json` is the built-in exact local
+`contracts/commands/mvp-commands.cdeck-pack.json` is the built-in MVP fixture pack.
+`contracts/commands/local-exact-commands.cdeck-pack.json` is the built-in exact local
 preview pack.
-`contracts/commands/local-approved-commands.json` is the built-in
+`contracts/commands/local-approved-commands.cdeck-pack.json` is the built-in
 approval-gated local control preview pack.
 `evals/fixtures/command-packs/` contains generic validation fixtures only.
 

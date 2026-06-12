@@ -1,0 +1,105 @@
+# SourceGrid Console Bridge Contract
+
+SourceGrid Labs web console is the primary user-facing surface for SourceGrid
+CommandDeck pack management.
+
+The local CommandDeck runner remains the authority for local validation,
+selection, routing, records, and execution boundaries.
+
+The machine-readable contract lives at:
+
+- `contracts/bridge/sourcegrid-console-bridge.schema.json`
+- `contracts/bridge/sourcegrid-pack-selection.schema.json`
+
+## Core Rule
+
+The bridge is not a remote shell.
+
+SourceGrid Labs may let the user browse packs, open one pack, view recent packs,
+and see attachment or billing readiness. The selector targets a pack manifest
+file and should filter for `*.cdeck-pack.json` only.
+
+It must not send shell commands, scripts, secrets, env values, or executable
+handlers to the local computer.
+
+## V1 Bridge Mode
+
+V1 should use pull-then-local-validate:
+
+1. SourceGrid Labs records a pack selection manifest for the attached workspace.
+2. The local CommandDeck runner pulls or receives that manifest through an
+   explicit local sync step.
+3. The local runner maps the selected pack to a configured control repo or local
+   control folder.
+4. The local runner validates the pack path stays inside that control root.
+5. The local runner verifies the selected file ends in `.cdeck-pack.json`.
+6. The local runner loads and validates exactly one command pack.
+7. Only after local validation does the pack become the active pack for local
+   command routing.
+
+The SourceGrid selection is a candidate, not authority by itself.
+
+Configured local control folders may be outside the CommandDeck repo when they
+are declared as `local-folder` roots with `local_only: true`. This lets custom
+packs stay version controlled in the user's or company's own git repo.
+
+## User Surfaces
+
+SourceGrid Labs owns the normal user UX:
+
+- browse available packs in configured control repos or folders;
+- open one `*.cdeck-pack.json` manifest;
+- show recent packs;
+- show SourceGrid workspace attachment;
+- show payment and AppRelay spend readiness.
+
+CommandDeck CLI remains a developer/debug fallback:
+
+```sh
+npm run command:local -- pack:open --command-pack contracts/commands/local-exact-commands.cdeck-pack.json
+npm run command:local -- pack:recent
+```
+
+The CLI accepts the manifest path directly. The web console should present this
+as a constrained file selector, not arbitrary file upload and not arbitrary
+folder execution.
+
+## Selection Manifest
+
+A SourceGrid pack selection manifest must identify:
+
+- `workspace_ref`;
+- `actor_ref`;
+- `pack_ref`;
+- `pack_source_kind`;
+- `control_root_ref`;
+- `pack_path`;
+- `selected_at`.
+
+`pack_path` is relative to the configured control root and must point to a
+`*.cdeck-pack.json` file.
+
+For an external local control folder, `pack_path` is still relative to that
+folder. The browser or console must not send an absolute manifest path as
+authority.
+
+The manifest must not include executable fields, shell commands, scripts,
+secrets, provider keys, approvals, or execute-now instructions.
+
+Apply a downloaded/received selection manifest locally:
+
+```sh
+npm run command:local -- pack:apply-selection --config evals/fixtures/pack_discovery/local-control-folder.config.json --selection-file evals/fixtures/pack_selections/local-exact.selection.json
+```
+
+Persisting recent-pack UI state still requires `--write-state`.
+
+## Authority Boundary
+
+SourceGrid Labs can choose which pack the user wants.
+
+CommandDeck local runner decides whether that pack is locally valid and safe to
+use.
+
+OperatorKit remains the action layer. AppRelay remains the reasoning/audio path.
+Codex remains the coding interface.

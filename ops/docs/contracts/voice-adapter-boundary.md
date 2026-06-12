@@ -55,21 +55,28 @@ Google voice, and similar adapters should not be used as CommandDeck's brain.
 The first Siri grammar is:
 
 ```text
-Hey Siri, <device code> <command>
+Hey Siri, <device code> <action> <object> [context] [end code]
 ```
 
 Examples:
 
 ```text
-Hey Siri, command play focus music
-Hey Siri, command start SourceGrid work mode
-Hey Siri, command open dashboard
+Hey Siri, computer play focus music activate
+Hey Siri, computer start SourceGrid work mode
+Hey Siri, computer open ops dashboard
 ```
 
-`Hey Siri` is the platform wake phrase. CommandDeck controls only the device code
-and command phrase after Siri wakes. The request should carry the parsed device
-code as `device_code`, use `target_runner: "command"`, and identify the capture
-surface with `surface_hint`.
+`Hey Siri` is the platform wake phrase. CommandDeck controls only the phrase
+after Siri wakes. The preferred V1 spoken device code is `computer`, which maps
+to `target_runner: "command"`. The request should carry the parsed device code
+as `device_code` and identify the capture surface with `surface_hint`.
+
+`surface_hint` records where the command was captured, such as `phone`, `watch`,
+`glasses`, or `computer`. It is not the same thing as the spoken routing word.
+
+If the action needs more information than the phrase provides, CommandDeck
+should return a concept-checking question. `activate` can terminate the phrase,
+but voice invocation and end codes are not approval.
 
 ## Speech Output Modes
 

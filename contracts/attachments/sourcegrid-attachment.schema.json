@@ -52,6 +52,9 @@
     "stripe_payment_method_id"
   ],
   "owner_repo_role": "command_pack_source_only",
+  "sourcegrid_labs_console_role": "primary_commanddeck_pack_management_surface",
+  "commanddeck_local_runner_role": "local_validation_and_execution_boundary",
+  "console_bridge_contract": "contracts/bridge/sourcegrid-console-bridge.schema.json",
   "phase_1_network_calls_enabled": false,
   "phase_1_apprelay_spend_enabled": false
 }

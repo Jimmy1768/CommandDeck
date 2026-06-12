@@ -22,7 +22,7 @@ The first working mode is a phone Siri surface and the local PC as the command
 runner:
 
 ```text
-Hey Siri, command <command>
+Hey Siri, computer <action> <object> [context] [end code]
   -> Apple Shortcut
   -> PC CommandDeck runner
   -> sourcegrid-labs command pack and scripts
@@ -49,7 +49,8 @@ PC in Codex or the normal development toolchain.
 
 - Voice adapters are valuable because they control the workspace outside Codex.
 - The PC-local runner is a first-class future execution target.
-- The first reserved spoken device code is `command`.
+- The preferred V1 spoken device code is `computer`, which maps to the internal
+  `target_runner: "command"` boundary.
 - The Apple-PC local runner is the first SourceGrid execution target.
 - Remote phone-to-cloud repo editing is not the default model.
 - Command packs should describe exact, permissioned routines, not broad coding

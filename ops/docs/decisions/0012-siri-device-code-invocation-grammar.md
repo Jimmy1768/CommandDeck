@@ -16,29 +16,34 @@ ambiguous commands.
 The first Siri invocation grammar is:
 
 ```text
-Hey Siri, <device code> <command>
+Hey Siri, <device code> <action> <object> [context] [end code]
 ```
 
 Examples:
 
 ```text
-Hey Siri, command play focus music
-Hey Siri, command start SourceGrid work mode
-Hey Siri, command open dashboard
+Hey Siri, computer play focus music activate
+Hey Siri, computer start SourceGrid work mode
+Hey Siri, computer open ops dashboard
 ```
 
-The Apple wake phrase starts Siri. The first reserved device code is `command`.
-The device code becomes `device_code`, the local runner alias becomes
-`target_runner: "command"`, and the remaining phrase becomes `command_text`.
+The Apple wake phrase starts Siri. The preferred V1 spoken device code is
+`computer`. The device code becomes `device_code`, the local runner alias
+remains `target_runner: "command"`, and the remaining phrase becomes
+`command_text`.
 
 Real adapter requests should include:
 
 - `request_id`: unique id for duplicate suppression;
 - `surface_hint`: capture surface, such as `phone`, `watch`, `glasses`, or
   `computer`;
-- `device_code`: spoken routing word, initially `command`;
+- `device_code`: spoken routing word, preferably `computer`;
 - `target_runner`: intended runner, initially `command`;
 - `command_text`: command to classify against the attached command pack.
+
+If the action needs more fields than the phrase provides, CommandDeck should
+return a concept-checking question instead of guessing. The optional end code
+`activate` can terminate a phrase, but it is not approval.
 
 ## Consequences
 

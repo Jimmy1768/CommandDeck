@@ -66,6 +66,20 @@ V1 match kinds:
 This keeps the saved behavior narrow. CommandDeck learns stable interpretation
 patterns, not broad permission bypasses or "do what I usually mean" behavior.
 
+### Normalized Phrase
+
+`normalized_phrase` is deterministic transcript cleanup, not semantic matching.
+
+The detailed rule lives in
+[Normalized Phrase Contract](/Users/jimmy1768/Projects/CommandDeck/ops/docs/contracts/normalized-phrase.md:1).
+
+V1 stores and compares lowercase text. It may remove punctuation, repeated
+spacing, minor speech fillers, and leading politeness. It must preserve action,
+target, scope, risk, timing, and environment words.
+
+It must not use synonyms, embeddings, LLM paraphrase matching, or semantic
+similarity.
+
 ### Alias
 
 An alias is a user-defined shorthand for a known target inside a scope.

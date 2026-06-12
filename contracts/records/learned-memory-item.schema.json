@@ -32,6 +32,8 @@
   "supersede_rule": "replacement_creates_new_active_item_and_marks_prior_item_superseded",
   "conflict_rule": "unresolved_active_conflicts_force_checking_question",
   "alias_rule": "aliases_resolve_targets_not_hidden_actions_in_v1",
+  "normalized_phrase_contract": "contracts/records/normalized-phrase.schema.json",
+  "normalized_phrase_rule": "lowercase_deterministic_transcript_cleanup_only_no_semantic_matching",
   "properties": {
     "memory_id": { "type": "string" },
     "memory_kind": { "enum": ["resolved_interpretation"] },

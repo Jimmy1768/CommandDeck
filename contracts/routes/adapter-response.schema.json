@@ -17,6 +17,10 @@
     "errors"
   ],
   "response_modes": ["platform_tts", "display_text", "json"],
+  "clarification_contract": "contracts/records/concept-checking-question.schema.json",
+  "clarification_response_rule": "display_and_spoken_text_should_be_the_clarification_question",
+  "clarification_route": "none",
+  "clarification_approval_status": "required_not_requested",
   "apprelay_audio_available": false,
   "platform_reasoning_used": false,
   "apple_intelligence_required": false,

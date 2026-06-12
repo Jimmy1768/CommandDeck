@@ -1,0 +1,72 @@
+{
+  "schema_version": "0.1",
+  "contract_kind": "sourcegrid-console-bridge",
+  "phase": "local_prototype",
+  "console_owner": "sourcegrid_labs_web_console",
+  "local_authority": "commanddeck_local_runner",
+  "bridge_mode_v1": "pull_then_local_validate",
+  "primary_user_surface": "sourcegrid_labs_web_console",
+  "local_cli_role": "developer_debug_fallback",
+  "inbound_remote_execution_enabled": false,
+  "remote_shell_enabled": false,
+  "active_pack_policy": "single_active_pack_per_invocation",
+  "pack_selector_target": "pack_manifest_file",
+  "pack_selector_filter": "*.cdeck-pack.json",
+  "pack_selection_surfaces": ["open", "recent"],
+  "control_root_kinds": ["owner-repo", "local-folder"],
+  "selection_manifest_contract": "contracts/bridge/sourcegrid-pack-selection.schema.json",
+  "selection_apply_command": "pack:apply-selection",
+  "console_may": [
+    "list_pack_metadata",
+    "show_recent_packs",
+    "request_active_pack_selection",
+    "show_sourcegrid_attachment_status",
+    "show_payment_readiness"
+  ],
+  "console_must_not": [
+    "send_shell_commands",
+    "send_scripts",
+    "send_env",
+    "send_secrets",
+    "bypass_local_pack_validation",
+    "execute_local_runner_actions",
+    "activate_multiple_packs"
+  ],
+  "local_runner_must": [
+    "pull_selection_manifest",
+    "map_pack_ref_to_configured_control_root",
+    "validate_pack_path_inside_control_root",
+    "load_and_validate_one_command_pack",
+    "apply_single_active_pack_locally",
+    "write_recent_pack_state_only_when_requested"
+  ],
+  "selection_manifest_required_fields": [
+    "schema_version",
+    "workspace_ref",
+    "actor_ref",
+    "pack_ref",
+    "pack_source_kind",
+    "control_root_ref",
+    "pack_path",
+    "selected_at"
+  ],
+  "allowed_pack_source_kinds": ["owner-repo", "local-folder"],
+  "selection_apply_rule": "sourcegrid_selection_is_candidate_until_local_pack_open_validates_one_pack",
+  "external_local_folder_rule": "custom_packs_may_be_selected_from_configured_local_only_control_folders",
+  "source_of_truth_rule": "core_packs_live_in_commanddeck_repo_custom_packs_live_in_user_owned_git_or_local_control_folders",
+  "selection_execution_rule": "selection_never_executes_commands_or_scripts",
+  "recent_state_owner": "commanddeck_local_runner",
+  "recent_state_rule": "console_may_display_recent_state_reported_by_local_runner",
+  "forbidden_manifest_fields": [
+    "script",
+    "scripts",
+    "shell",
+    "executable",
+    "handler",
+    "env",
+    "secrets",
+    "provider_keys",
+    "approval",
+    "execute_now"
+  ]
+}

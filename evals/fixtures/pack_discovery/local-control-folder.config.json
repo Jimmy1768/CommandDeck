@@ -5,15 +5,12 @@
   "default_write_records": false,
   "command_pack_roots": [
     {
-      "id": "unsafe_scripts",
+      "id": "local_builtin_control",
       "kind": "local-folder",
-      "path": "/tmp/command-packs",
+      "path": "contracts/commands",
+      "local_only": true,
       "enabled": true,
-      "discovery_mode": "execute",
-      "script": "./run.sh",
-      "secrets": {
-        "provider": "not-allowed"
-      }
+      "discovery_mode": "metadata_only"
     }
   ]
 }

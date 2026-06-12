@@ -37,7 +37,7 @@ test('permission contract keeps execute-now disabled', async () => {
 });
 
 test('MVP command pack contains the first five commands only', async () => {
-  const pack = await readJson('contracts/commands/mvp-commands.json');
+  const pack = await readJson('contracts/commands/mvp-commands.cdeck-pack.json');
   assert.equal(pack.schema_version, '0.1');
   assert.equal(pack.commands.length, 5);
 
@@ -56,25 +56,98 @@ test('command pack schema documents the Phase 1 loading boundary', async () => {
 
   assert.equal(schema.contract_kind, 'command-pack');
   assert.equal(schema.execute_now_enabled, false);
+  assert.equal(schema.manifest_file_extension, '.cdeck-pack.json');
+  assert.equal(schema.selector_target, 'pack_manifest_file');
+  assert.equal(schema.selector_filter, '*.cdeck-pack.json');
   assert.ok(schema.required.includes('schema_version'));
   assert.deepEqual(schema.allowed_permission_levels, ['read-only', 'draft-only', 'approval-required']);
   assert.deepEqual(schema.allowed_source_roots, ['evals/fixtures/', 'local://']);
+  assert.ok(schema.optional_pack_fields.includes('action_requirements'));
   assert.ok(schema.optional_command_fields.includes('runner_action'));
   assert.equal(schema.local_exact_runner.enabled_for_read_only, true);
   assert.equal(schema.local_exact_runner.execution_boundary, 'allowlisted_local_runner');
+  assert.equal(schema.action_requirements.schema, 'contracts/commands/action-requirements.schema.json');
+  assert.equal(schema.action_requirements.core_requirements, 'contracts/commands/core-action-requirements.json');
+  assert.equal(schema.action_requirements.core_runtime_source, 'contracts/commands/core-action-requirements.json');
+  assert.equal(schema.action_requirements.pack_extension_allowed, true);
+  assert.equal(schema.action_requirements.pack_runtime_scope, 'active_command_pack_only');
+  assert.equal(schema.action_requirements.pack_runtime_authority, 'clarification_metadata_only');
+  assert.equal(
+    schema.action_requirements.pack_resume_rule,
+    'resumed_command_must_resolve_to_allowed_active_pack_command'
+  );
+  assert.equal(schema.action_requirements.missing_required_slot_behavior, 'concept_checking_question');
   assert.ok(schema.forbidden_command_fields.includes('handler'));
   assert.equal(schema.real_pack_locations.sourcegrid, 'sourcegrid-labs');
   assert.equal(schema.real_pack_locations.commanddeck_repo, 'generic examples and tests only');
 });
 
+test('action requirements schema allows core and pack actions with CCQ fallback', async () => {
+  const schema = await readJson('contracts/commands/action-requirements.schema.json');
+
+  assert.equal(schema.contract_kind, 'action-requirements');
+  assert.deepEqual(schema.allowed_capability_sources, ['core', 'pack']);
+  assert.deepEqual(schema.allowed_slots, ['device_code', 'action', 'object', 'context', 'end_code']);
+  assert.deepEqual(schema.allowed_risk_tiers, [
+    'informational',
+    'local_control',
+    'workspace_mutation',
+    'delegated_agentic'
+  ]);
+  assert.ok(schema.action_required_fields.includes('missing_required_slot_ccq'));
+  assert.equal(
+    schema.defaulting_rule,
+    'defaults_allowed_only_when_exactly_one_safe_active_context_candidate_exists'
+  );
+  assert.equal(
+    schema.ccq_rule,
+    'missing_required_or_non_defaultable_conditional_slots_force_concept_checking_question'
+  );
+  assert.equal(
+    schema.core_runtime_source_rule,
+    'deterministic_core_ccq_policy_loads_contracts_commands_core_action_requirements_json'
+  );
+  assert.equal(
+    schema.pack_extension_rule,
+    'packs_may_declare_action_requirements_but_commanddeck_validates_against_this_schema'
+  );
+});
+
+test('core action requirements define V1 spoken slot needs', async () => {
+  const requirements = await readJson('contracts/commands/core-action-requirements.json');
+  const actions = new Map(requirements.actions.map((action) => [action.action, action]));
+
+  assert.equal(requirements.contract_kind, 'action-requirements');
+  assert.equal(requirements.owner, 'command-deck');
+  assert.deepEqual([...actions.keys()], ['open', 'close', 'find', 'start', 'stop', 'play', 'pause']);
+
+  for (const action of actions.values()) {
+    assert.equal(action.capability_source, 'core');
+    assert.deepEqual(action.required_slots, ['device_code', 'action', 'object']);
+    assert.ok(action.optional_slots.includes('context'));
+    assert.ok(action.optional_slots.includes('end_code'));
+    assert.equal(typeof action.missing_required_slot_ccq, 'string');
+    assert.notEqual(action.missing_required_slot_ccq.length, 0);
+  }
+
+  assert.equal(actions.get('open').risk_tier, 'local_control');
+  assert.equal(actions.get('find').risk_tier, 'informational');
+  assert.equal(actions.get('start').risk_tier, 'workspace_mutation');
+  assert.ok(actions.get('start').conditionally_required_slots.length > 0);
+});
+
 test('local exact command pack declares allowlisted runner actions only', async () => {
-  const pack = await readJson('contracts/commands/local-exact-commands.json');
+  const pack = await readJson('contracts/commands/local-exact-commands.cdeck-pack.json');
   const routes = await readJson('contracts/routes/route-contracts.json');
   const permissions = await readJson('contracts/permissions/permission-levels.json');
   const errors = validateCommandPack(pack, { routes, permissions });
 
   assert.equal(pack.pack_id, 'commanddeck.local-exact.slice2');
   assert.deepEqual(errors, []);
+  assert.equal(pack.action_requirements.length, 1);
+  assert.equal(pack.action_requirements[0].action, 'check');
+  assert.equal(pack.action_requirements[0].capability_source, 'pack');
+  assert.equal(pack.action_requirements[0].missing_required_slot_ccq, 'What should I check?');
   assert.equal(pack.commands.length, 4);
   assert.ok(pack.commands.every((command) => command.route === 'local.exact_read'));
   assert.ok(pack.commands.every((command) => ALLOWLISTED_LOCAL_RUNNER_ACTIONS.includes(command.runner_action)));
@@ -82,7 +155,7 @@ test('local exact command pack declares allowlisted runner actions only', async 
 });
 
 test('local approved command pack stays approval-gated and allowlisted', async () => {
-  const pack = await readJson('contracts/commands/local-approved-commands.json');
+  const pack = await readJson('contracts/commands/local-approved-commands.cdeck-pack.json');
   const routes = await readJson('contracts/routes/route-contracts.json');
   const permissions = await readJson('contracts/permissions/permission-levels.json');
   const errors = validateCommandPack(pack, { routes, permissions });
@@ -103,10 +176,24 @@ test('pack discovery schema is metadata-only and non-executing', async () => {
   assert.equal(schema.real_execution_enabled, false);
   assert.equal(schema.execute_now_enabled, false);
   assert.deepEqual(schema.allowed_discovery_modes, ['metadata_only']);
+  assert.equal(schema.active_pack_policy, 'single_active_pack_per_invocation');
+  assert.equal(schema.active_pack_source_field, 'default_command_pack');
+  assert.equal(schema.pack_manifest_file_extension, '.cdeck-pack.json');
+  assert.equal(schema.pack_selector_target, 'pack_manifest_file');
+  assert.equal(schema.pack_selector_filter, '*.cdeck-pack.json');
+  assert.deepEqual(schema.pack_selection_surfaces, ['open', 'recent']);
+  assert.equal(schema.open_rule, 'validates_one_selected_pack_without_activating_multiple_profiles');
+  assert.equal(schema.recent_rule, 'reads_local_recent_pack_state_without_loading_multiple_packs');
+  assert.equal(schema.recent_state_path, '.commanddeck/state/recent-packs.json');
+  assert.equal(schema.discovery_roots_role, 'available_pack_locations_only');
+  assert.equal(schema.discovery_roots_active_for_routing, false);
   assert.ok(schema.allowed_kinds.includes('owner-repo'));
   assert.ok(schema.forbidden_root_fields.includes('script'));
   assert.ok(schema.forbidden_root_fields.includes('secrets'));
   assert.equal(schema.allowed_repo_fixture_root, 'evals/fixtures/command-packs');
+  assert.equal(schema.external_local_folder_rule, 'absolute local-folder roots are allowed only when local_only is true');
+  assert.equal(schema.custom_pack_source_of_truth, 'user_owned_git_repo_or_local_control_folder');
+  assert.equal(schema.core_pack_source_of_truth, 'commanddeck_repo');
 });
 
 test('SourceGrid attachment schema keeps billing anchor outside owner repos', async () => {
@@ -117,6 +204,9 @@ test('SourceGrid attachment schema keeps billing anchor outside owner repos', as
   assert.equal(schema.billing_owner, 'sourcegrid_workspace');
   assert.equal(schema.commanddeck_stores_payment_data, false);
   assert.equal(schema.owner_repo_role, 'command_pack_source_only');
+  assert.equal(schema.sourcegrid_labs_console_role, 'primary_commanddeck_pack_management_surface');
+  assert.equal(schema.commanddeck_local_runner_role, 'local_validation_and_execution_boundary');
+  assert.equal(schema.console_bridge_contract, 'contracts/bridge/sourcegrid-console-bridge.schema.json');
   assert.equal(schema.phase_1_apprelay_spend_enabled, false);
   assert.ok(schema.sourcegrid_credit_gate_scope.includes('apprelay_reasoning'));
   assert.ok(schema.not_blocked_by_credit_exhaustion.includes('local_exact_commands'));
@@ -127,13 +217,164 @@ test('SourceGrid attachment schema keeps billing anchor outside owner repos', as
   assert.ok(schema.forbidden_local_payment_fields.includes('stripe_secret_key'));
 });
 
+test('SourceGrid console bridge is selection metadata only', async () => {
+  const contract = await readJson('contracts/bridge/sourcegrid-console-bridge.schema.json');
+
+  assert.equal(contract.contract_kind, 'sourcegrid-console-bridge');
+  assert.equal(contract.console_owner, 'sourcegrid_labs_web_console');
+  assert.equal(contract.local_authority, 'commanddeck_local_runner');
+  assert.equal(contract.bridge_mode_v1, 'pull_then_local_validate');
+  assert.equal(contract.primary_user_surface, 'sourcegrid_labs_web_console');
+  assert.equal(contract.local_cli_role, 'developer_debug_fallback');
+  assert.equal(contract.inbound_remote_execution_enabled, false);
+  assert.equal(contract.remote_shell_enabled, false);
+  assert.equal(contract.active_pack_policy, 'single_active_pack_per_invocation');
+  assert.equal(contract.pack_selector_target, 'pack_manifest_file');
+  assert.equal(contract.pack_selector_filter, '*.cdeck-pack.json');
+  assert.deepEqual(contract.pack_selection_surfaces, ['open', 'recent']);
+  assert.deepEqual(contract.control_root_kinds, ['owner-repo', 'local-folder']);
+  assert.equal(contract.selection_manifest_contract, 'contracts/bridge/sourcegrid-pack-selection.schema.json');
+  assert.equal(contract.selection_apply_command, 'pack:apply-selection');
+  assert.ok(contract.console_may.includes('request_active_pack_selection'));
+  assert.ok(contract.console_must_not.includes('send_shell_commands'));
+  assert.ok(contract.console_must_not.includes('execute_local_runner_actions'));
+  assert.ok(contract.console_must_not.includes('activate_multiple_packs'));
+  assert.ok(contract.local_runner_must.includes('validate_pack_path_inside_control_root'));
+  assert.ok(contract.local_runner_must.includes('load_and_validate_one_command_pack'));
+  assert.ok(contract.selection_manifest_required_fields.includes('pack_path'));
+  assert.deepEqual(contract.allowed_pack_source_kinds, ['owner-repo', 'local-folder']);
+  assert.equal(
+    contract.selection_apply_rule,
+    'sourcegrid_selection_is_candidate_until_local_pack_open_validates_one_pack'
+  );
+  assert.equal(
+    contract.external_local_folder_rule,
+    'custom_packs_may_be_selected_from_configured_local_only_control_folders'
+  );
+  assert.equal(
+    contract.source_of_truth_rule,
+    'core_packs_live_in_commanddeck_repo_custom_packs_live_in_user_owned_git_or_local_control_folders'
+  );
+  assert.equal(contract.selection_execution_rule, 'selection_never_executes_commands_or_scripts');
+  assert.equal(contract.recent_state_owner, 'commanddeck_local_runner');
+  assert.ok(contract.forbidden_manifest_fields.includes('script'));
+  assert.ok(contract.forbidden_manifest_fields.includes('secrets'));
+  assert.ok(contract.forbidden_manifest_fields.includes('execute_now'));
+});
+
+test('SourceGrid pack selection manifest is candidate metadata only', async () => {
+  const schema = await readJson('contracts/bridge/sourcegrid-pack-selection.schema.json');
+  const fixture = await readJson('evals/fixtures/pack_selections/local-exact.selection.json');
+
+  assert.equal(schema.contract_kind, 'sourcegrid-pack-selection');
+  assert.equal(schema.bridge_contract, 'contracts/bridge/sourcegrid-console-bridge.schema.json');
+  assert.equal(schema.apply_command, 'pack:apply-selection');
+  assert.equal(schema.apply_mode, 'candidate_selection_then_local_pack_open_validation');
+  assert.deepEqual(schema.allowed_pack_source_kinds, ['owner-repo', 'local-folder']);
+  assert.equal(schema.pack_path_rule, 'relative_to_configured_control_root');
+  assert.equal(schema.pack_path_extension_rule, 'must_end_with_.cdeck-pack.json');
+  assert.equal(schema.pack_selector_filter, '*.cdeck-pack.json');
+  assert.equal(schema.local_apply_rule, 'pack_path_must_stay_inside_enabled_control_root');
+  assert.equal(
+    schema.external_local_folder_rule,
+    'absolute local-folder control roots are allowed only when configured local_only true'
+  );
+  assert.equal(
+    schema.source_of_truth_rule,
+    'core_packs_live_in_commanddeck_repo_custom_packs_live_in_user_owned_git_or_local_control_folders'
+  );
+  assert.equal(schema.selection_execution_rule, 'selection_never_executes_commands_or_scripts');
+  assert.equal(schema.active_pack_policy, 'single_active_pack_per_invocation');
+  assert.equal(schema.recent_write_rule, 'recent_state_persistence_requires_write_state');
+  assert.ok(schema.forbidden_fields.includes('shell'));
+  assert.ok(schema.forbidden_fields.includes('execute_now'));
+
+  for (const field of schema.required) {
+    assert.ok(field in fixture, `${field} must be present in selection fixture`);
+  }
+
+  assert.equal(fixture.contract_kind, 'sourcegrid-pack-selection');
+  assert.equal(fixture.pack_source_kind, 'local-folder');
+  assert.equal(fixture.control_root_ref, 'local_builtin_control');
+  assert.equal(fixture.pack_path, 'local-exact-commands.cdeck-pack.json');
+});
+
+test('action record schema models concept-checking questions as non-execution', async () => {
+  const schema = await readJson('contracts/records/action-record.schema.json');
+  const ccq = await readJson('contracts/records/concept-checking-question.schema.json');
+
+  assert.equal(schema.contract_kind, 'action-record');
+  assert.ok(schema.allowed_result_statuses.includes('needs_clarification'));
+  assert.equal(schema.clarification_contract, 'contracts/records/concept-checking-question.schema.json');
+  assert.equal(schema.clarification_rule, 'needs_clarification_is_not_failure_approval_or_execution');
+  assert.equal(schema.ccq_state_storage_rule, 'ccq_state_is_stored_in_local_action_record');
+  assert.equal(schema.ccq_state_persistence_rule, 'local_auditable_state_not_durable_memory');
+  assert.equal(schema.ccq_resume_token_rule, 'short_lived_one_use_token_validated_from_action_record');
+  assert.equal(schema.ccq_resume_token_concurrency_rule, 'atomic_compare_and_set_active_to_terminal_status');
+  assert.equal(schema.ccq_resume_lock_rule, 'write_record_resume_uses_short_local_action_record_lock');
+  assert.equal(schema.ccq_resume_lock_stale_after_seconds, 30);
+
+  assert.equal(ccq.contract_kind, 'concept-checking-question');
+  assert.equal(ccq.result_status, 'needs_clarification');
+  assert.equal(ccq.execution_rule, 'no_action_executed');
+  assert.equal(ccq.question_rule, 'ask_one_missing_slot_by_default_unless_slots_are_inseparable');
+  assert.equal(ccq.state_storage_rule, 'ccq_state_is_stored_in_local_action_record');
+  assert.equal(ccq.state_storage_location, 'records/actions/');
+  assert.equal(ccq.state_persistence_rule, 'local_auditable_state_not_durable_memory');
+  assert.equal(ccq.apprelay_dependency_rule, 'apprelay_not_required_for_deterministic_local_ccq_resume');
+  assert.equal(ccq.cleanup_rule, 'expired_or_terminal_ccq_state_may_be_pruned_after_audit_window');
+  assert.equal(ccq.audit_retention_days, 7);
+  assert.equal(ccq.cleanup_mode_v1, 'manual_explicit_local_command_only');
+  assert.equal(ccq.automatic_cleanup_v1, false);
+  assert.equal(ccq.cleanup_scope_rule, 'cleanup_applies_to_terminal_or_expired_ccq_records_only');
+  assert.equal(ccq.cleanup_memory_rule, 'ccq_cleanup_must_not_create_or_modify_learned_memory');
+  assert.equal(ccq.resume_follow_up_rule, 'follow_up_answers_may_fill_missing_slots_only');
+  assert.equal(ccq.resume_validation_rule, 'merged_intent_must_revalidate_before_routing');
+  assert.equal(ccq.resume_token_lifetime_rule, 'short_lived_one_use_conversational_state_not_memory');
+  assert.equal(ccq.resume_token_ttl_seconds, 300);
+  assert.deepEqual(ccq.resume_token_binding, [
+    'same_actor_ref',
+    'same_workspace_ref',
+    'same_adapter_session_when_available'
+  ]);
+  assert.equal(ccq.resume_token_reuse_rule, 'one_use_only');
+  assert.equal(ccq.resume_token_expiration_behavior, 'expired_or_unbound_follow_up_is_new_command_or_fresh_ccq');
+  assert.equal(ccq.resume_token_concurrency_rule, 'atomic_compare_and_set_active_to_terminal_status');
+  assert.deepEqual(ccq.resume_token_terminal_statuses, ['used', 'expired', 'rejected']);
+  assert.equal(ccq.resume_token_duplicate_behavior, 'already_consumed_token_must_not_route');
+  assert.equal(
+    ccq.resume_token_duplicate_response,
+    'That clarification is no longer active. Please give the command again.'
+  );
+  assert.equal(ccq.resume_lock_rule, 'write_record_resume_uses_short_local_action_record_lock');
+  assert.equal(ccq.resume_lock_stale_after_seconds, 30);
+  assert.equal(ccq.resume_lock_fresh_behavior, 'fresh_lock_fails_without_routing');
+  assert.equal(ccq.resume_lock_cleanup_scope, 'stale_lock_file_only_never_action_record');
+  assert.ok(ccq.forbidden_resume_changes.includes('action'));
+  assert.ok(ccq.forbidden_resume_changes.includes('non_missing_slots'));
+  assert.equal(ccq.record_defaults.route, 'none');
+  assert.equal(ccq.record_defaults.approval_status, 'required_not_requested');
+  assert.equal(ccq.record_defaults['result.status'], 'needs_clarification');
+  assert.equal(ccq.record_defaults.follow_up_owner, 'user');
+  assert.ok(ccq.required_fields.includes('resume_token'));
+  assert.ok(ccq.required_fields.includes('resume_token_status'));
+  assert.ok(ccq.required_fields.includes('resume_token_expires_at'));
+  assert.ok(ccq.required_fields.includes('workspace_ref'));
+
+  const clarification = schema.properties.result.properties.clarification;
+  assert.ok(clarification.required.includes('resume_token_status'));
+  assert.ok(clarification.required.includes('resume_token_expires_at'));
+  assert.ok(clarification.required.includes('workspace_ref'));
+  assert.deepEqual(clarification.properties.resume_token_status.enum, ['active', 'used', 'expired', 'rejected']);
+});
+
 test('generic command-pack fixtures validate without becoming executable integrations', async () => {
   const fixtureDir = path.join(root, 'evals/fixtures/command-packs');
   const fixtureFiles = (await readdir(fixtureDir)).filter((file) => file.endsWith('.json')).sort();
   const routes = await readJson('contracts/routes/route-contracts.json');
   const permissions = await readJson('contracts/permissions/permission-levels.json');
 
-  assert.deepEqual(fixtureFiles, ['generic-approval-blocked.pack.json', 'generic-read-draft.pack.json']);
+  assert.deepEqual(fixtureFiles, ['generic-approval-blocked.cdeck-pack.json', 'generic-read-draft.cdeck-pack.json']);
 
   for (const file of fixtureFiles) {
     const pack = await readJson(`evals/fixtures/command-packs/${file}`);
@@ -150,7 +391,7 @@ test('generic command-pack fixtures validate without becoming executable integra
 });
 
 test('command routes and permission levels match route contracts', async () => {
-  const pack = await readJson('contracts/commands/mvp-commands.json');
+  const pack = await readJson('contracts/commands/mvp-commands.cdeck-pack.json');
   const routes = await readJson('contracts/routes/route-contracts.json');
   const routeById = new Map(routes.routes.map((route) => [route.id, route]));
 
@@ -204,7 +445,7 @@ test('local exact read route is the only real integration in the core contract',
 });
 
 test('command sources point to local fixtures', async () => {
-  const pack = await readJson('contracts/commands/mvp-commands.json');
+  const pack = await readJson('contracts/commands/mvp-commands.cdeck-pack.json');
 
   for (const command of pack.commands) {
     for (const source of command.sources) {
@@ -215,7 +456,7 @@ test('command sources point to local fixtures', async () => {
 });
 
 test('approval-required command is blocked in slice 1', async () => {
-  const pack = await readJson('contracts/commands/mvp-commands.json');
+  const pack = await readJson('contracts/commands/mvp-commands.cdeck-pack.json');
   const dryRun = pack.commands.find((command) => command.command_id === 'mvp.operatorkit_dry_run');
 
   assert.ok(dryRun);
@@ -226,7 +467,7 @@ test('approval-required command is blocked in slice 1', async () => {
 });
 
 test('eval cases match command contracts and do not claim real execution', async () => {
-  const pack = await readJson('contracts/commands/mvp-commands.json');
+  const pack = await readJson('contracts/commands/mvp-commands.cdeck-pack.json');
   const suite = await readJson('evals/cases/mvp.slice1.cases.json');
   const commandById = new Map(pack.commands.map((command) => [command.command_id, command]));
 
@@ -255,6 +496,15 @@ test('voice adapters are IO surfaces and AppRelay owns reasoning', async () => {
   assert.equal(contract.voice_adapters_are_io_surfaces, true);
   assert.equal(contract.reasoning_owner, 'apprelay');
   assert.equal(contract.command_shell_owner, 'command-deck');
+  assert.equal(contract.spoken_command_grammar.default_device_code, 'computer');
+  assert.equal(contract.spoken_command_grammar.target_runner_for_default_device_code, 'command');
+  assert.deepEqual(contract.spoken_command_grammar.required_slots, ['device_code', 'action', 'object']);
+  assert.deepEqual(contract.spoken_command_grammar.optional_slots, ['context', 'end_code']);
+  assert.ok(contract.spoken_command_grammar.allowed_end_codes.includes('activate'));
+  assert.equal(
+    contract.spoken_command_grammar.ccq_rule,
+    'missing_required_action_parameters_force_concept_checking_question'
+  );
 
   const adaptersById = new Map(contract.adapters.map((adapter) => [adapter.id, adapter]));
   assert.equal(adaptersById.get('apple_shortcuts').provides_reasoning, false);
@@ -277,6 +527,13 @@ test('adapter response schema keeps voice adapters as IO surfaces', async () => 
   assert.equal(schema.apple_intelligence_required, false);
   assert.equal(schema.google_reasoning_required, false);
   assert.deepEqual(schema.response_modes, ['platform_tts', 'display_text', 'json']);
+  assert.equal(schema.clarification_contract, 'contracts/records/concept-checking-question.schema.json');
+  assert.equal(schema.clarification_route, 'none');
+  assert.equal(schema.clarification_approval_status, 'required_not_requested');
+  assert.equal(
+    schema.clarification_response_rule,
+    'display_and_spoken_text_should_be_the_clarification_question'
+  );
 
   for (const field of ['display_text', 'spoken_text', 'record_ref', 'permission_level', 'approval_status']) {
     assert.ok(schema.required.includes(field));
@@ -364,6 +621,11 @@ test('learned memory item contract requires user-confirmed scoped memory only', 
   assert.equal(contract.supersede_rule, 'replacement_creates_new_active_item_and_marks_prior_item_superseded');
   assert.equal(contract.conflict_rule, 'unresolved_active_conflicts_force_checking_question');
   assert.equal(contract.alias_rule, 'aliases_resolve_targets_not_hidden_actions_in_v1');
+  assert.equal(contract.normalized_phrase_contract, 'contracts/records/normalized-phrase.schema.json');
+  assert.equal(
+    contract.normalized_phrase_rule,
+    'lowercase_deterministic_transcript_cleanup_only_no_semantic_matching'
+  );
 
   const nestedIntent = contract.properties.resolved_intent;
   assert.deepEqual(nestedIntent.required, [
@@ -375,4 +637,32 @@ test('learned memory item contract requires user-confirmed scoped memory only', 
     'risk_tier',
     'approval_required'
   ]);
+});
+
+test('normalized phrase contract forbids semantic memory matching', async () => {
+  const contract = await readJson('contracts/records/normalized-phrase.schema.json');
+
+  assert.equal(contract.contract_kind, 'normalized-phrase');
+  assert.equal(contract.output_rule, 'stored_and_compared_as_lowercase_text');
+  assert.ok(contract.allowed_transforms.includes('lowercase'));
+  assert.ok(contract.allowed_transforms.includes('remove_punctuation'));
+  assert.ok(contract.allowed_transforms.includes('remove_speech_fillers_uh_um'));
+
+  for (const forbidden of [
+    'synonym_matching',
+    'semantic_similarity',
+    'embedding_similarity',
+    'llm_paraphrase_matching',
+    'action_verb_rewrite',
+    'target_word_removal',
+    'risk_word_removal',
+    'timing_word_removal',
+    'environment_word_removal',
+    'article_removal'
+  ]) {
+    assert.ok(contract.forbidden_transforms.includes(forbidden), `${forbidden} must be forbidden`);
+  }
+
+  assert.deepEqual(contract.non_equivalent_examples[0], ['start puma', 'restart puma']);
+  assert.deepEqual(contract.non_equivalent_examples[1], ['open dashboard', 'open billing dashboard']);
 });

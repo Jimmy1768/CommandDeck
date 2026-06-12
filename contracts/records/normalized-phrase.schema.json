@@ -1,0 +1,59 @@
+{
+  "schema_version": "0.1",
+  "contract_kind": "normalized-phrase",
+  "owner": "command-deck",
+  "purpose": "deterministic_transcript_cleanup_for_fast_lane_memory_matching",
+  "input_boundary": "transcript_text_after_platform_wake_phrase_is_removed",
+  "output_rule": "stored_and_compared_as_lowercase_text",
+  "allowed_transforms": [
+    "lowercase",
+    "trim_outer_whitespace",
+    "collapse_internal_whitespace",
+    "remove_punctuation",
+    "remove_speech_fillers_uh_um",
+    "remove_leading_politeness_please"
+  ],
+  "forbidden_transforms": [
+    "synonym_matching",
+    "semantic_similarity",
+    "embedding_similarity",
+    "llm_paraphrase_matching",
+    "action_verb_rewrite",
+    "target_word_removal",
+    "scope_word_removal",
+    "risk_word_removal",
+    "timing_word_removal",
+    "environment_word_removal",
+    "article_removal"
+  ],
+  "preserve_words": [
+    "action",
+    "target",
+    "scope",
+    "risk",
+    "timing",
+    "environment",
+    "approval_sensitive_modifier"
+  ],
+  "examples": [
+    {
+      "input": "Open Ops Dashboard.",
+      "normalized_phrase": "open ops dashboard"
+    },
+    {
+      "input": "Please open, uh, Ops Dashboard",
+      "normalized_phrase": "open ops dashboard"
+    },
+    {
+      "input": "Open the Ops Dashboard",
+      "normalized_phrase": "open the ops dashboard"
+    }
+  ],
+  "non_equivalent_examples": [
+    ["start puma", "restart puma"],
+    ["open dashboard", "open billing dashboard"],
+    ["check sidekiq", "restart sidekiq"],
+    ["deploy staging", "deploy production"],
+    ["send draft", "send message"]
+  ]
+}

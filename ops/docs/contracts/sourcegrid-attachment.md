@@ -8,12 +8,21 @@ It is only a source for command packs and local workspace scripts.
 
 - SourceGrid owns identity, entitlement, billing profile, and payment method
   state.
+- SourceGrid Labs web console owns the normal user-facing pack management
+  surface for SourceGrid usage.
 - CommandDeck owns local command intake, permission checks, routing contracts,
   adapter responses, and action records.
 - Owner repos such as `sourcegrid-labs` own command packs and workspace
   routines.
 - AppRelay owns LLM/runtime capability and may create billable usage only after
   SourceGrid attachment and payment checks pass.
+
+SourceGrid Labs web console may select or display packs through the bridge
+contract, but the local CommandDeck runner must still validate and apply one
+active pack locally. See:
+
+- `contracts/bridge/sourcegrid-console-bridge.schema.json`
+- `ops/docs/contracts/sourcegrid-console-bridge.md`
 
 ## Local Contract
 

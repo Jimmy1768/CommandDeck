@@ -7,6 +7,26 @@
     "record_schema": "contracts/records/action-record.schema.json",
     "slice_2_storage": "opt_in_local_action_record"
   },
+  "action_requirements": [
+    {
+      "action": "check",
+      "capability_source": "pack",
+      "required_slots": ["device_code", "action", "object"],
+      "optional_slots": ["context", "end_code"],
+      "conditionally_required_slots": [
+        {
+          "slot": "context",
+          "when": "multiple_matching_status_scopes_exist",
+          "ccq": "Which workspace or service should I check?"
+        }
+      ],
+      "allowed_target_kinds": ["service", "repo", "data_view"],
+      "defaulting_rules": ["current_workspace_allowed_when_it_is_the_only_active_workspace"],
+      "risk_tier": "informational",
+      "approval_may_be_required": false,
+      "missing_required_slot_ccq": "What should I check?"
+    }
+  ],
   "commands": [
     {
       "command_id": "local.repo_status",

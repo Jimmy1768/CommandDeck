@@ -29,6 +29,10 @@ For `requested_output: spoken_summary`, CommandDeck sets
 `response_mode: platform_tts`. Siri/Shortcuts or a future Google voice adapter
 may speak `spoken_text`. The adapter is not the reasoning layer.
 
+For concept-checking questions, the adapter should set `display_text` and
+`spoken_text` to the clarification question. The route remains `none`, approval
+status remains `required_not_requested`, and no action executes.
+
 Future AppRelay-generated audio can add an audio reference after that capability
 exists. Until then, adapters speak text.
 

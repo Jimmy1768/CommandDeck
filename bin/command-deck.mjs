@@ -2,11 +2,16 @@
 import process from 'node:process';
 import {
   applyApprovalDecision,
+  applySourceGridPackSelection,
   buildSourceGridAttachmentStatus,
   loadActionRecord,
   loadAdapterRequest,
   loadApprovalDecision,
   loadCommandDeckConfig,
+  loadRecentCommandPacks,
+  loadSourceGridPackSelection,
+  openCommandPack,
+  resumeConceptCheckingQuestionFromFile,
   runLocalCommand,
   writeActionRecord,
   writeActionRecordFile
@@ -19,6 +24,64 @@ const config = await loadCommandDeckConfig({
 
 if (['sourcegrid:status', 'attachment:status'].includes(parsed.subcommand)) {
   console.log(JSON.stringify(buildSourceGridAttachmentStatus(config), null, 2));
+  process.exit(0);
+}
+
+if (parsed.subcommand === 'pack:recent') {
+  console.log(
+    JSON.stringify(
+      await loadRecentCommandPacks({
+        statePath: parsed.stateFile
+      }),
+      null,
+      2
+    )
+  );
+  process.exit(0);
+}
+
+if (parsed.subcommand === 'pack:open') {
+  if (!parsed.commandPack) {
+    console.error('Usage error: pack:open requires --command-pack.');
+    process.exit(2);
+  }
+
+  console.log(
+    JSON.stringify(
+      await openCommandPack({
+        commandPackPath: parsed.commandPack,
+        writeState: parsed.writeState,
+        statePath: parsed.stateFile
+      }),
+      null,
+      2
+    )
+  );
+  process.exit(0);
+}
+
+if (parsed.subcommand === 'pack:apply-selection') {
+  if (!parsed.selectionFile) {
+    console.error('Usage error: pack:apply-selection requires --selection-file.');
+    process.exit(2);
+  }
+
+  console.log(
+    JSON.stringify(
+      await applySourceGridPackSelection(
+        await loadSourceGridPackSelection({
+          selectionPath: parsed.selectionFile
+        }),
+        {
+          config,
+          writeState: parsed.writeState,
+          statePath: parsed.stateFile
+        }
+      ),
+      null,
+      2
+    )
+  );
   process.exit(0);
 }
 
@@ -54,6 +117,54 @@ if (parsed.subcommand === 'approval:apply') {
   process.exit(0);
 }
 
+if (parsed.subcommand === 'ccq:resume') {
+  if (!parsed.recordFile || !parsed.resumeToken) {
+    console.error('Usage error: ccq:resume requires --record-file and --resume-token.');
+    process.exit(2);
+  }
+
+  const adapterRequest = parsed.requestFile
+    ? await loadAdapterRequest({
+        requestPath: parsed.requestFile
+      })
+    : null;
+  const answerText = parsed.commandText || adapterRequest?.command_text;
+
+  if (parsed.requestFile && parsed.commandText) {
+    console.error('Usage error: provide either --request-file or command text, not both.');
+    process.exit(2);
+  }
+
+  if (!answerText) {
+    console.error('Usage error: ccq:resume requires follow-up answer text.');
+    process.exit(2);
+  }
+
+  const resumeInput = adapterRequest ?? {
+    adapter: 'local_cli',
+    actor_ref: 'local_prototype',
+    command_text: answerText,
+    requested_output: 'display_text'
+  };
+  const resumeResult = await resumeConceptCheckingQuestionFromFile(resumeInput, {
+    recordPath: parsed.recordFile,
+    resumeToken: parsed.resumeToken,
+    commandPackPath: parsed.commandPack ?? config.default_command_pack,
+    writeRecord: parsed.writeRecord,
+    recordDir: parsed.recordDir ?? config.default_record_dir
+  });
+
+  if (!parsed.writeRecord) {
+    resumeResult.record_write = {
+      status: 'not_written',
+      reason: 'ccq resume persistence requires --write-record'
+    };
+  }
+
+  console.log(JSON.stringify(resumeResult, null, 2));
+  process.exit(0);
+}
+
 const adapterRequest = parsed.requestFile
   ? await loadAdapterRequest({
       requestPath: parsed.requestFile
@@ -66,9 +177,9 @@ if (parsed.requestFile && parsed.commandText) {
   process.exit(2);
 }
 
-  if (!commandText) {
+if (!commandText) {
   console.error(
-    'Usage: command-deck [sourcegrid:status|approval:apply] [--request-file evals/fixtures/adapter_requests/apple_shortcuts.next_task.json] [--config commanddeck.config.json] [--command-pack contracts/commands/mvp-commands.json] [--record-file records/actions/rec_example.json] [--decision-file evals/fixtures/approval_decisions/example.json] [--write-record] [--record-dir records/actions] "What is my next SourceGrid task?"'
+    'Usage: command-deck [sourcegrid:status|pack:open|pack:recent|pack:apply-selection|approval:apply|ccq:resume] [--request-file evals/fixtures/adapter_requests/apple_shortcuts.next_task.json] [--config commanddeck.config.json] [--command-pack contracts/commands/mvp-commands.cdeck-pack.json] [--selection-file evals/fixtures/pack_selections/local-exact.selection.json] [--record-file records/actions/rec_example.json] [--decision-file evals/fixtures/approval_decisions/example.json] [--resume-token ccq_example] [--write-record] [--write-state] [--record-dir records/actions] "What is my next SourceGrid task?"'
   );
   process.exit(2);
 }
@@ -98,15 +209,27 @@ if (parsed.writeRecord) {
 console.log(JSON.stringify(result, null, 2));
 
 function parseArgs(args) {
-  const subcommands = new Set(['sourcegrid:status', 'attachment:status', 'approval:apply']);
+  const subcommands = new Set([
+    'sourcegrid:status',
+    'attachment:status',
+    'pack:open',
+    'pack:recent',
+    'pack:apply-selection',
+    'approval:apply',
+    'ccq:resume'
+  ]);
   const commandParts = [];
   let writeRecord = false;
+  let writeState = false;
   let recordDir = null;
   let commandPack = null;
   let config = null;
+  let stateFile = null;
+  let selectionFile = null;
   let requestFile = null;
   let recordFile = null;
   let decisionFile = null;
+  let resumeToken = null;
   let subcommand = null;
 
   for (let index = 0; index < args.length; index += 1) {
@@ -119,6 +242,11 @@ function parseArgs(args) {
 
     if (arg === '--write-record') {
       writeRecord = true;
+      continue;
+    }
+
+    if (arg === '--write-state') {
+      writeState = true;
       continue;
     }
 
@@ -136,6 +264,18 @@ function parseArgs(args) {
 
     if (arg === '--config') {
       config = args[index + 1];
+      index += 1;
+      continue;
+    }
+
+    if (arg === '--state-file') {
+      stateFile = args[index + 1];
+      index += 1;
+      continue;
+    }
+
+    if (arg === '--selection-file') {
+      selectionFile = args[index + 1];
       index += 1;
       continue;
     }
@@ -158,18 +298,28 @@ function parseArgs(args) {
       continue;
     }
 
+    if (arg === '--resume-token') {
+      resumeToken = args[index + 1];
+      index += 1;
+      continue;
+    }
+
     commandParts.push(arg);
   }
 
   return {
     commandText: commandParts.join(' ').trim(),
     writeRecord,
+    writeState,
     recordDir,
     commandPack,
     config,
+    stateFile,
+    selectionFile,
     requestFile,
     recordFile,
     decisionFile,
+    resumeToken,
     subcommand
   };
 }

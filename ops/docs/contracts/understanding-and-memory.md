@@ -14,6 +14,73 @@ It should do one of three things:
 - ask a checking question when the meaning is not safe to infer;
 - fail closed when the request is unsupported or unsafe.
 
+## Spoken Command Convention
+
+The V1 spoken convention is:
+
+```text
+<platform wake phrase>, <device code> <action> <object> [context] [end code]
+```
+
+For Siri, the platform wake phrase is usually `Hey Siri` or `Siri`, depending
+on the user's device settings.
+
+Example:
+
+```text
+Hey Siri, computer open ops dashboard activate
+```
+
+CommandDeck owns the phrase after the platform wake phrase:
+
+- `device code`: spoken routing word, preferably `computer` for the local PC
+  runner;
+- `action`: what to do, such as open, close, find, start, stop, play, or pause;
+- `object`: the app, service, dashboard, repo, device, workflow, or data view;
+- `context`: any required details, such as repo, environment, where, what, or
+  how;
+- `end code`: optional phrase terminator, initially `activate`.
+
+Users should provide as many parameters as the action needs. If a required
+parameter is missing, CommandDeck should ask a concept-checking question instead
+of guessing. End codes and voice invocation are not approval.
+
+The per-action source of truth is the
+[Action Requirements Contract](/Users/jimmy1768/Projects/CommandDeck/ops/docs/contracts/action-requirements.md:1).
+CommandDeck core owns generic action requirements; packs may declare
+pack-specific requirements against the same schema.
+
+Concept-checking questions are first-class non-executing responses. They use
+`result.status: needs_clarification`, ask one missing slot by default, and carry
+a `resume_token` so the user's answer can continue the unresolved command. See
+[Concept-Checking Question Contract](/Users/jimmy1768/Projects/CommandDeck/ops/docs/contracts/concept-checking-question.md:1).
+
+The resume answer is bounded. V1 follow-ups may fill missing slots only, and the
+merged intent must revalidate before routing. A follow-up must not silently
+change the action, route, risk tier, permission level, capability source,
+approval requirement, or any slot that was not listed as missing. If it tries to
+do that, CommandDeck should treat the utterance as a new command or ask another
+checking question.
+
+Resume tokens are short-lived conversational state. They are one use only and
+valid for the same actor, same workspace, and same adapter session when session
+identity is available. The default TTL is 300 seconds. Missing, expired, reused,
+or unbound tokens must not attach a follow-up answer to an old command.
+
+V1 stores CCQ state in the local action record. This supports separate
+Siri/Shortcuts or CLI invocations without requiring AppRelay for deterministic
+local clarification. The stored state is auditable local state only, not durable
+memory, a task queue, or approval.
+
+Consuming a resume token must be atomic. Only `active -> used`,
+`active -> expired`, or `active -> rejected` may succeed. Duplicate or late
+follow-ups against a terminal token must not route.
+
+CCQ token lifetime and audit retention are separate. The active token TTL is 300
+seconds, but expired or terminal CCQ records may be retained for audit for 7
+days. V1 cleanup is manual and explicit only. Cleanup must not touch learned
+memory.
+
 ## What "Understand" Means
 
 CommandDeck understands a command when it can bind one safe, coherent intent
@@ -152,6 +219,23 @@ Examples:
 
 `ops dashboard` by itself should not silently mean "open ops dashboard" unless
 CommandDeck has a separate explicit default-action rule for that grammar.
+
+## Normalized Phrase
+
+`normalized_phrase` exists so transcript text can match despite harmless capture
+variation. It is not a reasoning layer.
+
+V1 normalized phrases are stored and compared as lowercase text. Normalization
+may remove punctuation, repeated spacing, small speech fillers such as `uh` and
+`um`, and leading politeness such as `please`.
+
+Normalization must preserve action, target, scope, risk, timing, and environment
+words. It must not use synonyms, semantic similarity, embeddings, or LLM
+paraphrase matching.
+
+Reference:
+
+- [Normalized Phrase Contract](/Users/jimmy1768/Projects/CommandDeck/ops/docs/contracts/normalized-phrase.md:1)
 
 ## Memory Write Confirmation
 

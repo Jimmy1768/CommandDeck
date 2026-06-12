@@ -3,6 +3,9 @@
   "contract_kind": "command-pack",
   "phase": "local_prototype",
   "type": "object",
+  "manifest_file_extension": ".cdeck-pack.json",
+  "selector_target": "pack_manifest_file",
+  "selector_filter": "*.cdeck-pack.json",
   "required": ["schema_version", "pack_id", "owner", "commands", "permissions", "record_policy"],
   "pack_required_fields": [
     "schema_version",
@@ -22,6 +25,7 @@
     "forbidden_effects",
     "sources"
   ],
+  "optional_pack_fields": ["action_requirements"],
   "optional_command_fields": ["runner_action", "approval_prompt"],
   "allowed_permission_levels": ["read-only", "draft-only", "approval-required"],
   "allowed_source_roots": ["evals/fixtures/", "local://"],
@@ -31,6 +35,16 @@
     "execution_boundary": "allowlisted_local_runner",
     "runner_action_field": "runner_action",
     "allowed_source_protocol": "local://"
+  },
+  "action_requirements": {
+    "schema": "contracts/commands/action-requirements.schema.json",
+    "core_requirements": "contracts/commands/core-action-requirements.json",
+    "core_runtime_source": "contracts/commands/core-action-requirements.json",
+    "pack_extension_allowed": true,
+    "pack_runtime_scope": "active_command_pack_only",
+    "pack_runtime_authority": "clarification_metadata_only",
+    "pack_resume_rule": "resumed_command_must_resolve_to_allowed_active_pack_command",
+    "missing_required_slot_behavior": "concept_checking_question"
   },
   "forbidden_allowed_effects": [
     "payment",

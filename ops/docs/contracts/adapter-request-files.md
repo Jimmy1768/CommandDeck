@@ -12,7 +12,7 @@ Example:
   "actor_ref": "director",
   "request_id": "req_example_001",
   "surface_hint": "phone",
-  "device_code": "command",
+  "device_code": "computer",
   "target_runner": "command",
   "command_text": "What is my next SourceGrid task?",
   "device_context": {
@@ -59,8 +59,12 @@ npm run command:local -- --request-file evals/fixtures/adapter_requests/google_v
 The first Siri phrase format is:
 
 ```text
-Hey Siri, <device code> <command>
+Hey Siri, <device code> <action> <object> [context] [end code]
 ```
 
 The Shortcut or adapter maps `<device code>` to `device_code` and
-`target_runner` before sending the request. The first device code is `command`.
+`target_runner` before sending the request. The preferred V1 device code is
+`computer`, which maps to `target_runner: "command"`. If required action
+parameters are missing, CommandDeck should return a concept-checking question
+instead of guessing. The end code `activate` may be used as a phrase terminator,
+but it is not approval.

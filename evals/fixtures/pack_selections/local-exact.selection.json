@@ -1,0 +1,11 @@
+{
+  "schema_version": "0.1",
+  "contract_kind": "sourcegrid-pack-selection",
+  "workspace_ref": "workspace_sourcegrid_fixture",
+  "actor_ref": "director",
+  "pack_ref": "commanddeck.local-exact.slice2",
+  "pack_source_kind": "local-folder",
+  "control_root_ref": "local_builtin_control",
+  "pack_path": "local-exact-commands.cdeck-pack.json",
+  "selected_at": "2026-06-11T00:00:00.000Z"
+}

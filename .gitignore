@@ -7,3 +7,4 @@ commandkit.config.json
 evals/reports/*.tmp
 evals/reports/*.json
 records/actions/*.json
+.commanddeck/state/

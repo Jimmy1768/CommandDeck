@@ -1,13 +1,23 @@
 import { createHash } from 'node:crypto';
-import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { access, mkdir, open, readFile, stat, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { ALLOWLISTED_LOCAL_RUNNER_ACTIONS, runAllowlistedLocalAction } from './local-runner.mjs';
 
 const DEFAULT_ACTOR = 'local_prototype';
 const DEFAULT_ADAPTER = 'local_cli';
+const DEFAULT_WORKSPACE_REF = 'local_workspace';
 const DEFAULT_CONFIG_PATH = 'commanddeck.config.json';
-const DEFAULT_COMMAND_PACK_PATH = 'contracts/commands/mvp-commands.json';
+const COMMAND_PACK_FILE_EXTENSION = '.cdeck-pack.json';
+const DEFAULT_COMMAND_PACK_PATH = 'contracts/commands/mvp-commands.cdeck-pack.json';
 const DEFAULT_RECORD_DIR = 'records/actions';
+const DEFAULT_PACK_STATE_PATH = '.commanddeck/state/recent-packs.json';
+const RECENT_PACK_LIMIT = 10;
+const CCQ_TOKEN_TTL_SECONDS = 300;
+const ACTION_RECORD_LOCK_STALE_MS = 30_000;
+const CCQ_DUPLICATE_RESPONSE = 'That clarification is no longer active. Please give the command again.';
+const SPOKEN_END_CODES = new Set(['activate']);
+const SPOKEN_DEVICE_CODES = new Set(['computer', 'phone', 'watch', 'glasses']);
+const DEFAULT_CORE_ACTION_REQUIREMENTS_PATH = 'contracts/commands/core-action-requirements.json';
 const DEFAULT_SOURCEGRID_ATTACHMENT = {
   schema_version: '0.1',
   status: 'not_attached',
@@ -64,8 +74,15 @@ const FORBIDDEN_DISCOVERY_ROOT_FIELDS = [
   'executable',
   'handler'
 ];
+const FORBIDDEN_PACK_SELECTION_FIELDS = [
+  ...FORBIDDEN_DISCOVERY_ROOT_FIELDS,
+  'approval',
+  'approval_status',
+  'execute_now'
+];
 const ALLOWED_DISCOVERY_ROOT_KINDS = new Set(['repo-fixture', 'owner-repo', 'local-folder']);
 const ALLOWED_DISCOVERY_MODES = new Set(['metadata_only']);
+const ALLOWED_PACK_SELECTION_SOURCE_KINDS = new Set(['owner-repo', 'local-folder']);
 const ALLOWED_SOURCEGRID_ATTACHMENT_STATUSES = new Set(['not_attached', 'contract_only', 'attached']);
 const ALLOWED_PAYMENT_METHOD_STATES = new Set(['missing', 'verified', 'not_required_contract_only']);
 const ALLOWED_APPRELAY_SPEND_POLICIES = new Set([
@@ -101,17 +118,64 @@ const REQUIRED_COMMAND_FIELDS = [
   'forbidden_effects',
   'sources'
 ];
+const REQUIRED_PACK_SELECTION_FIELDS = [
+  'schema_version',
+  'contract_kind',
+  'workspace_ref',
+  'actor_ref',
+  'pack_ref',
+  'pack_source_kind',
+  'control_root_ref',
+  'pack_path',
+  'selected_at'
+];
+const REQUIRED_ACTION_REQUIREMENT_FIELDS = [
+  'action',
+  'capability_source',
+  'required_slots',
+  'optional_slots',
+  'allowed_target_kinds',
+  'defaulting_rules',
+  'risk_tier',
+  'approval_may_be_required',
+  'missing_required_slot_ccq'
+];
+const ALLOWED_ACTION_REQUIREMENT_SLOTS = new Set(['device_code', 'action', 'object', 'context', 'end_code']);
+const ALLOWED_ACTION_REQUIREMENT_TARGET_KINDS = new Set([
+  'app',
+  'url',
+  'dashboard',
+  'repo',
+  'service',
+  'media',
+  'device',
+  'workflow',
+  'data_view',
+  'runtime',
+  'delegate'
+]);
+const ALLOWED_ACTION_REQUIREMENT_RISK_TIERS = new Set([
+  'informational',
+  'local_control',
+  'workspace_mutation',
+  'delegated_agentic'
+]);
 
 export async function runLocalCommand(input, options = {}) {
   const rootDir = options.rootDir ?? path.resolve(import.meta.dirname, '../..');
   const timestamp = options.timestamp ?? new Date().toISOString();
   const routes = await readJson(rootDir, 'contracts/routes/route-contracts.json');
   const permissions = await readJson(rootDir, 'contracts/permissions/permission-levels.json');
+  const coreActionRequirements = await loadCoreActionRequirements({ rootDir });
   const pack = await loadCommandPack({
     rootDir,
     commandPackPath: options.commandPackPath,
     routes,
     permissions
+  });
+  const runtimeActionRequirements = buildRuntimeActionRequirements({
+    coreActionRequirements,
+    pack
   });
 
   assertExecuteNowDisabled(permissions);
@@ -120,6 +184,17 @@ export async function runLocalCommand(input, options = {}) {
   const command = classifyCommand(pack.commands, commandText);
 
   if (!command) {
+    const ccq = buildMissingObjectConceptCheck({
+      input,
+      commandText,
+      timestamp,
+      actionRequirements: runtimeActionRequirements
+    });
+
+    if (ccq) {
+      return ccq;
+    }
+
     return buildFailureRecord({
       input,
       timestamp,
@@ -201,6 +276,148 @@ export async function runLocalCommand(input, options = {}) {
   });
 }
 
+export async function resumeConceptCheckingQuestion(input, options = {}) {
+  const rootDir = options.rootDir ?? path.resolve(import.meta.dirname, '../..');
+  const timestamp = options.timestamp ?? new Date().toISOString();
+  const recordPath = options.recordPath;
+  const resumeToken = options.resumeToken ?? input.resume_token ?? input.resumeToken;
+  const answerText = input.command_text ?? input.commandText ?? '';
+  const record = options.record ?? (await loadActionRecord({ rootDir, recordPath }));
+  const coreActionRequirements = options.coreActionRequirements ?? (await loadCoreActionRequirements({ rootDir }));
+  const pack = options.pack ?? (await loadCommandPack({ rootDir, commandPackPath: options.commandPackPath }));
+  const runtimeActionRequirements = buildRuntimeActionRequirements({
+    coreActionRequirements,
+    pack
+  });
+  const terminalResult = validateAndConsumeClarification(record, {
+    input,
+    resumeToken,
+    timestamp
+  });
+
+  if (!terminalResult.ok) {
+    return {
+      resume_status: terminalResult.resume_status,
+      response_text: terminalResult.response_text,
+      adapter_response: buildAdapterResponseEnvelope(terminalResult.record, terminalResult.response_text, {
+        requestedOutput: input.requested_output
+      }),
+      record: terminalResult.record,
+      errors: terminalResult.errors
+    };
+  }
+
+  if (answerAttemptsCommandRewrite(answerText, runtimeActionRequirements)) {
+    const rejectedRecord = updateClarificationStatus(record, {
+      status: 'rejected',
+      timestamp,
+      summary: 'Clarification answer changed the unresolved command and was rejected.'
+    });
+
+    return {
+      resume_status: 'rejected_rewrite',
+      response_text: rejectedRecord.result.summary,
+      adapter_response: buildAdapterResponseEnvelope(rejectedRecord, rejectedRecord.result.summary, {
+        requestedOutput: input.requested_output
+      }),
+      record: rejectedRecord,
+      errors: rejectedRecord.errors
+    };
+  }
+
+  const mergedCommandText = mergeClarificationAnswer(record.result.clarification, answerText);
+  const commandResult = await runLocalCommand(
+    {
+      ...input,
+      command_text: mergedCommandText
+    },
+    {
+      rootDir,
+      commandPackPath: options.commandPackPath,
+      executor: options.executor,
+      timestamp
+    }
+  );
+
+  if (isClarificationRewrite(record.result.clarification, commandResult.record)) {
+    const rejectedRecord = updateClarificationStatus(record, {
+      status: 'rejected',
+      timestamp,
+      summary: 'Clarification answer changed the unresolved command and was rejected.'
+    });
+
+    return {
+      resume_status: 'rejected_rewrite',
+      response_text: rejectedRecord.result.summary,
+      adapter_response: buildAdapterResponseEnvelope(rejectedRecord, rejectedRecord.result.summary, {
+        requestedOutput: input.requested_output
+      }),
+      record: rejectedRecord,
+      errors: rejectedRecord.errors
+    };
+  }
+
+  const consumedRecord = updateClarificationStatus(record, {
+    status: 'used',
+    timestamp,
+    summary: 'Clarification token was consumed by a resumed command.'
+  });
+
+  return {
+    resume_status: 'resumed',
+    response_text: commandResult.response_text,
+    adapter_response: commandResult.adapter_response,
+    record: commandResult.record,
+    ccq_record: consumedRecord,
+    errors: []
+  };
+}
+
+export async function resumeConceptCheckingQuestionFromFile(input, options = {}) {
+  const rootDir = options.rootDir ?? path.resolve(import.meta.dirname, '../..');
+  const recordPath = options.recordPath;
+
+  if (!recordPath) {
+    throw new Error('recordPath is required');
+  }
+
+  if (!options.writeRecord) {
+    return resumeConceptCheckingQuestion(input, {
+      ...options,
+      rootDir,
+      recordPath
+    });
+  }
+
+  return withActionRecordLock(rootDir, recordPath, async () => {
+    const resumeResult = await resumeConceptCheckingQuestion(input, {
+      ...options,
+      rootDir,
+      recordPath
+    });
+
+    if (resumeResult.ccq_record) {
+      resumeResult.ccq_record_write = await writeActionRecordFile(resumeResult.ccq_record, {
+        rootDir,
+        recordPath,
+        overwrite: true
+      });
+      resumeResult.record_write = await writeActionRecord(resumeResult.record, {
+        rootDir,
+        recordDir: options.recordDir ?? DEFAULT_RECORD_DIR
+      });
+    } else {
+      resumeResult.record_write = await writeActionRecordFile(resumeResult.record, {
+        rootDir,
+        recordPath,
+        overwrite: true
+      });
+    }
+
+    return resumeResult;
+  });
+}
+
 export function classifyCommand(commands, commandText) {
   const normalizedInput = normalizeUtterance(commandText);
 
@@ -222,14 +439,426 @@ export async function loadCommandPack(options = {}) {
   const commandPackPath = options.commandPackPath ?? DEFAULT_COMMAND_PACK_PATH;
   const routes = options.routes ?? (await readJson(rootDir, 'contracts/routes/route-contracts.json'));
   const permissions = options.permissions ?? (await readJson(rootDir, 'contracts/permissions/permission-levels.json'));
-  const pack = await readRepoRelativeJson(rootDir, commandPackPath);
-  const errors = validateCommandPack(pack, { routes, permissions });
 
-  if (errors.length > 0) {
-    throw new Error(`invalid command pack ${commandPackPath}: ${errors.join('; ')}`);
+  return loadValidatedCommandPack({
+    rootDir,
+    commandPackPath,
+    routes,
+    permissions
+  });
+}
+
+export async function openCommandPack(options = {}) {
+  const rootDir = options.rootDir ?? path.resolve(import.meta.dirname, '../..');
+  const timestamp = options.timestamp ?? new Date().toISOString();
+  const commandPackPath = options.commandPackPath;
+  const resolvedCommandPackPath = options.resolvedCommandPackPath;
+
+  if (!commandPackPath) {
+    throw new Error('commandPackPath is required');
   }
 
-  return pack;
+  const pack = await loadValidatedCommandPack({
+    rootDir,
+    commandPackPath,
+    resolvedCommandPackPath,
+    routes: options.routes,
+    permissions: options.permissions
+  });
+  const entry = {
+    pack_id: pack.pack_id,
+    owner: pack.owner,
+    command_pack_path: commandPackPath,
+    resolved_command_pack_path: resolvedCommandPackPath ?? null,
+    opened_at: timestamp,
+    command_count: pack.commands.length,
+    action_requirement_count: pack.action_requirements?.length ?? 0
+  };
+  const result = {
+    schema_version: '0.1',
+    status: 'opened',
+    active_pack_policy: 'single_active_pack_per_invocation',
+    active_command_pack: commandPackPath,
+    resolved_command_pack_path: resolvedCommandPackPath ?? null,
+    pack,
+    recent_entry: entry
+  };
+
+  if (options.writeState) {
+    result.recent_write = await writeRecentCommandPack(entry, {
+      rootDir,
+      statePath: options.statePath
+    });
+  } else {
+    result.recent_write = {
+      status: 'not_written',
+      reason: 'recent pack persistence requires --write-state'
+    };
+  }
+
+  return result;
+}
+
+export async function loadRecentCommandPacks(options = {}) {
+  const rootDir = options.rootDir ?? path.resolve(import.meta.dirname, '../..');
+  const statePath = options.statePath ?? DEFAULT_PACK_STATE_PATH;
+
+  if (!(await pathExists(resolveRepoRelativePath(rootDir, statePath)))) {
+    return {
+      schema_version: '0.1',
+      state_path: statePath,
+      active_pack_policy: 'single_active_pack_per_invocation',
+      recent_packs: []
+    };
+  }
+
+  const state = await readRepoRelativeJson(rootDir, statePath);
+  const recentPacks = Array.isArray(state.recent_packs) ? state.recent_packs : [];
+
+  return {
+    schema_version: '0.1',
+    state_path: statePath,
+    active_pack_policy: 'single_active_pack_per_invocation',
+    recent_packs: recentPacks.slice(0, RECENT_PACK_LIMIT)
+  };
+}
+
+export async function writeRecentCommandPack(entry, options = {}) {
+  const rootDir = options.rootDir ?? path.resolve(import.meta.dirname, '../..');
+  const statePath = options.statePath ?? DEFAULT_PACK_STATE_PATH;
+  const current = await loadRecentCommandPacks({ rootDir, statePath });
+  const recentPacks = [
+    entry,
+    ...current.recent_packs.filter((recent) => recent.command_pack_path !== entry.command_pack_path)
+  ].slice(0, RECENT_PACK_LIMIT);
+  const state = {
+    schema_version: '0.1',
+    active_pack_policy: 'single_active_pack_per_invocation',
+    recent_packs: recentPacks
+  };
+  const resolvedPath = resolveRepoRelativePath(rootDir, statePath);
+
+  await mkdir(path.dirname(resolvedPath), { recursive: true });
+  await writeFile(resolvedPath, `${JSON.stringify(state, null, 2)}\n`, { flag: 'w' });
+
+  return {
+    status: 'written',
+    state_path: statePath,
+    recent_count: recentPacks.length
+  };
+}
+
+export async function loadSourceGridPackSelection(options = {}) {
+  const rootDir = options.rootDir ?? path.resolve(import.meta.dirname, '../..');
+  const selectionPath = options.selectionPath;
+
+  if (!selectionPath) {
+    throw new Error('selectionPath is required');
+  }
+
+  const selection = await readRepoRelativeJson(rootDir, selectionPath);
+  const errors = validateSourceGridPackSelection(selection);
+
+  if (errors.length > 0) {
+    throw new Error(`invalid SourceGrid pack selection ${selectionPath}: ${errors.join('; ')}`);
+  }
+
+  return selection;
+}
+
+export async function applySourceGridPackSelection(selection, options = {}) {
+  const rootDir = options.rootDir ?? path.resolve(import.meta.dirname, '../..');
+  const config = options.config ?? (await loadCommandDeckConfig({ rootDir, configPath: options.configPath }));
+  const errors = validateSourceGridPackSelection(selection);
+
+  if (errors.length > 0) {
+    throw new Error(`invalid SourceGrid pack selection: ${errors.join('; ')}`);
+  }
+
+  const selectedPack = resolveSelectionCommandPackPath(rootDir, config, selection);
+  const opened = await openCommandPack({
+    rootDir,
+    commandPackPath: selectedPack.commandPackPath,
+    resolvedCommandPackPath: selectedPack.resolvedCommandPackPath,
+    writeState: options.writeState,
+    statePath: options.statePath,
+    timestamp: options.timestamp
+  });
+
+  return {
+    schema_version: '0.1',
+    status: 'applied',
+    bridge_mode: 'pull_then_local_validate',
+    selection_apply_rule: 'sourcegrid_selection_is_candidate_until_local_pack_open_validates_one_pack',
+    workspace_ref: selection.workspace_ref,
+    actor_ref: selection.actor_ref,
+    pack_ref: selection.pack_ref,
+    control_root_ref: selection.control_root_ref,
+    active_command_pack: selectedPack.commandPackPath,
+    resolved_command_pack_path: selectedPack.resolvedCommandPackPath,
+    opened_pack: opened
+  };
+}
+
+export function validateSourceGridPackSelection(selection) {
+  const errors = [];
+
+  if (!selection || typeof selection !== 'object') {
+    return ['selection must be an object'];
+  }
+
+  const forbiddenFields = findForbiddenFields(selection, FORBIDDEN_PACK_SELECTION_FIELDS);
+  for (const field of forbiddenFields) {
+    errors.push(`selection includes forbidden field ${field}`);
+  }
+
+  for (const field of REQUIRED_PACK_SELECTION_FIELDS) {
+    if (!(field in selection)) {
+      errors.push(`selection missing field ${field}`);
+    }
+  }
+
+  if (selection.schema_version !== '0.1') {
+    errors.push('selection schema_version must be 0.1');
+  }
+
+  if (selection.contract_kind !== 'sourcegrid-pack-selection') {
+    errors.push('selection contract_kind must be sourcegrid-pack-selection');
+  }
+
+  for (const field of ['workspace_ref', 'actor_ref', 'pack_ref', 'control_root_ref', 'pack_path', 'selected_at']) {
+    if (field in selection && (!selection[field] || typeof selection[field] !== 'string')) {
+      errors.push(`selection ${field} must be a string`);
+    }
+  }
+
+  if ('pack_path' in selection && typeof selection.pack_path === 'string' && !isCommandPackManifestPath(selection.pack_path)) {
+    errors.push(`selection pack_path must end with ${COMMAND_PACK_FILE_EXTENSION}`);
+  }
+
+  if (!ALLOWED_PACK_SELECTION_SOURCE_KINDS.has(selection.pack_source_kind)) {
+    errors.push(`selection pack_source_kind must be one of ${[...ALLOWED_PACK_SELECTION_SOURCE_KINDS].join(', ')}`);
+  }
+
+  return errors;
+}
+
+function resolveSelectionCommandPackPath(rootDir, config, selection) {
+  const roots = config.command_pack_roots ?? [];
+  const controlRoot = roots.find((root) => root.id === selection.control_root_ref);
+
+  if (!controlRoot) {
+    throw new Error(`selection control_root_ref is not configured: ${selection.control_root_ref}`);
+  }
+
+  if (controlRoot.enabled !== true) {
+    throw new Error(`selection control root is not enabled: ${selection.control_root_ref}`);
+  }
+
+  if (controlRoot.kind !== selection.pack_source_kind) {
+    throw new Error(`selection pack_source_kind does not match configured control root: ${selection.control_root_ref}`);
+  }
+
+  if (!controlRoot.path || typeof controlRoot.path !== 'string') {
+    throw new Error(`selection control root has no local path: ${selection.control_root_ref}`);
+  }
+
+  if (path.isAbsolute(controlRoot.path) && controlRoot.local_only !== true) {
+    throw new Error('absolute control root pack application requires local_only true');
+  }
+
+  if (path.isAbsolute(controlRoot.path) && controlRoot.kind !== 'local-folder') {
+    throw new Error('absolute control root pack application is only allowed for local-folder roots');
+  }
+
+  if (path.isAbsolute(selection.pack_path)) {
+    throw new Error('selection pack_path must be relative to the control root');
+  }
+
+  assertCommandPackManifestPath(selection.pack_path);
+
+  const resolvedRoot = path.isAbsolute(controlRoot.path)
+    ? path.resolve(controlRoot.path)
+    : resolveRepoRelativePath(rootDir, controlRoot.path);
+  const resolvedPack = path.resolve(resolvedRoot, selection.pack_path);
+  const relativeToControlRoot = path.relative(resolvedRoot, resolvedPack);
+
+  if (relativeToControlRoot.startsWith('..') || path.isAbsolute(relativeToControlRoot)) {
+    throw new Error('selection pack_path must stay inside the configured control root');
+  }
+
+  const relativeToRepo = path.relative(path.resolve(rootDir), resolvedPack);
+  if (relativeToRepo.startsWith('..') || path.isAbsolute(relativeToRepo)) {
+    return {
+      commandPackPath: `control-root:${selection.control_root_ref}/${selection.pack_path}`,
+      resolvedCommandPackPath: resolvedPack
+    };
+  }
+
+  return {
+    commandPackPath: relativeToRepo.split(path.sep).join(path.posix.sep),
+    resolvedCommandPackPath: resolvedPack
+  };
+}
+
+export async function loadCoreActionRequirements(options = {}) {
+  const rootDir = options.rootDir ?? path.resolve(import.meta.dirname, '../..');
+  const requirementsPath = options.requirementsPath ?? DEFAULT_CORE_ACTION_REQUIREMENTS_PATH;
+  const requirements = await readRepoRelativeJson(rootDir, requirementsPath);
+  const errors = validateCoreActionRequirements(requirements);
+
+  if (errors.length > 0) {
+    throw new Error(`invalid core action requirements ${requirementsPath}: ${errors.join('; ')}`);
+  }
+
+  return new Map(requirements.actions.map((action) => [action.action, action]));
+}
+
+export function buildRuntimeActionRequirements({ coreActionRequirements, pack }) {
+  const requirements = new Map(coreActionRequirements);
+
+  for (const actionRequirement of pack?.action_requirements ?? []) {
+    if (actionRequirement.capability_source !== 'pack') {
+      continue;
+    }
+
+    if (!requirements.has(actionRequirement.action)) {
+      requirements.set(actionRequirement.action, actionRequirement);
+    }
+  }
+
+  return requirements;
+}
+
+export function validateCoreActionRequirements(requirements) {
+  const errors = [];
+  const seenActions = new Set();
+
+  if (!requirements || typeof requirements !== 'object') {
+    return ['core action requirements must be an object'];
+  }
+
+  if (requirements.contract_kind !== 'action-requirements') {
+    errors.push('contract_kind must be action-requirements');
+  }
+
+  if (requirements.owner !== 'command-deck') {
+    errors.push('owner must be command-deck');
+  }
+
+  if (!Array.isArray(requirements.actions) || requirements.actions.length === 0) {
+    errors.push('actions must be a non-empty array');
+    return errors;
+  }
+
+  for (const action of requirements.actions) {
+    if (!action || typeof action !== 'object') {
+      errors.push('action requirement must be an object');
+      continue;
+    }
+
+    errors.push(...validateActionRequirementShape(action, { expectedCapabilitySource: 'core', seenActions }));
+  }
+
+  return errors;
+}
+
+function validatePackActionRequirements(actionRequirements) {
+  const errors = [];
+  const seenActions = new Set();
+
+  if (actionRequirements === undefined) {
+    return errors;
+  }
+
+  if (!Array.isArray(actionRequirements)) {
+    return ['action_requirements must be an array'];
+  }
+
+  for (const action of actionRequirements) {
+    if (!action || typeof action !== 'object') {
+      errors.push('action requirement must be an object');
+      continue;
+    }
+
+    errors.push(...validateActionRequirementShape(action, { expectedCapabilitySource: 'pack', seenActions }));
+  }
+
+  return errors;
+}
+
+function validateActionRequirementShape(action, { expectedCapabilitySource, seenActions }) {
+  const errors = [];
+
+  for (const field of REQUIRED_ACTION_REQUIREMENT_FIELDS) {
+    if (!(field in action)) {
+      errors.push(`${action.action ?? '<unknown>'} missing action requirement field ${field}`);
+    }
+  }
+
+  if (!action.action || typeof action.action !== 'string') {
+    errors.push('action requirement action must be a string');
+  } else if (seenActions.has(action.action)) {
+    errors.push(`${action.action} action requirement must be unique`);
+  } else {
+    seenActions.add(action.action);
+  }
+
+  if (action.capability_source !== expectedCapabilitySource) {
+    errors.push(`${action.action ?? '<unknown>'} capability_source must be ${expectedCapabilitySource}`);
+  }
+
+  if (!Array.isArray(action.required_slots) || !action.required_slots.includes('object')) {
+    errors.push(`${action.action ?? '<unknown>'} required_slots must include object`);
+  } else {
+    for (const slot of action.required_slots) {
+      if (!ALLOWED_ACTION_REQUIREMENT_SLOTS.has(slot)) {
+        errors.push(`${action.action ?? '<unknown>'} required_slots includes unsupported slot ${slot}`);
+      }
+    }
+  }
+
+  if (!Array.isArray(action.optional_slots)) {
+    errors.push(`${action.action ?? '<unknown>'} optional_slots must be an array`);
+  } else {
+    for (const slot of action.optional_slots) {
+      if (!ALLOWED_ACTION_REQUIREMENT_SLOTS.has(slot)) {
+        errors.push(`${action.action ?? '<unknown>'} optional_slots includes unsupported slot ${slot}`);
+      }
+    }
+  }
+
+  if (!Array.isArray(action.allowed_target_kinds) || action.allowed_target_kinds.length === 0) {
+    errors.push(`${action.action ?? '<unknown>'} allowed_target_kinds must be a non-empty array`);
+  } else {
+    for (const targetKind of action.allowed_target_kinds) {
+      if (!ALLOWED_ACTION_REQUIREMENT_TARGET_KINDS.has(targetKind)) {
+        errors.push(`${action.action ?? '<unknown>'} allowed_target_kinds includes unsupported target ${targetKind}`);
+      }
+    }
+  }
+
+  if (!Array.isArray(action.defaulting_rules)) {
+    errors.push(`${action.action ?? '<unknown>'} defaulting_rules must be an array`);
+  }
+
+  if (action.conditionally_required_slots !== undefined && !Array.isArray(action.conditionally_required_slots)) {
+    errors.push(`${action.action ?? '<unknown>'} conditionally_required_slots must be an array`);
+  }
+
+  if (!ALLOWED_ACTION_REQUIREMENT_RISK_TIERS.has(action.risk_tier)) {
+    errors.push(`${action.action ?? '<unknown>'} risk_tier is unsupported`);
+  }
+
+  if (typeof action.approval_may_be_required !== 'boolean') {
+    errors.push(`${action.action ?? '<unknown>'} approval_may_be_required must be a boolean`);
+  }
+
+  if (!action.missing_required_slot_ccq || typeof action.missing_required_slot_ccq !== 'string') {
+    errors.push(`${action.action ?? '<unknown>'} missing_required_slot_ccq must be a string`);
+  }
+
+  return errors;
 }
 
 export async function loadCommandDeckConfig(options = {}) {
@@ -660,6 +1289,20 @@ export function compareApprovalDecisionEvalCase(evalCase, decisionResult) {
   ];
 }
 
+export function buildActiveCommandPackStatus(config = {}) {
+  const commandPackRoots = Array.isArray(config.command_pack_roots) ? config.command_pack_roots : [];
+
+  return {
+    schema_version: '0.1',
+    active_command_pack: config.default_command_pack ?? DEFAULT_COMMAND_PACK_PATH,
+    active_pack_source_field: 'default_command_pack',
+    active_pack_policy: 'single_active_pack_per_invocation',
+    discovery_roots_configured: commandPackRoots.length,
+    discovery_roots_active_for_routing: false,
+    discovery_roots_role: 'available_pack_locations_only'
+  };
+}
+
 export function validateCommandDeckConfig(config, { rootDir }) {
   const errors = [];
 
@@ -680,8 +1323,14 @@ export function validateCommandDeckConfig(config, { rootDir }) {
     errors.push('default_write_records must remain false in Phase 1');
   }
 
+  const defaultCommandPack = config.default_command_pack ?? DEFAULT_COMMAND_PACK_PATH;
+
+  if (!isCommandPackManifestPath(defaultCommandPack)) {
+    errors.push(`default_command_pack must end with ${COMMAND_PACK_FILE_EXTENSION}`);
+  }
+
   try {
-    resolveRepoRelativePath(rootDir, config.default_command_pack ?? DEFAULT_COMMAND_PACK_PATH);
+    resolveRepoRelativePath(rootDir, defaultCommandPack);
   } catch (error) {
     errors.push(`default_command_pack ${error.message}`);
   }
@@ -978,6 +1627,8 @@ export function validateCommandPack(pack, { routes, permissions }) {
     return errors;
   }
 
+  errors.push(...validatePackActionRequirements(pack.action_requirements));
+
   for (const command of pack.commands) {
     const commandId = command?.command_id ?? '<unknown>';
 
@@ -1097,6 +1748,63 @@ export async function writeActionRecordFile(record, options = {}) {
   };
 }
 
+export async function withActionRecordLock(rootDir, recordPath, callback) {
+  const resolvedPath = resolveRepoRelativePath(rootDir, recordPath);
+  const lockPath = `${resolvedPath}.lock`;
+  const lock = await acquireActionRecordLock(lockPath);
+
+  try {
+    return await callback();
+  } finally {
+    await lock.close();
+    await unlink(lockPath);
+  }
+}
+
+async function acquireActionRecordLock(lockPath) {
+  try {
+    return await open(lockPath, 'wx');
+  } catch (error) {
+    if (error.code !== 'EEXIST') {
+      throw error;
+    }
+
+    if (await removeStaleActionRecordLock(lockPath)) {
+      return open(lockPath, 'wx');
+    }
+
+    throw new Error('action record is locked by another CommandDeck process');
+  }
+}
+
+async function removeStaleActionRecordLock(lockPath) {
+  let lockStat;
+  try {
+    lockStat = await stat(lockPath);
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      return true;
+    }
+
+    throw error;
+  }
+
+  if (Date.now() - lockStat.mtimeMs <= ACTION_RECORD_LOCK_STALE_MS) {
+    return false;
+  }
+
+  try {
+    await unlink(lockPath);
+    return true;
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      return true;
+    }
+
+    throw error;
+  }
+}
+
 export function resolveRecordDir(rootDir, recordDir) {
   if (path.isAbsolute(recordDir)) {
     throw new Error('record directory must be repo-relative');
@@ -1152,6 +1860,41 @@ async function readRepoRelativeJson(rootDir, relativePath) {
   const resolvedPath = resolveRepoRelativePath(rootDir, relativePath);
   const contents = await readFile(resolvedPath, 'utf8');
   return JSON.parse(contents);
+}
+
+async function loadValidatedCommandPack({ rootDir, commandPackPath, resolvedCommandPackPath, routes, permissions }) {
+  assertCommandPackManifestPath(commandPackPath);
+
+  if (resolvedCommandPackPath) {
+    if (!path.isAbsolute(resolvedCommandPackPath)) {
+      throw new Error('resolved command pack path must be absolute');
+    }
+
+    assertCommandPackManifestPath(resolvedCommandPackPath);
+  }
+
+  const routeContracts = routes ?? (await readJson(rootDir, 'contracts/routes/route-contracts.json'));
+  const permissionContracts = permissions ?? (await readJson(rootDir, 'contracts/permissions/permission-levels.json'));
+  const pack = resolvedCommandPackPath
+    ? JSON.parse(await readFile(resolvedCommandPackPath, 'utf8'))
+    : await readRepoRelativeJson(rootDir, commandPackPath);
+  const errors = validateCommandPack(pack, { routes: routeContracts, permissions: permissionContracts });
+
+  if (errors.length > 0) {
+    throw new Error(`invalid command pack ${commandPackPath}: ${errors.join('; ')}`);
+  }
+
+  return pack;
+}
+
+function assertCommandPackManifestPath(commandPackPath) {
+  if (!isCommandPackManifestPath(commandPackPath)) {
+    throw new Error(`command pack manifest path must end with ${COMMAND_PACK_FILE_EXTENSION}`);
+  }
+}
+
+function isCommandPackManifestPath(commandPackPath) {
+  return typeof commandPackPath === 'string' && commandPackPath.endsWith(COMMAND_PACK_FILE_EXTENSION);
 }
 
 function resolveRepoRelativePath(rootDir, relativePath) {
@@ -1404,6 +2147,256 @@ function blockedApprovalResultFor(command) {
       approval_target: command.approval_prompt.target
     }
   };
+}
+
+function buildMissingObjectConceptCheck({ input, commandText, timestamp, actionRequirements }) {
+  const slots = parseSpokenCommandSlots(commandText, actionRequirements);
+
+  if (!slots || slots.object) {
+    return null;
+  }
+
+  const actionRequirement = actionRequirements.get(slots.action);
+  const question = actionRequirement.missing_required_slot_ccq;
+  const resumeToken = stableId('ccq', [
+    input.actor_ref ?? DEFAULT_ACTOR,
+    workspaceRefFor(input),
+    input.adapter ?? DEFAULT_ADAPTER,
+    commandText,
+    timestamp
+  ]);
+  const expiresAt = new Date(new Date(timestamp).getTime() + CCQ_TOKEN_TTL_SECONDS * 1000).toISOString();
+  const record = {
+    record_id: stableId('rec', ['ccq', slots.action, commandText, timestamp]),
+    command_id: 'unresolved',
+    timestamp,
+    actor_ref: input.actor_ref ?? DEFAULT_ACTOR,
+    adapter: input.adapter ?? DEFAULT_ADAPTER,
+    command_text: commandText,
+    interpreted_intent: `${slots.action} command missing object`,
+    permission_level: 'read-only',
+    approval_status: 'required_not_requested',
+    route: 'none',
+    sources_used: [],
+    model_provider_route: null,
+    action_key: null,
+    approval_request: null,
+    result: {
+      status: 'needs_clarification',
+      summary: 'CommandDeck needs one more detail before routing.',
+      clarification: {
+        question,
+        missing_slots: ['object'],
+        partial_intent: {
+          device_code: slots.device_code,
+          action: slots.action,
+          object: null,
+          context: slots.context,
+          end_code: slots.end_code
+        },
+        resume_token: resumeToken,
+        resume_token_status: 'active',
+        resume_token_expires_at: expiresAt,
+        resume_token_used_at: null,
+        workspace_ref: workspaceRefFor(input),
+        adapter_session_ref: adapterSessionRefFor(input)
+      }
+    },
+    errors: [],
+    follow_up_owner: 'user'
+  };
+
+  return buildCommandResult({
+    input,
+    responseText: question,
+    record
+  });
+}
+
+function parseSpokenCommandSlots(commandText, actionRequirements) {
+  const words = normalizeUtterance(commandText).split(' ').filter(Boolean);
+  let index = 0;
+
+  if (words.length === 0) {
+    return null;
+  }
+
+  let deviceCode = null;
+  if (SPOKEN_DEVICE_CODES.has(words[index])) {
+    deviceCode = words[index];
+    index += 1;
+  }
+
+  const action = words[index];
+  if (!actionRequirements.has(action)) {
+    return null;
+  }
+  index += 1;
+
+  let endCode = null;
+  if (words.length > index && SPOKEN_END_CODES.has(words[words.length - 1])) {
+    endCode = words[words.length - 1];
+    words.pop();
+  }
+
+  const objectWords = words.slice(index);
+
+  return {
+    device_code: deviceCode,
+    action,
+    object: objectWords.length > 0 ? objectWords.join(' ') : null,
+    context: null,
+    end_code: endCode
+  };
+}
+
+function validateAndConsumeClarification(record, { input, resumeToken, timestamp }) {
+  const clarification = record?.result?.clarification;
+  const activeRecord = updateExpiredClarificationIfNeeded(record, timestamp);
+
+  if (!clarification || record?.result?.status !== 'needs_clarification') {
+    return invalidResume(activeRecord, 'rejected_invalid_record', 'Action record is not an active clarification record.');
+  }
+
+  if (!resumeToken || resumeToken !== clarification.resume_token) {
+    return invalidResume(activeRecord, 'rejected_token_mismatch', 'Clarification token did not match.');
+  }
+
+  if (clarification.workspace_ref !== workspaceRefFor(input)) {
+    return invalidResume(activeRecord, 'rejected_workspace_mismatch', 'Clarification workspace did not match.');
+  }
+
+  if (record.actor_ref !== (input.actor_ref ?? DEFAULT_ACTOR)) {
+    return invalidResume(activeRecord, 'rejected_actor_mismatch', 'Clarification actor did not match.');
+  }
+
+  const inputSession = adapterSessionRefFor(input);
+  if (clarification.adapter_session_ref && inputSession && clarification.adapter_session_ref !== inputSession) {
+    return invalidResume(activeRecord, 'rejected_session_mismatch', 'Clarification adapter session did not match.');
+  }
+
+  if (activeRecord.result.clarification.resume_token_status !== 'active') {
+    return {
+      ok: false,
+      resume_status: 'rejected_token_not_active',
+      response_text: CCQ_DUPLICATE_RESPONSE,
+      record: activeRecord,
+      errors: [CCQ_DUPLICATE_RESPONSE]
+    };
+  }
+
+  return { ok: true, record: activeRecord };
+}
+
+function updateExpiredClarificationIfNeeded(record, timestamp) {
+  const clarification = record?.result?.clarification;
+  if (!clarification || clarification.resume_token_status !== 'active') {
+    return record;
+  }
+
+  const now = new Date(timestamp);
+  const expiresAt = new Date(clarification.resume_token_expires_at);
+  if (!Number.isNaN(expiresAt.getTime()) && expiresAt <= now) {
+    return updateClarificationStatus(record, {
+      status: 'expired',
+      timestamp,
+      summary: CCQ_DUPLICATE_RESPONSE
+    });
+  }
+
+  return record;
+}
+
+function invalidResume(record, resumeStatus, message) {
+  return {
+    ok: false,
+    resume_status: resumeStatus,
+    response_text: message,
+    record: record ?? buildInvalidResumeRecord(message),
+    errors: [message]
+  };
+}
+
+function buildInvalidResumeRecord(message) {
+  return {
+    record_id: stableId('rec', ['invalid_ccq_resume', message]),
+    command_id: 'unresolved',
+    timestamp: new Date().toISOString(),
+    actor_ref: DEFAULT_ACTOR,
+    adapter: DEFAULT_ADAPTER,
+    command_text: '',
+    interpreted_intent: 'invalid clarification resume',
+    permission_level: 'read-only',
+    approval_status: 'required_not_requested',
+    route: 'none',
+    sources_used: [],
+    model_provider_route: null,
+    action_key: null,
+    approval_request: null,
+    result: {
+      status: 'failed_closed',
+      summary: message
+    },
+    errors: [message],
+    follow_up_owner: 'human_operator'
+  };
+}
+
+function mergeClarificationAnswer(clarification, answerText) {
+  const partial = clarification.partial_intent;
+  const pieces = [partial.action, answerText].filter(Boolean);
+  return pieces.join(' ');
+}
+
+function answerAttemptsCommandRewrite(answerText, actionRequirements) {
+  const words = normalizeUtterance(answerText).split(' ').filter(Boolean);
+  const firstMeaningfulWord = words[0] === 'actually' || words[0] === 'instead' ? words[1] : words[0];
+
+  return actionRequirements.has(firstMeaningfulWord);
+}
+
+function isClarificationRewrite(clarification, record) {
+  const partial = clarification.partial_intent;
+
+  if (record.result.status === 'failed_closed') {
+    return false;
+  }
+
+  if (record.permission_level === 'approval-required' && partial.action !== 'open') {
+    return true;
+  }
+
+  if (partial.action === 'open') {
+    return !normalizeUtterance(record.command_text).startsWith('open ');
+  }
+
+  return false;
+}
+
+function updateClarificationStatus(record, { status, timestamp, summary }) {
+  const clarification = record.result.clarification;
+  return {
+    ...record,
+    result: {
+      ...record.result,
+      summary,
+      clarification: {
+        ...clarification,
+        resume_token_status: status,
+        resume_token_used_at: ['used', 'rejected'].includes(status) ? timestamp : clarification.resume_token_used_at
+      }
+    },
+    errors: status === 'used' ? [] : [summary],
+    follow_up_owner: status === 'used' ? null : 'human_operator'
+  };
+}
+
+function workspaceRefFor(input) {
+  return input.workspace_ref ?? input.workspaceRef ?? DEFAULT_WORKSPACE_REF;
+}
+
+function adapterSessionRefFor(input) {
+  return input.adapter_session_ref ?? input.adapterSessionRef ?? input.request_id ?? null;
 }
 
 function buildFailureRecord({ input, timestamp, commandText, command, summary }) {

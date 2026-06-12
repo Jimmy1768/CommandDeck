@@ -1,6 +1,25 @@
 {
   "schema_version": "0.1",
+  "contract_kind": "action-record",
   "type": "object",
+  "allowed_result_statuses": [
+    "answered_from_fixture",
+    "drafted_fixture_only",
+    "blocked_contract_only",
+    "blocked_pending_approval",
+    "approval_requested",
+    "executed_local_allowlisted_action",
+    "failed_closed",
+    "needs_clarification"
+  ],
+  "clarification_contract": "contracts/records/concept-checking-question.schema.json",
+  "clarification_rule": "needs_clarification_is_not_failure_approval_or_execution",
+  "ccq_state_storage_rule": "ccq_state_is_stored_in_local_action_record",
+  "ccq_state_persistence_rule": "local_auditable_state_not_durable_memory",
+  "ccq_resume_token_rule": "short_lived_one_use_token_validated_from_action_record",
+  "ccq_resume_token_concurrency_rule": "atomic_compare_and_set_active_to_terminal_status",
+  "ccq_resume_lock_rule": "write_record_resume_uses_short_local_action_record_lock",
+  "ccq_resume_lock_stale_after_seconds": 30,
   "required": [
     "record_id",
     "command_id",
@@ -60,7 +79,44 @@
       "required": ["status", "summary"],
       "properties": {
         "status": { "type": "string" },
-        "summary": { "type": "string" }
+        "summary": { "type": "string" },
+        "clarification": {
+          "type": "object",
+          "required": [
+            "question",
+            "missing_slots",
+            "partial_intent",
+            "resume_token",
+            "resume_token_status",
+            "resume_token_expires_at",
+            "workspace_ref"
+          ],
+          "properties": {
+            "question": { "type": "string" },
+            "missing_slots": {
+              "type": "array",
+              "items": { "enum": ["device_code", "action", "object", "context", "end_code"] }
+            },
+            "partial_intent": {
+              "type": "object",
+              "properties": {
+                "device_code": { "type": ["string", "null"] },
+                "action": { "type": ["string", "null"] },
+                "object": { "type": ["string", "null"] },
+                "context": { "type": ["string", "null"] },
+                "end_code": { "type": ["string", "null"] }
+              }
+            },
+            "resume_token": { "type": "string" },
+            "resume_token_status": {
+              "enum": ["active", "used", "expired", "rejected"]
+            },
+            "resume_token_expires_at": { "type": "string", "format": "date-time" },
+            "resume_token_used_at": { "type": ["string", "null"], "format": "date-time" },
+            "workspace_ref": { "type": "string" },
+            "adapter_session_ref": { "type": ["string", "null"] }
+          }
+        }
       }
     },
     "errors": { "type": "array", "items": { "type": "string" } },

@@ -3,6 +3,19 @@
   "voice_adapters_are_io_surfaces": true,
   "reasoning_owner": "apprelay",
   "command_shell_owner": "command-deck",
+  "spoken_command_grammar": {
+    "platform_wake_phrase_owner": "platform",
+    "preferred_format": "<platform_wake_phrase>, <device_code> <action> <object> [context] [end_code]",
+    "default_device_code": "computer",
+    "target_runner_for_default_device_code": "command",
+    "allowed_device_codes": ["computer", "phone", "watch", "glasses"],
+    "required_slots": ["device_code", "action", "object"],
+    "optional_slots": ["context", "end_code"],
+    "allowed_end_codes": ["activate"],
+    "surface_hint_rule": "surface_hint_records_capture_hardware_not_spoken_routing_word",
+    "ccq_rule": "missing_required_action_parameters_force_concept_checking_question",
+    "approval_rule": "end_code_and_voice_invocation_are_not_approval"
+  },
   "adapters": [
     {
       "id": "apple_shortcuts",

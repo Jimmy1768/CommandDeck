@@ -15,7 +15,7 @@ permission to execute scripts, call external services, or mutate state.
 The local shell may load a repo-relative JSON command pack with:
 
 ```sh
-npm run command:local -- --command-pack contracts/commands/mvp-commands.json "What is my next SourceGrid task?"
+npm run command:local -- --command-pack contracts/commands/mvp-commands.cdeck-pack.json "What is my next SourceGrid task?"
 ```
 
 Loaded packs are validated before classification. Phase 1 validation requires:
@@ -39,8 +39,14 @@ Loaded packs are validated before classification. Phase 1 validation requires:
 
 ## Non-Goals
 
-- No active command-pack loading from owner repos yet.
+- No direct arbitrary absolute `--command-pack` paths.
 - No SourceGrid script imports.
 - No personal assistant or partner script imports.
 - No shell script execution.
+
+## Amendment
+
+Decision 0023 adds active loading from configured external `local-folder` roots
+after local-only pack-selection validation. Direct CLI pack paths remain
+repo-relative.
 - No external provider or runtime calls.

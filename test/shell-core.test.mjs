@@ -1,18 +1,25 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, stat } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, stat, utimes, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { spawnSync } from 'node:child_process';
 import {
   applyApprovalDecision,
+  applySourceGridPackSelection,
   buildAdapterResponseEnvelope,
+  buildActiveCommandPackStatus,
   buildSourceGridAttachmentStatus,
   classifyCommand,
   loadAdapterRequest,
   loadCommandDeckConfig,
   loadCommandPack,
+  loadCoreActionRequirements,
+  loadRecentCommandPacks,
+  loadSourceGridPackSelection,
   normalizeUtterance,
+  openCommandPack,
+  resumeConceptCheckingQuestion,
   resolveEvalReportPath,
   resolveRecordDir,
   runApprovalDecisionEvalSuite,
@@ -24,7 +31,10 @@ import {
   validateCommandDeckConfig,
   validateCommandPack,
   validateCommandPackRoots,
+  validateCoreActionRequirements,
+  validateSourceGridPackSelection,
   validateSourceGridAttachment,
+  withActionRecordLock,
   writeEvalReport,
   writeActionRecord
 } from '../packages/shell-core/index.mjs';
@@ -154,6 +164,258 @@ test('unknown commands fail closed', async () => {
   assert.equal(result.adapter_response.apprelay_audio_available, false);
 });
 
+test('missing core object returns concept-checking question without routing', async () => {
+  const result = await runLocalCommand(
+    {
+      adapter: 'apple_shortcuts',
+      actor_ref: 'director',
+      workspace_ref: 'sourcegrid',
+      command_text: 'Computer open activate',
+      requested_output: 'spoken_summary',
+      request_id: 'siri_session_1'
+    },
+    {
+      rootDir,
+      timestamp,
+      commandPackPath: 'contracts/commands/local-approved-commands.cdeck-pack.json'
+    }
+  );
+
+  assert.equal(result.record.command_id, 'unresolved');
+  assert.equal(result.record.route, 'none');
+  assert.equal(result.record.result.status, 'needs_clarification');
+  assert.equal(result.record.follow_up_owner, 'user');
+  assert.equal(result.record.result.clarification.question, 'What should I open?');
+  assert.deepEqual(result.record.result.clarification.missing_slots, ['object']);
+  assert.equal(result.record.result.clarification.partial_intent.action, 'open');
+  assert.equal(result.record.result.clarification.resume_token_status, 'active');
+  assert.equal(result.record.result.clarification.workspace_ref, 'sourcegrid');
+  assert.equal(result.adapter_response.response_mode, 'platform_tts');
+  assert.equal(result.adapter_response.spoken_text, 'What should I open?');
+});
+
+test('resumes concept-checking question by filling missing object only', async () => {
+  const ccq = await runLocalCommand(
+    {
+      adapter: 'apple_shortcuts',
+      actor_ref: 'director',
+      workspace_ref: 'sourcegrid',
+      command_text: 'Computer open activate',
+      requested_output: 'spoken_summary',
+      request_id: 'siri_session_1'
+    },
+    {
+      rootDir,
+      timestamp,
+      commandPackPath: 'contracts/commands/local-approved-commands.cdeck-pack.json'
+    }
+  );
+
+  const resumed = await resumeConceptCheckingQuestion(
+    {
+      adapter: 'apple_shortcuts',
+      actor_ref: 'director',
+      workspace_ref: 'sourcegrid',
+      command_text: 'SourceGrid dashboard',
+      requested_output: 'spoken_summary',
+      request_id: 'siri_session_1'
+    },
+    {
+      rootDir,
+      timestamp: '2026-06-11T00:01:00.000Z',
+      commandPackPath: 'contracts/commands/local-approved-commands.cdeck-pack.json',
+      resumeToken: ccq.record.result.clarification.resume_token,
+      record: ccq.record
+    }
+  );
+
+  assert.equal(resumed.resume_status, 'resumed');
+  assert.equal(resumed.ccq_record.result.clarification.resume_token_status, 'used');
+  assert.equal(resumed.record.command_id, 'local.open_sourcegrid_dashboard');
+  assert.equal(resumed.record.approval_status, 'requested_pending');
+  assert.equal(resumed.record.result.status, 'approval_requested');
+  assert.equal(resumed.adapter_response.response_mode, 'platform_tts');
+});
+
+test('pack action requirements ask CCQ but resume must resolve to active pack command', async () => {
+  const ccq = await runLocalCommand(
+    {
+      adapter: 'local_cli',
+      actor_ref: 'director',
+      workspace_ref: 'sourcegrid',
+      command_text: 'Computer check activate'
+    },
+    {
+      rootDir,
+      timestamp,
+      commandPackPath: 'contracts/commands/local-exact-commands.cdeck-pack.json'
+    }
+  );
+
+  assert.equal(ccq.record.result.status, 'needs_clarification');
+  assert.equal(ccq.record.result.clarification.question, 'What should I check?');
+  assert.equal(ccq.record.result.clarification.partial_intent.action, 'check');
+
+  const resumed = await resumeConceptCheckingQuestion(
+    {
+      adapter: 'local_cli',
+      actor_ref: 'director',
+      workspace_ref: 'sourcegrid',
+      command_text: 'Puma status'
+    },
+    {
+      rootDir,
+      timestamp: '2026-06-11T00:01:00.000Z',
+      commandPackPath: 'contracts/commands/local-exact-commands.cdeck-pack.json',
+      resumeToken: ccq.record.result.clarification.resume_token,
+      record: ccq.record,
+      executor: async (spec) => {
+        assert.equal(spec.command, 'ps');
+        assert.deepEqual(spec.args, ['-ef']);
+        return {
+          exitCode: 0,
+          stdout:
+            'UID PID PPID C STIME TTY TIME CMD\njimmy 123 1 0 10:00 ?? 0:00.10 puma 6.4.0 (tcp://127.0.0.1:3000)\n',
+          stderr: ''
+        };
+      }
+    }
+  );
+
+  assert.equal(resumed.resume_status, 'resumed');
+  assert.equal(resumed.record.command_id, 'local.puma_status');
+  assert.equal(resumed.record.result.status, 'executed_local_exact_command');
+  assert.equal(resumed.ccq_record.result.clarification.resume_token_status, 'used');
+
+  const unresolvedCcq = await runLocalCommand(
+    {
+      actor_ref: 'director',
+      workspace_ref: 'sourcegrid',
+      command_text: 'check'
+    },
+    {
+      rootDir,
+      timestamp,
+      commandPackPath: 'contracts/commands/local-exact-commands.cdeck-pack.json'
+    }
+  );
+  const unresolved = await resumeConceptCheckingQuestion(
+    {
+      actor_ref: 'director',
+      workspace_ref: 'sourcegrid',
+      command_text: 'Redis status'
+    },
+    {
+      rootDir,
+      timestamp: '2026-06-11T00:01:00.000Z',
+      commandPackPath: 'contracts/commands/local-exact-commands.cdeck-pack.json',
+      resumeToken: unresolvedCcq.record.result.clarification.resume_token,
+      record: unresolvedCcq.record
+    }
+  );
+
+  assert.equal(unresolved.resume_status, 'resumed');
+  assert.equal(unresolved.record.command_id, 'unknown');
+  assert.equal(unresolved.record.result.status, 'failed_closed');
+});
+
+test('rejects duplicate or expired concept-checking resume tokens', async () => {
+  const ccq = await runLocalCommand(
+    {
+      actor_ref: 'director',
+      workspace_ref: 'sourcegrid',
+      command_text: 'open'
+    },
+    {
+      rootDir,
+      timestamp,
+      commandPackPath: 'contracts/commands/local-approved-commands.cdeck-pack.json'
+    }
+  );
+  const token = ccq.record.result.clarification.resume_token;
+  const usedRecord = {
+    ...ccq.record,
+    result: {
+      ...ccq.record.result,
+      clarification: {
+        ...ccq.record.result.clarification,
+        resume_token_status: 'used',
+        resume_token_used_at: '2026-06-11T00:01:00.000Z'
+      }
+    }
+  };
+
+  const duplicate = await resumeConceptCheckingQuestion(
+    {
+      actor_ref: 'director',
+      workspace_ref: 'sourcegrid',
+      command_text: 'SourceGrid dashboard'
+    },
+    {
+      rootDir,
+      timestamp: '2026-06-11T00:02:00.000Z',
+      commandPackPath: 'contracts/commands/local-approved-commands.cdeck-pack.json',
+      resumeToken: token,
+      record: usedRecord
+    }
+  );
+
+  assert.equal(duplicate.resume_status, 'rejected_token_not_active');
+  assert.match(duplicate.response_text, /no longer active/);
+
+  const expired = await resumeConceptCheckingQuestion(
+    {
+      actor_ref: 'director',
+      workspace_ref: 'sourcegrid',
+      command_text: 'SourceGrid dashboard'
+    },
+    {
+      rootDir,
+      timestamp: '2026-06-11T00:06:00.000Z',
+      commandPackPath: 'contracts/commands/local-approved-commands.cdeck-pack.json',
+      resumeToken: token,
+      record: ccq.record
+    }
+  );
+
+  assert.equal(expired.resume_status, 'rejected_token_not_active');
+  assert.equal(expired.record.result.clarification.resume_token_status, 'expired');
+});
+
+test('rejects concept-checking resume answers that try to change the action', async () => {
+  const ccq = await runLocalCommand(
+    {
+      actor_ref: 'director',
+      workspace_ref: 'sourcegrid',
+      command_text: 'open'
+    },
+    {
+      rootDir,
+      timestamp,
+      commandPackPath: 'contracts/commands/local-approved-commands.cdeck-pack.json'
+    }
+  );
+
+  const rejected = await resumeConceptCheckingQuestion(
+    {
+      actor_ref: 'director',
+      workspace_ref: 'sourcegrid',
+      command_text: 'actually start Puma'
+    },
+    {
+      rootDir,
+      timestamp: '2026-06-11T00:01:00.000Z',
+      commandPackPath: 'contracts/commands/local-approved-commands.cdeck-pack.json',
+      resumeToken: ccq.record.result.clarification.resume_token,
+      record: ccq.record
+    }
+  );
+
+  assert.equal(rejected.resume_status, 'rejected_rewrite');
+  assert.equal(rejected.record.result.clarification.resume_token_status, 'rejected');
+  assert.match(rejected.response_text, /changed the unresolved command/);
+});
+
 test('adapter response envelope validates required fields and disabled audio', () => {
   const envelope = buildAdapterResponseEnvelope(
     {
@@ -214,6 +476,28 @@ test('record directories must stay repo-relative', () => {
   assert.equal(resolveRecordDir(rootDir, 'records/actions'), path.join(rootDir, 'records/actions'));
 });
 
+test('action record locks reject fresh locks and clean up stale locks', async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'command-deck-locks-'));
+  const recordPath = 'records/actions/rec_lock_test.json';
+  const resolvedRecordPath = path.join(tempRoot, recordPath);
+  await mkdir(path.dirname(resolvedRecordPath), { recursive: true });
+  await writeFile(resolvedRecordPath, '{}\n', { flag: 'wx' });
+  const lockPath = `${resolvedRecordPath}.lock`;
+
+  await writeFile(lockPath, 'fresh\n', { flag: 'wx' });
+  await assert.rejects(
+    () => withActionRecordLock(tempRoot, recordPath, async () => 'locked'),
+    /locked by another CommandDeck process/
+  );
+
+  const staleTime = new Date(Date.now() - 60_000);
+  await utimes(lockPath, staleTime, staleTime);
+  const result = await withActionRecordLock(tempRoot, recordPath, async () => 'recovered');
+
+  assert.equal(result, 'recovered');
+  await assert.rejects(() => stat(lockPath), { code: 'ENOENT' });
+});
+
 test('CLI is print-only by default and does not create the requested record directory', async () => {
   const recordDir = `records/no-write-${Date.now()}`;
   const output = spawnSync(
@@ -231,6 +515,319 @@ test('CLI is print-only by default and does not create the requested record dire
   await assert.rejects(() => stat(path.join(rootDir, recordDir)), { code: 'ENOENT' });
 });
 
+test('opens a command pack and writes recent pack state only when requested', async () => {
+  const statePath = `records/actions/recent-packs-helper-${Date.now()}.json`;
+
+  const opened = await openCommandPack({
+    rootDir,
+    commandPackPath: 'contracts/commands/local-exact-commands.cdeck-pack.json',
+    timestamp,
+    statePath
+  });
+
+  assert.equal(opened.status, 'opened');
+  assert.equal(opened.active_pack_policy, 'single_active_pack_per_invocation');
+  assert.equal(opened.active_command_pack, 'contracts/commands/local-exact-commands.cdeck-pack.json');
+  assert.equal(opened.pack.pack_id, 'commanddeck.local-exact.slice2');
+  assert.equal(opened.recent_write.status, 'not_written');
+  assert.deepEqual((await loadRecentCommandPacks({ rootDir, statePath })).recent_packs, []);
+
+  const written = await openCommandPack({
+    rootDir,
+    commandPackPath: 'contracts/commands/local-exact-commands.cdeck-pack.json',
+    timestamp,
+    writeState: true,
+    statePath
+  });
+
+  assert.equal(written.recent_write.status, 'written');
+  const recent = await loadRecentCommandPacks({ rootDir, statePath });
+  assert.equal(recent.active_pack_policy, 'single_active_pack_per_invocation');
+  assert.equal(recent.recent_packs.length, 1);
+  assert.equal(recent.recent_packs[0].command_pack_path, 'contracts/commands/local-exact-commands.cdeck-pack.json');
+});
+
+test('CLI supports pack open and recent surfaces', async () => {
+  const stateFile = `records/actions/recent-packs-${Date.now()}.json`;
+  const openOutput = spawnSync(
+    process.execPath,
+    [
+      'bin/command-deck.mjs',
+      'pack:open',
+      '--command-pack',
+      'contracts/commands/local-exact-commands.cdeck-pack.json',
+      '--state-file',
+      stateFile
+    ],
+    {
+      cwd: rootDir,
+      encoding: 'utf8'
+    }
+  );
+
+  assert.equal(openOutput.status, 0, openOutput.stderr);
+  const opened = JSON.parse(openOutput.stdout);
+  assert.equal(opened.status, 'opened');
+  assert.equal(opened.recent_write.status, 'not_written');
+  await assert.rejects(() => stat(path.join(rootDir, stateFile)), { code: 'ENOENT' });
+
+  const writeOutput = spawnSync(
+    process.execPath,
+    [
+      'bin/command-deck.mjs',
+      'pack:open',
+      '--command-pack',
+      'contracts/commands/local-exact-commands.cdeck-pack.json',
+      '--state-file',
+      stateFile,
+      '--write-state'
+    ],
+    {
+      cwd: rootDir,
+      encoding: 'utf8'
+    }
+  );
+
+  assert.equal(writeOutput.status, 0, writeOutput.stderr);
+  const written = JSON.parse(writeOutput.stdout);
+  assert.equal(written.recent_write.status, 'written');
+
+  const recentOutput = spawnSync(
+    process.execPath,
+    ['bin/command-deck.mjs', 'pack:recent', '--state-file', stateFile],
+    {
+      cwd: rootDir,
+      encoding: 'utf8'
+    }
+  );
+
+  assert.equal(recentOutput.status, 0, recentOutput.stderr);
+  const recent = JSON.parse(recentOutput.stdout);
+  assert.equal(recent.recent_packs.length, 1);
+  assert.equal(recent.recent_packs[0].pack_id, 'commanddeck.local-exact.slice2');
+});
+
+test('applies a SourceGrid pack selection after local control-root validation', async () => {
+  const selection = await loadSourceGridPackSelection({
+    rootDir,
+    selectionPath: 'evals/fixtures/pack_selections/local-exact.selection.json'
+  });
+  const config = await loadCommandDeckConfig({
+    rootDir,
+    configPath: 'evals/fixtures/pack_discovery/local-control-folder.config.json'
+  });
+  const statePath = `records/actions/recent-selection-${Date.now()}.json`;
+
+  const applied = await applySourceGridPackSelection(selection, {
+    rootDir,
+    config,
+    timestamp,
+    statePath,
+    writeState: true
+  });
+
+  assert.equal(applied.status, 'applied');
+  assert.equal(applied.bridge_mode, 'pull_then_local_validate');
+  assert.equal(applied.workspace_ref, 'workspace_sourcegrid_fixture');
+  assert.equal(applied.pack_ref, 'commanddeck.local-exact.slice2');
+  assert.equal(applied.active_command_pack, 'contracts/commands/local-exact-commands.cdeck-pack.json');
+  assert.equal(applied.opened_pack.pack.pack_id, 'commanddeck.local-exact.slice2');
+  assert.equal(applied.opened_pack.recent_write.status, 'written');
+});
+
+test('applies a pack selection from an external local-only control folder', async () => {
+  const externalRoot = await mkdtemp(path.join(os.tmpdir(), 'command-deck-external-packs-'));
+  const packDir = path.join(externalRoot, 'sourcegrid-labs', 'command-packs', 'sourcegrid');
+  const packFile = path.join(packDir, 'sourcegrid.cdeck-pack.json');
+  const packContents = await readFile(
+    path.join(rootDir, 'contracts/commands/local-exact-commands.cdeck-pack.json'),
+    'utf8'
+  );
+  await mkdir(packDir, { recursive: true });
+  await writeFile(packFile, packContents);
+
+  const config = {
+    schema_version: '0.1',
+    default_command_pack: 'contracts/commands/mvp-commands.cdeck-pack.json',
+    default_record_dir: 'records/actions',
+    default_write_records: false,
+    command_pack_roots: [
+      {
+        id: 'sourcegrid_labs_local',
+        kind: 'local-folder',
+        path: packDir,
+        local_only: true,
+        enabled: true,
+        discovery_mode: 'metadata_only'
+      }
+    ]
+  };
+  const selection = {
+    schema_version: '0.1',
+    contract_kind: 'sourcegrid-pack-selection',
+    workspace_ref: 'workspace_sourcegrid_fixture',
+    actor_ref: 'director',
+    pack_ref: 'commanddeck.local-exact.slice2',
+    pack_source_kind: 'local-folder',
+    control_root_ref: 'sourcegrid_labs_local',
+    pack_path: 'sourcegrid.cdeck-pack.json',
+    selected_at: '2026-06-11T00:00:00.000Z'
+  };
+
+  assert.deepEqual(validateCommandDeckConfig(config, { rootDir }), []);
+
+  const applied = await applySourceGridPackSelection(selection, {
+    rootDir,
+    config,
+    timestamp
+  });
+
+  assert.equal(applied.status, 'applied');
+  assert.equal(applied.active_command_pack, 'control-root:sourcegrid_labs_local/sourcegrid.cdeck-pack.json');
+  assert.equal(applied.resolved_command_pack_path, packFile);
+  assert.equal(applied.opened_pack.pack.pack_id, 'commanddeck.local-exact.slice2');
+  assert.equal(applied.opened_pack.recent_entry.command_pack_path, applied.active_command_pack);
+  assert.equal(applied.opened_pack.recent_entry.resolved_command_pack_path, packFile);
+});
+
+test('rejects unsafe SourceGrid pack selection manifests', async () => {
+  const errors = validateSourceGridPackSelection({
+    schema_version: '0.1',
+    contract_kind: 'sourcegrid-pack-selection',
+    workspace_ref: 'workspace_sourcegrid_fixture',
+    actor_ref: 'director',
+    pack_ref: 'commanddeck.local-exact.slice2',
+    pack_source_kind: 'local-folder',
+    control_root_ref: 'local_builtin_control',
+    pack_path: '../local-exact-commands.cdeck-pack.json',
+    selected_at: '2026-06-11T00:00:00.000Z',
+    shell: 'do something'
+  });
+
+  assert.ok(errors.includes('selection includes forbidden field shell'));
+
+  const extensionErrors = validateSourceGridPackSelection({
+    schema_version: '0.1',
+    contract_kind: 'sourcegrid-pack-selection',
+    workspace_ref: 'workspace_sourcegrid_fixture',
+    actor_ref: 'director',
+    pack_ref: 'commanddeck.local-exact.slice2',
+    pack_source_kind: 'local-folder',
+    control_root_ref: 'local_builtin_control',
+    pack_path: 'local-exact-commands.json',
+    selected_at: '2026-06-11T00:00:00.000Z'
+  });
+
+  assert.ok(extensionErrors.includes('selection pack_path must end with .cdeck-pack.json'));
+});
+
+test('CLI applies SourceGrid pack selection without executing the selected pack', async () => {
+  const stateFile = `records/actions/recent-selection-cli-${Date.now()}.json`;
+  const output = spawnSync(
+    process.execPath,
+    [
+      'bin/command-deck.mjs',
+      'pack:apply-selection',
+      '--config',
+      'evals/fixtures/pack_discovery/local-control-folder.config.json',
+      '--selection-file',
+      'evals/fixtures/pack_selections/local-exact.selection.json',
+      '--state-file',
+      stateFile,
+      '--write-state'
+    ],
+    {
+      cwd: rootDir,
+      encoding: 'utf8'
+    }
+  );
+
+  assert.equal(output.status, 0, output.stderr);
+  const applied = JSON.parse(output.stdout);
+  assert.equal(applied.status, 'applied');
+  assert.equal(applied.active_command_pack, 'contracts/commands/local-exact-commands.cdeck-pack.json');
+  assert.equal(applied.opened_pack.recent_write.status, 'written');
+});
+
+test('CLI can write and resume a concept-checking question record', async () => {
+  const ccqOutput = spawnSync(
+    process.execPath,
+    [
+      'bin/command-deck.mjs',
+      '--command-pack',
+      'contracts/commands/local-approved-commands.cdeck-pack.json',
+      '--write-record',
+      '--record-dir',
+      'records/actions',
+      'Computer open activate'
+    ],
+    {
+      cwd: rootDir,
+      encoding: 'utf8'
+    }
+  );
+
+  assert.equal(ccqOutput.status, 0, ccqOutput.stderr);
+  const ccq = JSON.parse(ccqOutput.stdout);
+  assert.equal(ccq.record.result.status, 'needs_clarification');
+  assert.equal(ccq.record_write.record_path.startsWith('records/actions/'), true);
+
+  const resumeOutput = spawnSync(
+    process.execPath,
+    [
+      'bin/command-deck.mjs',
+      'ccq:resume',
+      '--command-pack',
+      'contracts/commands/local-approved-commands.cdeck-pack.json',
+      '--record-file',
+      ccq.record_write.record_path,
+      '--resume-token',
+      ccq.record.result.clarification.resume_token,
+      '--write-record',
+      '--record-dir',
+      'records/actions',
+      'SourceGrid dashboard'
+    ],
+    {
+      cwd: rootDir,
+      encoding: 'utf8'
+    }
+  );
+
+  assert.equal(resumeOutput.status, 0, resumeOutput.stderr);
+  const resumed = JSON.parse(resumeOutput.stdout);
+  assert.equal(resumed.resume_status, 'resumed');
+  assert.equal(resumed.record.command_id, 'local.open_sourcegrid_dashboard');
+  assert.equal(resumed.record.result.status, 'approval_requested');
+  assert.equal(resumed.ccq_record.result.clarification.resume_token_status, 'used');
+  assert.equal(resumed.ccq_record_write.record_path, ccq.record_write.record_path);
+  assert.equal(resumed.record_write.record_path.startsWith('records/actions/'), true);
+
+  const duplicateOutput = spawnSync(
+    process.execPath,
+    [
+      'bin/command-deck.mjs',
+      'ccq:resume',
+      '--command-pack',
+      'contracts/commands/local-approved-commands.cdeck-pack.json',
+      '--record-file',
+      ccq.record_write.record_path,
+      '--resume-token',
+      ccq.record.result.clarification.resume_token,
+      'SourceGrid dashboard'
+    ],
+    {
+      cwd: rootDir,
+      encoding: 'utf8'
+    }
+  );
+
+  assert.equal(duplicateOutput.status, 0, duplicateOutput.stderr);
+  const duplicate = JSON.parse(duplicateOutput.stdout);
+  assert.equal(duplicate.resume_status, 'rejected_token_not_active');
+  assert.match(duplicate.response_text, /no longer active/);
+});
+
 test('loads the default command pack through validation', async () => {
   const pack = await loadCommandPack({ rootDir });
 
@@ -238,10 +835,38 @@ test('loads the default command pack through validation', async () => {
   assert.equal(pack.commands.length, 5);
 });
 
+test('loads core action requirements as the CCQ source of truth', async () => {
+  const requirements = await loadCoreActionRequirements({ rootDir });
+
+  assert.equal(requirements.get('open').missing_required_slot_ccq, 'What should I open?');
+  assert.equal(requirements.get('start').capability_source, 'core');
+  assert.equal(requirements.get('start').required_slots.includes('object'), true);
+});
+
+test('rejects invalid core action requirements', () => {
+  const errors = validateCoreActionRequirements({
+    contract_kind: 'action-requirements',
+    owner: 'command-deck',
+    actions: [
+      {
+        action: 'open',
+        capability_source: 'pack',
+        required_slots: ['action'],
+        missing_required_slot_ccq: null
+      }
+    ]
+  });
+
+  assert.ok(errors.includes('open capability_source must be core'));
+  assert.ok(errors.includes('open required_slots must include object'));
+  assert.ok(errors.includes('open missing_required_slot_ccq must be a string'));
+  assert.ok(errors.includes('open missing action requirement field allowed_target_kinds'));
+});
+
 test('loads the exact local command pack through validation', async () => {
   const pack = await loadCommandPack({
     rootDir,
-    commandPackPath: 'contracts/commands/local-exact-commands.json'
+    commandPackPath: 'contracts/commands/local-exact-commands.cdeck-pack.json'
   });
 
   assert.equal(pack.pack_id, 'commanddeck.local-exact.slice2');
@@ -251,7 +876,7 @@ test('loads the exact local command pack through validation', async () => {
 test('loads the approval-gated local command pack through validation', async () => {
   const pack = await loadCommandPack({
     rootDir,
-    commandPackPath: 'contracts/commands/local-approved-commands.json'
+    commandPackPath: 'contracts/commands/local-approved-commands.cdeck-pack.json'
   });
 
   assert.equal(pack.pack_id, 'commanddeck.local-approved.slice2');
@@ -266,7 +891,7 @@ test('runs with an explicit repo-relative command pack path', async () => {
     {
       rootDir,
       timestamp,
-      commandPackPath: 'contracts/commands/mvp-commands.json'
+      commandPackPath: 'contracts/commands/mvp-commands.cdeck-pack.json'
     }
   );
 
@@ -282,14 +907,14 @@ test('executes an allowlisted local repo status command with an injected executo
     {
       rootDir,
       timestamp,
-      commandPackPath: 'contracts/commands/local-exact-commands.json',
+      commandPackPath: 'contracts/commands/local-exact-commands.cdeck-pack.json',
       executor: async (spec) => {
         assert.equal(spec.command, 'git');
         assert.deepEqual(spec.args, ['status', '--short', '--branch']);
         assert.equal(spec.cwd, rootDir);
         return {
           exitCode: 0,
-          stdout: '## main...origin/main [ahead 2]\n M README.md\n?? contracts/commands/local-exact-commands.json\n',
+          stdout: '## main...origin/main [ahead 2]\n M README.md\n?? contracts/commands/local-exact-commands.cdeck-pack.json\n',
           stderr: ''
         };
       }
@@ -302,7 +927,7 @@ test('executes an allowlisted local repo status command with an injected executo
   assert.equal(result.record.approval_status, 'not_required');
   assert.equal(result.record.sources_used[0], 'local://git/status');
   assert.match(result.response_text, /Repo status: main\.\.\.origin\/main \[ahead 2\]; 2 local file changes\./);
-  assert.deepEqual(result.record.result.data.changed_entries, [' M README.md', '?? contracts/commands/local-exact-commands.json']);
+  assert.deepEqual(result.record.result.data.changed_entries, [' M README.md', '?? contracts/commands/local-exact-commands.cdeck-pack.json']);
 });
 
 test('executes an allowlisted local Puma status command with an injected executor', async () => {
@@ -313,7 +938,7 @@ test('executes an allowlisted local Puma status command with an injected executo
     {
       rootDir,
       timestamp,
-      commandPackPath: 'contracts/commands/local-exact-commands.json',
+      commandPackPath: 'contracts/commands/local-exact-commands.cdeck-pack.json',
       executor: async (spec) => {
         assert.equal(spec.command, 'ps');
         assert.deepEqual(spec.args, ['-ef']);
@@ -342,7 +967,7 @@ test('fails closed when an allowlisted local runner action errors', async () => 
     {
       rootDir,
       timestamp,
-      commandPackPath: 'contracts/commands/local-exact-commands.json',
+      commandPackPath: 'contracts/commands/local-exact-commands.cdeck-pack.json',
       executor: async () => ({
         exitCode: 1,
         stdout: '',
@@ -367,7 +992,7 @@ test('approval-gated local command requests approval without executing', async (
     {
       rootDir,
       timestamp,
-      commandPackPath: 'contracts/commands/local-approved-commands.json',
+      commandPackPath: 'contracts/commands/local-approved-commands.cdeck-pack.json',
       executor: async () => {
         executorCalled = true;
         throw new Error('should not run');
@@ -392,7 +1017,7 @@ test('approval-gated local command requests approval without executing', async (
 test('rejects command packs with executable fields or unsafe sources', async () => {
   const routes = await readJson('contracts/routes/route-contracts.json');
   const permissions = await readJson('contracts/permissions/permission-levels.json');
-  const pack = await readJson('contracts/commands/mvp-commands.json');
+  const pack = await readJson('contracts/commands/mvp-commands.cdeck-pack.json');
   const unsafePack = structuredClone(pack);
 
   unsafePack.commands[0].script = './do-real-work.sh';
@@ -403,12 +1028,38 @@ test('rejects command packs with executable fields or unsafe sources', async () 
   assert.ok(errors.some((error) => error.includes('source must be repo-relative under evals/fixtures')));
 });
 
+test('rejects invalid pack action requirements', async () => {
+  const routes = await readJson('contracts/routes/route-contracts.json');
+  const permissions = await readJson('contracts/permissions/permission-levels.json');
+  const pack = await readJson('contracts/commands/local-exact-commands.cdeck-pack.json');
+  const invalidPack = structuredClone(pack);
+
+  invalidPack.action_requirements = [
+    {
+      action: 'check',
+      capability_source: 'core',
+      required_slots: ['action'],
+      optional_slots: [],
+      allowed_target_kinds: ['service'],
+      defaulting_rules: [],
+      risk_tier: 'informational',
+      approval_may_be_required: false,
+      missing_required_slot_ccq: ''
+    }
+  ];
+
+  const errors = validateCommandPack(invalidPack, { routes, permissions });
+  assert.ok(errors.includes('check capability_source must be pack'));
+  assert.ok(errors.includes('check required_slots must include object'));
+  assert.ok(errors.includes('check missing_required_slot_ccq must be a string'));
+});
+
 test('command pack paths must stay inside the repo', async () => {
   await assert.rejects(
     () =>
       loadCommandPack({
         rootDir,
-        commandPackPath: '/tmp/not-a-command-pack.json'
+        commandPackPath: '/tmp/not-a-command-pack.cdeck-pack.json'
       }),
     /repo-relative/
   );
@@ -417,9 +1068,18 @@ test('command pack paths must stay inside the repo', async () => {
     () =>
       loadCommandPack({
         rootDir,
-        commandPackPath: '../outside-command-deck.json'
+        commandPackPath: '../outside-command-deck.cdeck-pack.json'
       }),
     /inside the repo/
+  );
+
+  await assert.rejects(
+    () =>
+      loadCommandPack({
+        rootDir,
+        commandPackPath: 'contracts/commands/not-a-pack.json'
+      }),
+    /command pack manifest path must end with \.cdeck-pack\.json/
   );
 });
 
@@ -429,7 +1089,7 @@ test('CLI accepts an explicit command pack without writing records', async () =>
     [
       'bin/command-deck.mjs',
       '--command-pack',
-      'contracts/commands/mvp-commands.json',
+      'contracts/commands/mvp-commands.cdeck-pack.json',
       'What is my next SourceGrid task?'
     ],
     {
@@ -450,7 +1110,7 @@ test('CLI can execute an exact local repo status pack without writing records', 
     [
       'bin/command-deck.mjs',
       '--command-pack',
-      'contracts/commands/local-exact-commands.json',
+      'contracts/commands/local-exact-commands.cdeck-pack.json',
       'What is the status of this repo?'
     ],
     {
@@ -495,9 +1155,15 @@ test('uses safe config defaults when no local config file exists', async () => {
   const config = await loadCommandDeckConfig({ rootDir });
 
   assert.equal(config.config_path, null);
-  assert.equal(config.default_command_pack, 'contracts/commands/mvp-commands.json');
+  assert.equal(config.default_command_pack, 'contracts/commands/mvp-commands.cdeck-pack.json');
   assert.equal(config.default_record_dir, 'records/actions');
   assert.equal(config.default_write_records, false);
+
+  const activePack = buildActiveCommandPackStatus(config);
+  assert.equal(activePack.active_command_pack, 'contracts/commands/mvp-commands.cdeck-pack.json');
+  assert.equal(activePack.active_pack_policy, 'single_active_pack_per_invocation');
+  assert.equal(activePack.discovery_roots_configured, 0);
+  assert.equal(activePack.discovery_roots_active_for_routing, false);
 });
 
 test('loads the explicit example config', async () => {
@@ -507,13 +1173,21 @@ test('loads the explicit example config', async () => {
   });
 
   assert.equal(config.config_path, 'commanddeck.config.example.json');
-  assert.equal(config.default_command_pack, 'contracts/commands/mvp-commands.json');
+  assert.equal(config.default_command_pack, 'contracts/commands/mvp-commands.cdeck-pack.json');
   assert.equal(config.default_write_records, false);
   assert.equal(config.command_pack_roots[0].discovery_mode, 'metadata_only');
   assert.equal(config.command_pack_roots[1].repo_slug, 'sourcegrid-labs');
   assert.equal(config.sourcegrid_attachment.billing_owner, 'sourcegrid_workspace');
   assert.equal(config.sourcegrid_attachment.payment_method_state, 'missing');
   assert.equal(config.sourcegrid_attachment.command_pack_owner_repos[0], 'sourcegrid-labs');
+
+  const activePack = buildActiveCommandPackStatus(config);
+  assert.equal(activePack.active_command_pack, 'contracts/commands/mvp-commands.cdeck-pack.json');
+  assert.equal(activePack.active_pack_source_field, 'default_command_pack');
+  assert.equal(activePack.active_pack_policy, 'single_active_pack_per_invocation');
+  assert.equal(activePack.discovery_roots_configured, 3);
+  assert.equal(activePack.discovery_roots_role, 'available_pack_locations_only');
+  assert.equal(activePack.discovery_roots_active_for_routing, false);
 });
 
 test('builds SourceGrid attachment status without enabling AppRelay spend', async () => {
@@ -585,6 +1259,7 @@ test('rejects configs that enable writes or include nested secret-bearing fields
   );
 
   assert.ok(errors.some((error) => error.includes('default_write_records must remain false')));
+  assert.ok(errors.some((error) => error.includes('default_command_pack must end with .cdeck-pack.json')));
   assert.ok(errors.some((error) => error.includes('forbidden field adapters.apple_shortcuts.secrets')));
 });
 
@@ -688,7 +1363,7 @@ test('loads a Siri Shortcuts-shaped adapter request fixture', async () => {
   assert.equal(request.adapter, 'apple_shortcuts');
   assert.equal(request.actor_ref, 'director');
   assert.equal(request.surface_hint, 'phone');
-  assert.equal(request.device_code, 'command');
+  assert.equal(request.device_code, 'computer');
   assert.equal(request.target_runner, 'command');
   assert.equal(request.command_text, 'What is my next SourceGrid task?');
   assert.equal(request.requested_output, 'spoken_summary');
@@ -703,7 +1378,7 @@ test('loads a Google voice-shaped adapter request fixture as contract-only IO', 
   assert.equal(request.adapter, 'google_voice');
   assert.equal(request.actor_ref, 'director');
   assert.equal(request.surface_hint, 'phone');
-  assert.equal(request.device_code, 'command');
+  assert.equal(request.device_code, 'computer');
   assert.equal(request.target_runner, 'command');
   assert.equal(request.command_text, 'What is my next SourceGrid task?');
   assert.equal(request.requested_output, 'spoken_summary');
@@ -943,7 +1618,7 @@ test('approved local action decision executes allowlisted action when enabled', 
     {
       rootDir,
       timestamp,
-      commandPackPath: 'contracts/commands/local-approved-commands.json'
+      commandPackPath: 'contracts/commands/local-approved-commands.cdeck-pack.json'
     }
   );
   const decision = {

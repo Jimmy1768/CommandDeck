@@ -1,0 +1,97 @@
+{
+  "schema_version": "0.1",
+  "contract_kind": "concept-checking-question",
+  "result_status": "needs_clarification",
+  "execution_rule": "no_action_executed",
+  "approval_rule": "ccq_is_not_approval_and_voice_reply_is_not_approval",
+  "question_rule": "ask_one_missing_slot_by_default_unless_slots_are_inseparable",
+  "state_storage_rule": "ccq_state_is_stored_in_local_action_record",
+  "state_storage_location": "records/actions/",
+  "state_persistence_rule": "local_auditable_state_not_durable_memory",
+  "apprelay_dependency_rule": "apprelay_not_required_for_deterministic_local_ccq_resume",
+  "cleanup_rule": "expired_or_terminal_ccq_state_may_be_pruned_after_audit_window",
+  "audit_retention_days": 7,
+  "cleanup_mode_v1": "manual_explicit_local_command_only",
+  "automatic_cleanup_v1": false,
+  "cleanup_scope_rule": "cleanup_applies_to_terminal_or_expired_ccq_records_only",
+  "cleanup_memory_rule": "ccq_cleanup_must_not_create_or_modify_learned_memory",
+  "resume_rule": "resume_token_links_follow_up_answer_to_unresolved_command",
+  "resume_follow_up_rule": "follow_up_answers_may_fill_missing_slots_only",
+  "resume_validation_rule": "merged_intent_must_revalidate_before_routing",
+  "resume_token_lifetime_rule": "short_lived_one_use_conversational_state_not_memory",
+  "resume_token_ttl_seconds": 300,
+  "resume_token_binding": [
+    "same_actor_ref",
+    "same_workspace_ref",
+    "same_adapter_session_when_available"
+  ],
+  "resume_token_reuse_rule": "one_use_only",
+  "resume_token_expiration_behavior": "expired_or_unbound_follow_up_is_new_command_or_fresh_ccq",
+  "resume_token_concurrency_rule": "atomic_compare_and_set_active_to_terminal_status",
+  "resume_token_terminal_statuses": ["used", "expired", "rejected"],
+  "resume_token_duplicate_behavior": "already_consumed_token_must_not_route",
+  "resume_token_duplicate_response": "That clarification is no longer active. Please give the command again.",
+  "resume_lock_rule": "write_record_resume_uses_short_local_action_record_lock",
+  "resume_lock_stale_after_seconds": 30,
+  "resume_lock_fresh_behavior": "fresh_lock_fails_without_routing",
+  "resume_lock_cleanup_scope": "stale_lock_file_only_never_action_record",
+  "forbidden_resume_changes": [
+    "action",
+    "risk_tier",
+    "permission_level",
+    "route",
+    "capability_source",
+    "approval_required",
+    "non_missing_slots"
+  ],
+  "required_fields": [
+    "question",
+    "missing_slots",
+    "partial_intent",
+    "resume_token",
+    "resume_token_status",
+    "resume_token_expires_at",
+    "workspace_ref"
+  ],
+  "allowed_missing_slots": ["device_code", "action", "object", "context", "end_code"],
+  "record_defaults": {
+    "command_id": "unresolved",
+    "route": "none",
+    "approval_status": "required_not_requested",
+    "result.status": "needs_clarification",
+    "errors": [],
+    "follow_up_owner": "user"
+  },
+  "adapter_response_defaults": {
+    "display_text": "clarification.question",
+    "spoken_text": "clarification.question",
+    "route": "none",
+    "approval_status": "required_not_requested",
+    "response_mode": "platform_tts"
+  },
+  "properties": {
+    "question": { "type": "string" },
+    "missing_slots": {
+      "type": "array",
+      "items": { "enum": ["device_code", "action", "object", "context", "end_code"] }
+    },
+    "partial_intent": {
+      "type": "object",
+      "properties": {
+        "device_code": { "type": ["string", "null"] },
+        "action": { "type": ["string", "null"] },
+        "object": { "type": ["string", "null"] },
+        "context": { "type": ["string", "null"] },
+        "end_code": { "type": ["string", "null"] }
+      }
+    },
+    "resume_token": { "type": "string" },
+    "resume_token_status": {
+      "enum": ["active", "used", "expired", "rejected"]
+    },
+    "resume_token_expires_at": { "type": "string", "format": "date-time" },
+    "resume_token_used_at": { "type": ["string", "null"], "format": "date-time" },
+    "workspace_ref": { "type": "string" },
+    "adapter_session_ref": { "type": ["string", "null"] }
+  }
+}

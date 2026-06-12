@@ -46,6 +46,7 @@ For the user-facing explanation of how CommandDeck decides whether it
 understands a command, when it asks a checking question, and how saved memory
 works, see [Understanding And Memory](/Users/jimmy1768/Projects/CommandDeck/ops/docs/contracts/understanding-and-memory.md:1).
 The machine-readable counterparts are [Resolved Intent Contract](/Users/jimmy1768/Projects/CommandDeck/ops/docs/contracts/resolved-intent.md:1) and [Learned Memory Item Contract](/Users/jimmy1768/Projects/CommandDeck/ops/docs/contracts/learned-memory-item.md:1).
+For deterministic memory matching, see [Normalized Phrase Contract](/Users/jimmy1768/Projects/CommandDeck/ops/docs/contracts/normalized-phrase.md:1).
 
 ## Product Boundary
 
@@ -90,20 +91,23 @@ draft-only local work, or permitted local scripts.
 The first invocation grammar is:
 
 ```text
-Hey Siri, <device code> <command>
+Hey Siri, <device code> <action> <object> [context] [end code]
 ```
 
 Example:
 
 ```text
-Hey Siri, command play focus music
+Hey Siri, computer open ops dashboard activate
 ```
 
-`Hey Siri` is owned by Apple. The device code and command are owned by
-CommandDeck and the declared command pack. The initial reserved device code is
-`command`, which routes to the locked-down local PC runner. Request payloads use
-generic capture surfaces such as `phone`, `watch`, `glasses`, or `computer`
-rather than iPhone, Android, or MacBook-specific names.
+`Hey Siri` is owned by Apple. The device code, action, object, context, and end
+code are owned by CommandDeck and the declared command pack. The preferred V1
+device code is `computer`, which maps to the locked-down local PC runner
+`target_runner: "command"`. Request payloads still use generic capture surfaces
+such as `phone`, `watch`, `glasses`, or `computer` rather than iPhone, Android,
+or MacBook-specific names. If the spoken command omits a field required for the
+requested action, CommandDeck should ask a concept-checking question instead of
+guessing.
 
 In product terms, CommandDeck is not just "control the computer." It uses the
 computer as the execution surface for both generic built-in actions and
@@ -182,21 +186,21 @@ does not write records or call external systems.
 Preview an exact local read-only command through the allowlisted runner:
 
 ```sh
-npm run command:local -- --command-pack contracts/commands/local-exact-commands.json "What is the status of this repo?"
+npm run command:local -- --command-pack contracts/commands/local-exact-commands.cdeck-pack.json "What is the status of this repo?"
 ```
 
 Other built-in exact local preview commands:
 
 ```sh
-npm run command:local -- --command-pack contracts/commands/local-exact-commands.json "Show recent commits."
-npm run command:local -- --command-pack contracts/commands/local-exact-commands.json "Is Puma running?"
-npm run command:local -- --command-pack contracts/commands/local-exact-commands.json "Is Sidekiq running?"
+npm run command:local -- --command-pack contracts/commands/local-exact-commands.cdeck-pack.json "Show recent commits."
+npm run command:local -- --command-pack contracts/commands/local-exact-commands.cdeck-pack.json "Is Puma running?"
+npm run command:local -- --command-pack contracts/commands/local-exact-commands.cdeck-pack.json "Is Sidekiq running?"
 ```
 
 Preview an approval-gated local control command:
 
 ```sh
-npm run command:local -- --command-pack contracts/commands/local-approved-commands.json "Open the SourceGrid dashboard."
+npm run command:local -- --command-pack contracts/commands/local-approved-commands.cdeck-pack.json "Open the SourceGrid dashboard."
 ```
 
 Apply a separate approval decision to an approval-required action record:
@@ -205,10 +209,16 @@ Apply a separate approval decision to an approval-required action record:
 npm run command:local -- approval:apply --record-file records/actions/rec_example.json --decision-file evals/fixtures/approval_decisions/operatorkit_dry_run.denied.json
 ```
 
-Select a repo-relative command pack explicitly:
+Resume a concept-checking question from a saved action record:
 
 ```sh
-npm run command:local -- --command-pack contracts/commands/mvp-commands.json "What is my next SourceGrid task?"
+npm run command:local -- ccq:resume --record-file records/actions/rec_example.json --resume-token ccq_example --command-pack contracts/commands/local-approved-commands.cdeck-pack.json "SourceGrid dashboard"
+```
+
+Select a CommandDeck-owned repo-relative command pack explicitly:
+
+```sh
+npm run command:local -- --command-pack contracts/commands/mvp-commands.cdeck-pack.json "What is my next SourceGrid task?"
 ```
 
 The MVP pack remains contract-only. Loaded packs cannot include executable
@@ -223,6 +233,9 @@ SourceGrid packs belong in `sourcegrid-labs` or configured local command
 folders.
 Pack discovery configuration is metadata-only in this slice and cannot crawl
 owner repos, execute scripts, call providers, or enable `execute-now`.
+Custom packs should live in the user's or company's own git repo. CommandDeck
+may load them only through a configured local-only control folder and a validated
+`*.cdeck-pack.json` selection manifest. `cdeck` means CommandDeck.
 
 Run with an explicit local config:
 
@@ -230,7 +243,9 @@ Run with an explicit local config:
 npm run command:local -- --config commanddeck.config.example.json "What is my next SourceGrid task?"
 ```
 
-Config is repo-relative and cannot enable record writes by default.
+Config files are repo-relative and cannot enable record writes by default.
+Configured local-folder roots may point outside this repo only when marked
+`local_only: true`.
 
 Check SourceGrid attachment and AppRelay billing readiness:
 

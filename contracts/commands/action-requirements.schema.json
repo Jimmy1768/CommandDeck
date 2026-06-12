@@ -1,0 +1,122 @@
+{
+  "schema_version": "0.1",
+  "contract_kind": "action-requirements",
+  "owner": "command-deck",
+  "scope": "core_schema_for_core_and_pack_actions",
+  "type": "object",
+  "required": ["schema_version", "contract_kind", "owner", "actions"],
+  "action_required_fields": [
+    "action",
+    "capability_source",
+    "required_slots",
+    "optional_slots",
+    "allowed_target_kinds",
+    "defaulting_rules",
+    "risk_tier",
+    "approval_may_be_required",
+    "missing_required_slot_ccq"
+  ],
+  "allowed_capability_sources": ["core", "pack"],
+  "allowed_slots": ["device_code", "action", "object", "context", "end_code"],
+  "allowed_target_kinds": [
+    "app",
+    "url",
+    "dashboard",
+    "repo",
+    "service",
+    "media",
+    "device",
+    "workflow",
+    "data_view",
+    "runtime",
+    "delegate"
+  ],
+  "allowed_risk_tiers": [
+    "informational",
+    "local_control",
+    "workspace_mutation",
+    "delegated_agentic"
+  ],
+  "defaulting_rule": "defaults_allowed_only_when_exactly_one_safe_active_context_candidate_exists",
+  "ccq_rule": "missing_required_or_non_defaultable_conditional_slots_force_concept_checking_question",
+  "core_runtime_source_rule": "deterministic_core_ccq_policy_loads_contracts_commands_core_action_requirements_json",
+  "pack_extension_rule": "packs_may_declare_action_requirements_but_commanddeck_validates_against_this_schema",
+  "properties": {
+    "schema_version": { "type": "string" },
+    "contract_kind": { "enum": ["action-requirements"] },
+    "owner": { "type": "string" },
+    "actions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "action",
+          "capability_source",
+          "required_slots",
+          "optional_slots",
+          "allowed_target_kinds",
+          "defaulting_rules",
+          "risk_tier",
+          "approval_may_be_required",
+          "missing_required_slot_ccq"
+        ],
+        "properties": {
+          "action": { "type": "string" },
+          "capability_source": { "enum": ["core", "pack"] },
+          "required_slots": {
+            "type": "array",
+            "items": { "enum": ["device_code", "action", "object", "context", "end_code"] }
+          },
+          "optional_slots": {
+            "type": "array",
+            "items": { "enum": ["device_code", "action", "object", "context", "end_code"] }
+          },
+          "conditionally_required_slots": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["slot", "when", "ccq"],
+              "properties": {
+                "slot": { "enum": ["device_code", "action", "object", "context", "end_code"] },
+                "when": { "type": "string" },
+                "ccq": { "type": "string" }
+              }
+            }
+          },
+          "allowed_target_kinds": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "app",
+                "url",
+                "dashboard",
+                "repo",
+                "service",
+                "media",
+                "device",
+                "workflow",
+                "data_view",
+                "runtime",
+                "delegate"
+              ]
+            }
+          },
+          "defaulting_rules": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "risk_tier": {
+            "enum": [
+              "informational",
+              "local_control",
+              "workspace_mutation",
+              "delegated_agentic"
+            ]
+          },
+          "approval_may_be_required": { "type": "boolean" },
+          "missing_required_slot_ccq": { "type": "string" }
+        }
+      }
+    }
+  }
+}

@@ -70,6 +70,15 @@ workspace routines. This repo defines the pack contract but must not import
 SourceGrid-specific or partner-specific scripts. Those repos are command-pack
 sources, not the CommandDeck billing or entitlement authority.
 
+For SourceGrid-owned usage, SourceGrid Labs web console is the primary pack
+management surface. It may show pack catalogs, open one pack, and show recent
+packs. The local CommandDeck runner remains the authority that maps that
+selection to a configured control repo or folder, validates exactly one command
+pack, and enforces local execution boundaries.
+
+The SourceGrid console bridge is selection metadata only. It must not become a
+remote shell, send scripts, send env values, or bypass local validation.
+
 Workspace command packs may include PC-command routines such as opening apps,
 switching devices, starting local services, or preparing drafts after future
 execution boundaries are defined. Those routines belong in owner repos or

@@ -4,7 +4,7 @@
   "actor_ref": "director",
   "request_id": "req_fixture_google_next_task",
   "surface_hint": "phone",
-  "device_code": "command",
+  "device_code": "computer",
   "target_runner": "command",
   "command_text": "What is my next SourceGrid task?",
   "device_context": {

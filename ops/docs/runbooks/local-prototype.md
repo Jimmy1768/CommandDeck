@@ -49,7 +49,7 @@ execute commands.
 ## Run An Exact Local Preview Command
 
 ```sh
-npm run command:local -- --command-pack contracts/commands/local-exact-commands.json "What is the status of this repo?"
+npm run command:local -- --command-pack contracts/commands/local-exact-commands.cdeck-pack.json "What is the status of this repo?"
 ```
 
 This pack uses CommandDeck-owned `runner_action` keys, not shell in the pack.
@@ -63,7 +63,7 @@ It can execute only the built-in allowlisted read-only commands:
 ## Run An Approval-Gated Local Control Preview Command
 
 ```sh
-npm run command:local -- --command-pack contracts/commands/local-approved-commands.json "Open the SourceGrid dashboard."
+npm run command:local -- --command-pack contracts/commands/local-approved-commands.cdeck-pack.json "Open the SourceGrid dashboard."
 ```
 
 This returns an action record with `approval_status: requested_pending`. To
@@ -76,15 +76,44 @@ npm run command:local -- approval:apply --record-file records/actions/rec_exampl
 If the approved record uses a built-in allowlisted local control route,
 CommandDeck may execute it at this step.
 
+## Resume A Concept-Checking Question
+
+If a deterministic local command is missing a required object, CommandDeck can
+return a concept-checking question:
+
+```sh
+npm run command:local -- --command-pack contracts/commands/local-approved-commands.cdeck-pack.json --write-record "Computer open activate"
+```
+
+Use the returned `record_write.record_path` and
+`record.result.clarification.resume_token` to resume:
+
+```sh
+npm run command:local -- ccq:resume --command-pack contracts/commands/local-approved-commands.cdeck-pack.json --record-file records/actions/rec_example.json --resume-token ccq_example "SourceGrid dashboard"
+```
+
+The resume path fills missing slots only, revalidates the command, and preserves
+existing approval gates. It does not call AppRelay or treat the follow-up as
+approval.
+
+When `--write-record` is used, `ccq:resume` updates the original CCQ action
+record under a local lock before writing the resumed command record.
+Fresh locks fail safely. Locks older than 30 seconds are treated as stale and
+only the `.lock` file may be removed.
+
 ## Select A Command Pack
 
 ```sh
-npm run command:local -- --command-pack contracts/commands/mvp-commands.json "What is my next SourceGrid task?"
+npm run command:local -- --command-pack contracts/commands/mvp-commands.cdeck-pack.json "What is my next SourceGrid task?"
 ```
 
-Command-pack paths must be repo-relative. The default MVP pack remains
-fixture-only. The exact-local preview pack can execute built-in allowlisted
-read-only runner actions.
+Direct `--command-pack` paths must be repo-relative. The default MVP pack
+remains fixture-only. The exact-local preview pack can execute built-in
+allowlisted read-only runner actions.
+
+Custom packs outside this repo must be selected through a configured
+`local-folder` root with `local_only: true`, not by passing arbitrary absolute
+paths to `--command-pack`.
 
 ## Use Local Config
 
@@ -145,6 +174,18 @@ npm run command:local -- --write-record "What is my next SourceGrid task?"
 Record writes are opt-in and stay under `records/actions/` by default.
 Generated record JSON files are ignored by git. This is still an action record
 only; it is not an execution record and it does not trigger any integration.
+
+CCQ state also belongs in local action records. A clarification record stores
+the partial intent, missing slots, resume token, expiry, and token status so a
+follow-up can resume across separate Siri/Shortcuts or CLI invocations. This is
+auditable local state only; it is not durable memory, a task queue, or approval.
+Deterministic core CCQs use `contracts/commands/core-action-requirements.json`
+as their runtime source of truth.
+Resume token consumption must be atomic: only `active -> used`,
+`active -> expired`, or `active -> rejected` may succeed.
+
+Expired or terminal CCQ records may be manually pruned after 7 days. Do not add
+automatic cleanup in V1, and do not treat cleanup as learned-memory pruning.
 
 ## Stop Conditions
 

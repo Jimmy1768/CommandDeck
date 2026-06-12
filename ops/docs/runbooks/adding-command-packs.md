@@ -39,6 +39,11 @@ this repo.
 - Keep owner-pack routes contract-only with `real_integration: false`.
 - Use `local.exact_read` only for CommandDeck-owned built-in preview commands.
 - Add `approval_prompt` for every `approval-required` command.
+- Add pack-level `action_requirements` for pack-specific actions whose required
+  slots are not covered by the core action requirements contract.
+- Treat `action_requirements` as clarification metadata only; resumed commands
+  must still resolve through the active pack's commands, routes, permissions,
+  effects, and runner allowlists.
 - Do not include executable fields such as `script`, `shell`, `handler`, `env`,
   or `secrets`.
 

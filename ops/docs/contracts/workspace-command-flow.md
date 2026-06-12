@@ -59,18 +59,24 @@ Phone Siri
 The first voice grammar is:
 
 ```text
-Hey Siri, <device code> <command>
+Hey Siri, <device code> <action> <object> [context] [end code]
 ```
 
 Example:
 
 ```text
-Hey Siri, command play focus music
+Hey Siri, computer play focus music activate
 ```
 
-`Hey Siri` is the Apple wake phrase. `<device code>` routes to a target runner.
-The first reserved device code is `command`. `<command>` is matched against a
-permissioned command pack.
+`Hey Siri` is the Apple wake phrase. `<device code>` is the spoken routing word.
+The preferred V1 device code is `computer`, which maps to
+`target_runner: "command"` and routes to the local PC runner. `<action>` and
+`<object>` are required when the requested action needs them. `[context]`
+contains details such as repo, dashboard, service, environment, or output mode.
+`[end code]` may use `activate` as a phrase terminator, but it is not approval.
+
+If the command omits a parameter required for the action to complete,
+CommandDeck should return a concept-checking question instead of guessing.
 
 ## Later Modes
 

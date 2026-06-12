@@ -7,11 +7,25 @@
   "root_required_fields": ["id", "kind", "enabled", "discovery_mode"],
   "allowed_kinds": ["repo-fixture", "owner-repo", "local-folder"],
   "allowed_discovery_modes": ["metadata_only"],
+  "active_pack_policy": "single_active_pack_per_invocation",
+  "active_pack_source_field": "default_command_pack",
+  "pack_manifest_file_extension": ".cdeck-pack.json",
+  "pack_selector_target": "pack_manifest_file",
+  "pack_selector_filter": "*.cdeck-pack.json",
+  "pack_selection_surfaces": ["open", "recent"],
+  "open_rule": "validates_one_selected_pack_without_activating_multiple_profiles",
+  "recent_rule": "reads_local_recent_pack_state_without_loading_multiple_packs",
+  "recent_state_path": ".commanddeck/state/recent-packs.json",
+  "discovery_roots_role": "available_pack_locations_only",
+  "discovery_roots_active_for_routing": false,
   "default_enabled": false,
   "execute_now_enabled": false,
   "real_execution_enabled": false,
   "allowed_repo_fixture_root": "evals/fixtures/command-packs",
   "absolute_path_rule": "absolute paths are rejected unless local_only is true",
+  "external_local_folder_rule": "absolute local-folder roots are allowed only when local_only is true",
+  "custom_pack_source_of_truth": "user_owned_git_repo_or_local_control_folder",
+  "core_pack_source_of_truth": "commanddeck_repo",
   "forbidden_root_fields": [
     "script",
     "scripts",
@@ -26,6 +40,7 @@
   "future_owner_repos": ["sourcegrid-labs", "partner repos"],
   "notes": [
     "Discovery roots declare where packs may be found in later phases.",
+    "External custom packs should live in user-owned git repos or local control folders.",
     "Phase 1 validation does not crawl owner repos, execute scripts, call providers, or load secrets.",
     "SourceGrid command packs remain in sourcegrid-labs."
   ]

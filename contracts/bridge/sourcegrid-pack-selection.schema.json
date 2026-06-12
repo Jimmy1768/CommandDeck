@@ -1,0 +1,42 @@
+{
+  "schema_version": "0.1",
+  "contract_kind": "sourcegrid-pack-selection",
+  "phase": "local_prototype",
+  "bridge_contract": "contracts/bridge/sourcegrid-console-bridge.schema.json",
+  "apply_command": "pack:apply-selection",
+  "apply_mode": "candidate_selection_then_local_pack_open_validation",
+  "required": [
+    "schema_version",
+    "contract_kind",
+    "workspace_ref",
+    "actor_ref",
+    "pack_ref",
+    "pack_source_kind",
+    "control_root_ref",
+    "pack_path",
+    "selected_at"
+  ],
+  "allowed_pack_source_kinds": ["owner-repo", "local-folder"],
+  "pack_path_rule": "relative_to_configured_control_root",
+  "pack_path_extension_rule": "must_end_with_.cdeck-pack.json",
+  "pack_selector_filter": "*.cdeck-pack.json",
+  "local_apply_rule": "pack_path_must_stay_inside_enabled_control_root",
+  "external_local_folder_rule": "absolute local-folder control roots are allowed only when configured local_only true",
+  "source_of_truth_rule": "core_packs_live_in_commanddeck_repo_custom_packs_live_in_user_owned_git_or_local_control_folders",
+  "selection_execution_rule": "selection_never_executes_commands_or_scripts",
+  "active_pack_policy": "single_active_pack_per_invocation",
+  "recent_write_rule": "recent_state_persistence_requires_write_state",
+  "forbidden_fields": [
+    "script",
+    "scripts",
+    "shell",
+    "executable",
+    "handler",
+    "env",
+    "secrets",
+    "provider_keys",
+    "approval",
+    "approval_status",
+    "execute_now"
+  ]
+}

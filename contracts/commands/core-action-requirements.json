@@ -1,0 +1,115 @@
+{
+  "schema_version": "0.1",
+  "contract_kind": "action-requirements",
+  "owner": "command-deck",
+  "actions": [
+    {
+      "action": "open",
+      "capability_source": "core",
+      "required_slots": ["device_code", "action", "object"],
+      "optional_slots": ["context", "end_code"],
+      "conditionally_required_slots": [],
+      "allowed_target_kinds": ["app", "url", "dashboard", "repo", "media"],
+      "defaulting_rules": ["context_optional_for_named_app_url_dashboard_repo_or_media_target"],
+      "risk_tier": "local_control",
+      "approval_may_be_required": true,
+      "missing_required_slot_ccq": "What should I open?"
+    },
+    {
+      "action": "close",
+      "capability_source": "core",
+      "required_slots": ["device_code", "action", "object"],
+      "optional_slots": ["context", "end_code"],
+      "conditionally_required_slots": [
+        {
+          "slot": "context",
+          "when": "object_has_unsaved_state_or_multiple_matching_apps_exist",
+          "ccq": "Which app should I close, and should I preserve unsaved work?"
+        }
+      ],
+      "allowed_target_kinds": ["app", "dashboard", "repo", "media"],
+      "defaulting_rules": ["context_optional_only_when_one_safe_active_target_exists"],
+      "risk_tier": "local_control",
+      "approval_may_be_required": true,
+      "missing_required_slot_ccq": "What should I close?"
+    },
+    {
+      "action": "find",
+      "capability_source": "core",
+      "required_slots": ["device_code", "action", "object"],
+      "optional_slots": ["context", "end_code"],
+      "conditionally_required_slots": [
+        {
+          "slot": "context",
+          "when": "object_is_broad_or_multiple_search_scopes_exist",
+          "ccq": "Where should I search?"
+        }
+      ],
+      "allowed_target_kinds": ["repo", "data_view", "workflow", "dashboard"],
+      "defaulting_rules": ["current_workspace_allowed_when_it_is_the_only_active_workspace"],
+      "risk_tier": "informational",
+      "approval_may_be_required": false,
+      "missing_required_slot_ccq": "What should I find?"
+    },
+    {
+      "action": "start",
+      "capability_source": "core",
+      "required_slots": ["device_code", "action", "object"],
+      "optional_slots": ["context", "end_code"],
+      "conditionally_required_slots": [
+        {
+          "slot": "context",
+          "when": "service_or_runtime_target_depends_on_repo_environment_or_port",
+          "ccq": "Which repo or environment should I start it for?"
+        }
+      ],
+      "allowed_target_kinds": ["service", "workflow", "runtime", "media"],
+      "defaulting_rules": ["current_repo_allowed_only_when_one_repo_is_active_and_target_is_low_risk"],
+      "risk_tier": "workspace_mutation",
+      "approval_may_be_required": true,
+      "missing_required_slot_ccq": "What should I start?"
+    },
+    {
+      "action": "stop",
+      "capability_source": "core",
+      "required_slots": ["device_code", "action", "object"],
+      "optional_slots": ["context", "end_code"],
+      "conditionally_required_slots": [
+        {
+          "slot": "context",
+          "when": "multiple_matching_services_workflows_or_media_targets_exist",
+          "ccq": "Which target should I stop?"
+        }
+      ],
+      "allowed_target_kinds": ["service", "workflow", "runtime", "media"],
+      "defaulting_rules": ["active_target_allowed_only_when_exactly_one_safe_candidate_exists"],
+      "risk_tier": "workspace_mutation",
+      "approval_may_be_required": true,
+      "missing_required_slot_ccq": "What should I stop?"
+    },
+    {
+      "action": "play",
+      "capability_source": "core",
+      "required_slots": ["device_code", "action", "object"],
+      "optional_slots": ["context", "end_code"],
+      "conditionally_required_slots": [],
+      "allowed_target_kinds": ["media", "device"],
+      "defaulting_rules": ["object_may_be_named_playlist_station_or_device_media_target"],
+      "risk_tier": "local_control",
+      "approval_may_be_required": false,
+      "missing_required_slot_ccq": "What should I play?"
+    },
+    {
+      "action": "pause",
+      "capability_source": "core",
+      "required_slots": ["device_code", "action", "object"],
+      "optional_slots": ["context", "end_code"],
+      "conditionally_required_slots": [],
+      "allowed_target_kinds": ["media", "device"],
+      "defaulting_rules": ["current_media_target_allowed_when_exactly_one_is_active"],
+      "risk_tier": "local_control",
+      "approval_may_be_required": false,
+      "missing_required_slot_ccq": "What should I pause?"
+    }
+  ]
+}

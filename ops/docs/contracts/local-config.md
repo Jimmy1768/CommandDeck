@@ -7,7 +7,7 @@ Example:
 ```json
 {
   "schema_version": "0.1",
-  "default_command_pack": "contracts/commands/mvp-commands.json",
+  "default_command_pack": "contracts/commands/mvp-commands.cdeck-pack.json",
   "default_record_dir": "records/actions",
   "default_write_records": false,
   "sourcegrid_attachment": {
@@ -43,6 +43,7 @@ npm run command:local -- --config commanddeck.config.example.json "What is my ne
 
 - Config path must be repo-relative.
 - `default_command_pack` must be repo-relative.
+- `default_command_pack` is the single active command pack for an invocation.
 - `default_record_dir` must stay inside the repo.
 - `default_write_records` must be `false` in Phase 1.
 - Config must not contain provider keys, secrets, env values, or execute-now
@@ -52,9 +53,15 @@ npm run command:local -- --config commanddeck.config.example.json "What is my ne
 - `sourcegrid_attachment`, when present, is non-sensitive attachment and
   payment-readiness metadata only.
 - `command_pack_roots`, when present, must be metadata-only declarations.
+- `command_pack_roots` are available pack locations only; they are not active
+  routing profiles and CommandDeck must not combine multiple packs for one
+  command.
+- Pack selection uses `open` and `recent` surfaces over configured control repos
+  or local control folders.
 - Pack discovery roots cannot contain executable fields or secrets.
 - Repo fixture roots must stay under `evals/fixtures/command-packs`.
-- Absolute discovery paths require `local_only: true`.
+- Absolute local-folder discovery paths require `local_only: true` and are used
+  only after local pack-selection validation.
 - CLI flags may override command-pack and record-dir defaults for the current
   invocation only.
 

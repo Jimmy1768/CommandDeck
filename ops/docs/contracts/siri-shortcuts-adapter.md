@@ -17,7 +17,7 @@ model reasoning is needed in a later phase.
   "actor_ref": "director",
   "request_id": "req_example_001",
   "surface_hint": "phone",
-  "device_code": "command",
+  "device_code": "computer",
   "target_runner": "command",
   "command_text": "What is my next SourceGrid task?",
   "device_context": {
@@ -33,6 +33,7 @@ model reasoning is needed in a later phase.
 
 - Capture an explicit invocation.
 - Map the spoken device code to `device_code` and `target_runner`.
+- Preserve the action, object, context, and optional end code in `command_text`.
 - Pass actor evidence and command text to CommandDeck.
 - Display or speak the returned response.
 - Preserve the returned action record id when available.
