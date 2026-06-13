@@ -1,0 +1,8 @@
+{
+  "schema_version": "0.1",
+  "status": "blocked_apprelay_spend_unavailable",
+  "request_id": "sgarp_req_fixture",
+  "reason": "SourceGrid payment readiness or credits are unavailable for AppRelay runtime.",
+  "user_message": "SourceGrid AppRelay reasoning is unavailable because payment readiness or credits are unavailable. I can still run exact local actions that do not require AppRelay.",
+  "retryable": false
+}

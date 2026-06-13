@@ -120,6 +120,13 @@ The proxy endpoint contract is:
 
 - `contracts/sourcegrid/apprelay-reasoning-proxy-endpoint.schema.json`
 
+CommandDeck can build a local contract-only request preview for this endpoint,
+but it must not send the request while Phase 1 network calls are disabled:
+
+```sh
+npm run command:local -- sourcegrid:apprelay-proxy-preview --config commanddeck.config.example.json --request-file evals/fixtures/adapter_requests/apple_shortcuts.next_task.json
+```
+
 ## Spend Gate
 
 AppRelay spend requires all of:

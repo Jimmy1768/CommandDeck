@@ -9,6 +9,8 @@ import {
   applySourceGridPackSelection,
   buildAdapterResponseEnvelope,
   buildActiveCommandPackStatus,
+  buildCommandDeckResponseForSourceGridProxyResponse,
+  buildSourceGridAppRelayProxyRequest,
   buildSourceGridAttachmentStatus,
   classifyCommand,
   loadAdapterRequest,
@@ -35,6 +37,8 @@ import {
   validateCoreActionRequirements,
   validateSourceGridPackSelection,
   validateSourceGridAttachment,
+  validateSourceGridAppRelayProxyRequest,
+  validateSourceGridAppRelayProxyResponse,
   withActionRecordLock,
   writeEvalReport,
   writeActionRecord
@@ -1336,6 +1340,97 @@ test('builds SourceGrid attachment status without enabling AppRelay spend', asyn
   assert.ok(status.sourcegrid_credit_gate_scope.includes('apprelay_reasoning'));
   assert.equal(status.local_payment_data_allowed, false);
   assert.deepEqual(status.errors, []);
+});
+
+test('builds SourceGrid AppRelay proxy request preview without network dispatch', async () => {
+  const config = await loadCommandDeckConfig({
+    rootDir,
+    configPath: 'commanddeck.config.example.json'
+  });
+  const preview = buildSourceGridAppRelayProxyRequest(
+    {
+      adapter: 'apple_shortcuts',
+      actor_ref: 'user_sourcegrid_fixture',
+      surface_hint: 'phone',
+      device_code: 'command',
+      command_text: "Computer summarize today's AppRelay changes activate",
+      requested_output: 'display_text'
+    },
+    {
+      config,
+      timestamp,
+      requestId: 'sgarp_req_fixture',
+      idempotencyKey: 'sgarp_idem_fixture',
+      activePackDigest: 'fixture-pack-digest',
+      controlFolderDigest: 'fixture-control-folder-digest'
+    }
+  );
+
+  assert.equal(preview.contract_kind, 'commanddeck-sourcegrid-apprelay-proxy-client-preview');
+  assert.equal(preview.endpoint.path, '/commanddeck/apprelay/reasoning');
+  assert.equal(preview.network_call_status, 'not_sent_contract_only');
+  assert.equal(preview.sourcegrid_contract_status, 'accepted_contract_only');
+  assert.deepEqual(preview.validation.errors, []);
+  assert.equal(preview.request.request_identity.client_key, 'commanddeck');
+  assert.equal(preview.request.request_identity.runtime_mode, 'sourcegrid_internal_ops');
+  assert.equal(preview.request.sourcegrid_attachment_ref.sourcegrid_workspace_ref, 'workspace_sourcegrid_fixture');
+  assert.equal(preview.request.sourcegrid_attachment_ref.sourcegrid_user_ref, 'user_sourcegrid_fixture');
+  assert.equal(preview.request.authority_constraints.no_execution_authority, true);
+  assert.equal(preview.request.authority_constraints.no_memory_activation, true);
+  assert.equal(preview.request.runtime_task.route_work_type, 'commanddeck.command_routing_reasoning.standard');
+  assert.equal(preview.request.required_output_schema, 'contracts/apprelay/commanddeck-reasoning-response.schema.json');
+});
+
+test('rejects SourceGrid AppRelay proxy request provider/model aliases', async () => {
+  const fixture = await readJson('evals/fixtures/sourcegrid_proxy/apprelay_reasoning.request.json');
+  const poisoned = {
+    ...fixture,
+    model_key: 'not-allowed',
+    provider_model: 'not-allowed'
+  };
+  const errors = validateSourceGridAppRelayProxyRequest(poisoned);
+
+  assert.ok(errors.some((error) => error.includes('model_key')));
+  assert.ok(errors.some((error) => error.includes('provider_model')));
+});
+
+test('maps SourceGrid AppRelay proxy blocked response into fail-closed user response', async () => {
+  const response = await readJson('evals/fixtures/sourcegrid_proxy/apprelay_reasoning.blocked_spend.response.json');
+
+  assert.deepEqual(validateSourceGridAppRelayProxyResponse(response), []);
+
+  const mapped = buildCommandDeckResponseForSourceGridProxyResponse(response);
+
+  assert.equal(mapped.status, 'blocked_apprelay_spend_unavailable');
+  assert.equal(mapped.response_text, response.user_message);
+  assert.equal(mapped.retryable, false);
+  assert.deepEqual(mapped.errors, []);
+});
+
+test('CLI prints SourceGrid AppRelay proxy preview without sending network request', () => {
+  const output = spawnSync(
+    process.execPath,
+    [
+      'bin/command-deck.mjs',
+      'sourcegrid:apprelay-proxy-preview',
+      '--config',
+      'commanddeck.config.example.json',
+      '--request-file',
+      'evals/fixtures/adapter_requests/apple_shortcuts.next_task.json'
+    ],
+    {
+      cwd: rootDir,
+      encoding: 'utf8'
+    }
+  );
+
+  assert.equal(output.status, 0, output.stderr);
+  const parsed = JSON.parse(output.stdout);
+  assert.equal(parsed.endpoint.path, '/commanddeck/apprelay/reasoning');
+  assert.equal(parsed.network_call_status, 'not_sent_contract_only');
+  assert.equal(parsed.request.request_identity.client_key, 'commanddeck');
+  assert.equal(parsed.request.sourcegrid_attachment_ref.sourcegrid_workspace_ref, 'workspace_sourcegrid_fixture');
+  assert.equal(parsed.request.required_output_schema, 'contracts/apprelay/commanddeck-reasoning-response.schema.json');
 });
 
 test('rejects SourceGrid attachment with raw payment fields', () => {

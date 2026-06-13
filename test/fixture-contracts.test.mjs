@@ -384,7 +384,7 @@ test('SourceGrid AppRelay proxy endpoint is contract-only and fail-closed', asyn
   const contract = await readJson('contracts/sourcegrid/apprelay-reasoning-proxy-endpoint.schema.json');
 
   assert.equal(contract.contract_kind, 'sourcegrid-commanddeck-apprelay-reasoning-proxy-endpoint');
-  assert.equal(contract.phase, 'contract_only');
+  assert.equal(contract.status, 'accepted_contract_only');
   assert.equal(contract.network_calls_enabled, false);
   assert.equal(contract.endpoint.method, 'POST');
   assert.equal(contract.endpoint.path, '/commanddeck/apprelay/reasoning');
@@ -399,6 +399,10 @@ test('SourceGrid AppRelay proxy endpoint is contract-only and fail-closed', asyn
   assert.equal(contract.request_contract.required_authority_values.no_execution_authority, true);
   assert.equal(contract.request_contract.required_authority_values.memory_read_scope, 'approved_active_only');
   assert.ok(contract.request_contract.forbidden_request_fields.includes('model'));
+  assert.ok(contract.request_contract.forbidden_request_fields.includes('model_key'));
+  assert.ok(contract.request_contract.forbidden_request_fields.includes('model_name'));
+  assert.ok(contract.request_contract.forbidden_request_fields.includes('model_registry_key'));
+  assert.ok(contract.request_contract.forbidden_request_fields.includes('provider_model'));
   assert.ok(contract.request_contract.forbidden_request_fields.includes('apprelay_token'));
   assert.ok(contract.request_contract.forbidden_request_fields.includes('execute_now'));
   assert.ok(contract.sourcegrid_validation_contract.must_validate_before_apprelay.includes('payment_method_readiness'));

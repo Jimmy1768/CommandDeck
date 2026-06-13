@@ -12,11 +12,20 @@ The machine-readable contract is:
 POST /commanddeck/apprelay/reasoning
 ```
 
-Status: contract-only. Phase 1 network calls remain disabled.
+Status: accepted contract-only. Phase 1 network calls remain disabled.
 
 SourceGrid owns this endpoint. CommandDeck is the caller. SourceGrid validates
 workspace/account/user scope, payment readiness, spend policy, credits, runtime
 entitlement, and active pack scope before calling AppRelay.
+
+SourceGrid accepted this boundary in its own contract:
+
+- `/Users/jimmy1768/Projects/sourcegrid-labs/company/contracts/commanddeck_apprelay_reasoning_proxy_endpoint.schema.json`
+
+SourceGrid also accepted a runtime broker slice that can build signed
+SourceGrid-to-AppRelay requests, but the live CommandDeck-to-SourceGrid
+endpoint still requires guarded account, payment, credit, scope, and
+idempotency checks before exposure.
 
 ## CommandDeck Request
 
@@ -30,9 +39,19 @@ CommandDeck sends:
 - `required_output_schema`;
 - `user_utterance`.
 
+Preview the local request shape without sending a network call:
+
+```sh
+npm run command:local -- sourcegrid:apprelay-proxy-preview --config commanddeck.config.example.json --request-file evals/fixtures/adapter_requests/apple_shortcuts.next_task.json
+```
+
+The preview returns `network_call_status: not_sent_contract_only`.
+
 CommandDeck must not send:
 
 - provider or model names;
+- provider/model aliases such as `model_key`, `model_name`,
+  `model_registry_key`, or `provider_model`;
 - AppRelay API keys or tokens;
 - payment card data;
 - Stripe secrets;

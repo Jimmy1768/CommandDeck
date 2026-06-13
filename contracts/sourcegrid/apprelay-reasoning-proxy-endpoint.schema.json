@@ -1,7 +1,7 @@
 {
   "schema_version": "0.1",
   "contract_kind": "sourcegrid-commanddeck-apprelay-reasoning-proxy-endpoint",
-  "phase": "contract_only",
+  "status": "accepted_contract_only",
   "network_calls_enabled": false,
   "endpoint": {
     "method": "POST",
@@ -49,6 +49,10 @@
     "forbidden_request_fields": [
       "model",
       "provider",
+      "provider_model",
+      "model_name",
+      "model_key",
+      "model_registry_key",
       "apprelay_api_key",
       "apprelay_token",
       "stripe_secret_key",

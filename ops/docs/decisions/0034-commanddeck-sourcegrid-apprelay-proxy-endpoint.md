@@ -23,6 +23,11 @@ SourceGrid validates workspace/account/user scope, payment readiness, spend
 policy, credits, AppRelay runtime entitlement, active pack scope, and
 idempotency before calling AppRelay.
 
+SourceGrid later accepted this boundary as its own contract and added a
+separate runtime broker/probe foundation. CommandDeck therefore adds only a
+contract-only request preview in this phase. The preview does not call
+SourceGrid or AppRelay.
+
 The endpoint contract is:
 
 - `contracts/sourcegrid/apprelay-reasoning-proxy-endpoint.schema.json`

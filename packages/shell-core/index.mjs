@@ -93,6 +93,43 @@ const ALLOWED_APPRELAY_SPEND_POLICIES = new Set([
   'contract_only_no_spend',
   'enabled_after_payment_verified'
 ]);
+const SOURCEGRID_APPRELAY_PROXY_ENDPOINT = {
+  method: 'POST',
+  path: '/commanddeck/apprelay/reasoning',
+  owner: 'sourcegrid',
+  caller: 'commanddeck',
+  transport_mode: 'sourcegrid_full_proxy'
+};
+const SOURCEGRID_APPRELAY_PROXY_FORBIDDEN_FIELDS = [
+  'model',
+  'provider',
+  'provider_model',
+  'model_name',
+  'model_key',
+  'model_registry_key',
+  'apprelay_api_key',
+  'apprelay_token',
+  'stripe_secret_key',
+  'payment_card_data',
+  'shell',
+  'script',
+  'sql',
+  'approval_decision',
+  'execute_now',
+  'activate_memory'
+];
+const SOURCEGRID_APPRELAY_PROXY_ALLOWED_STATUSES = new Set([
+  'ok',
+  'blocked_sourcegrid_proxy_unavailable',
+  'blocked_sourcegrid_scope_missing',
+  'blocked_sourcegrid_scope_stale',
+  'blocked_apprelay_not_entitled',
+  'blocked_apprelay_spend_unavailable',
+  'blocked_active_pack_scope_invalid',
+  'blocked_apprelay_response_invalid',
+  'blocked_rate_limited',
+  'blocked_idempotency_conflict'
+]);
 const FORBIDDEN_ADAPTER_REQUEST_FIELDS = [
   'provider_keys',
   'secrets',
@@ -1544,6 +1581,236 @@ export function buildSourceGridAttachmentStatus(config = {}) {
     local_payment_data_allowed: false,
     errors
   };
+}
+
+export function buildSourceGridAppRelayProxyRequest(input = {}, options = {}) {
+  const config = options.config ?? DEFAULT_CONFIG;
+  const attachment = config.sourcegrid_attachment ?? DEFAULT_SOURCEGRID_ATTACHMENT;
+  const activePack = options.activePack ?? buildActiveCommandPackStatus(config);
+  const timestamp = options.timestamp ?? new Date().toISOString();
+  const commandText = input.command_text ?? input.commandText ?? '';
+  const requestId = options.requestId ?? stableId('sgarp_req', [input.actor_ref ?? DEFAULT_ACTOR, commandText, timestamp]);
+  const idempotencyKey = options.idempotencyKey ?? stableId('sgarp_idem', [requestId]);
+  const request = {
+    schema_version: '0.1',
+    request_identity: {
+      client_key: 'commanddeck',
+      client_type: 'internal_ops_tool',
+      runtime_mode: 'sourcegrid_internal_ops',
+      purpose: 'command_routing_reasoning',
+      request_id: requestId,
+      idempotency_key: idempotencyKey
+    },
+    sourcegrid_attachment_ref: {
+      sourcegrid_workspace_ref: attachment.sourcegrid_workspace_ref ?? null,
+      sourcegrid_account_ref: attachment.sourcegrid_account_ref ?? null,
+      sourcegrid_user_ref: options.sourcegridUserRef ?? input.actor_ref ?? DEFAULT_ACTOR
+    },
+    active_local_context: {
+      active_pack_ref: activePack.active_command_pack ?? DEFAULT_COMMAND_PACK_PATH,
+      active_pack_digest: options.activePackDigest ?? null,
+      control_folder_ref: options.controlFolderRef ?? activePack.active_pack_source_field ?? 'default_command_pack',
+      control_folder_digest: options.controlFolderDigest ?? null,
+      adapter: input.adapter ?? DEFAULT_ADAPTER,
+      surface_hint: input.surface_hint ?? null,
+      device_code: input.device_code ?? null,
+      commanddeck_version: options.commandDeckVersion ?? '0.0.0'
+    },
+    authority_constraints: {
+      no_execution_authority: true,
+      no_memory_activation: true,
+      memory_read_scope: 'approved_active_only',
+      memory_writeback_policy: 'candidate_only_requires_explicit_user_confirmation'
+    },
+    runtime_task: {
+      route_work_type: 'commanddeck.command_routing_reasoning.standard',
+      reasoning_task: options.reasoningTask ?? 'intent_resolution',
+      escalation_reason: options.escalationReason ?? 'fast_lane_failed',
+      latency_class: options.latencyClass ?? 'interactive',
+      risk_tier: options.riskTier ?? 'command_routing',
+      sensitivity: options.sensitivity ?? 'workspace_metadata',
+      cost_class: options.costClass ?? 'sourcegrid_billed_runtime',
+      constraints: options.constraints ?? [
+        'return_concept_checking_question_when_uncertain',
+        'do_not_return_execution_payloads'
+      ],
+      task_metadata: options.taskMetadata ?? {
+        active_route_family: 'apprelay.reasoning'
+      }
+    },
+    required_output_schema: 'contracts/apprelay/commanddeck-reasoning-response.schema.json',
+    user_utterance: commandText
+  };
+
+  return {
+    schema_version: '0.1',
+    contract_kind: 'commanddeck-sourcegrid-apprelay-proxy-client-preview',
+    endpoint: SOURCEGRID_APPRELAY_PROXY_ENDPOINT,
+    network_call_status: 'not_sent_contract_only',
+    sourcegrid_contract_status: 'accepted_contract_only',
+    request,
+    validation: {
+      errors: validateSourceGridAppRelayProxyRequest(request)
+    }
+  };
+}
+
+export function validateSourceGridAppRelayProxyRequest(request) {
+  const errors = [];
+
+  if (!request || typeof request !== 'object') {
+    return ['request must be an object'];
+  }
+
+  const forbiddenFields = findForbiddenFields(request, SOURCEGRID_APPRELAY_PROXY_FORBIDDEN_FIELDS);
+  for (const field of forbiddenFields) {
+    errors.push(`sourcegrid apprelay proxy request includes forbidden field ${field}`);
+  }
+
+  for (const field of [
+    'schema_version',
+    'request_identity',
+    'sourcegrid_attachment_ref',
+    'active_local_context',
+    'authority_constraints',
+    'runtime_task',
+    'required_output_schema',
+    'user_utterance'
+  ]) {
+    if (!(field in request)) {
+      errors.push(`sourcegrid apprelay proxy request missing field ${field}`);
+    }
+  }
+
+  if (request.schema_version !== '0.1') {
+    errors.push('sourcegrid apprelay proxy request schema_version must be 0.1');
+  }
+
+  const identity = request.request_identity ?? {};
+  const requiredIdentity = {
+    client_key: 'commanddeck',
+    client_type: 'internal_ops_tool',
+    runtime_mode: 'sourcegrid_internal_ops',
+    purpose: 'command_routing_reasoning'
+  };
+
+  for (const [field, value] of Object.entries(requiredIdentity)) {
+    if (identity[field] !== value) {
+      errors.push(`sourcegrid apprelay proxy request request_identity.${field} must be ${value}`);
+    }
+  }
+
+  for (const field of ['request_id', 'idempotency_key']) {
+    if (!identity[field] || typeof identity[field] !== 'string') {
+      errors.push(`sourcegrid apprelay proxy request request_identity.${field} is required`);
+    }
+  }
+
+  const attachmentRef = request.sourcegrid_attachment_ref ?? {};
+  for (const field of ['sourcegrid_workspace_ref', 'sourcegrid_account_ref', 'sourcegrid_user_ref']) {
+    if (!attachmentRef[field] || typeof attachmentRef[field] !== 'string') {
+      errors.push(`sourcegrid apprelay proxy request sourcegrid_attachment_ref.${field} is required`);
+    }
+  }
+
+  const authority = request.authority_constraints ?? {};
+  if (authority.no_execution_authority !== true) {
+    errors.push('sourcegrid apprelay proxy request must set no_execution_authority true');
+  }
+
+  if (authority.no_memory_activation !== true) {
+    errors.push('sourcegrid apprelay proxy request must set no_memory_activation true');
+  }
+
+  if (authority.memory_read_scope !== 'approved_active_only') {
+    errors.push('sourcegrid apprelay proxy request memory_read_scope must be approved_active_only');
+  }
+
+  if (authority.memory_writeback_policy !== 'candidate_only_requires_explicit_user_confirmation') {
+    errors.push('sourcegrid apprelay proxy request memory_writeback_policy must require explicit user confirmation');
+  }
+
+  if (request.runtime_task?.route_work_type !== 'commanddeck.command_routing_reasoning.standard') {
+    errors.push('sourcegrid apprelay proxy request route_work_type must be commanddeck.command_routing_reasoning.standard');
+  }
+
+  if (request.required_output_schema !== 'contracts/apprelay/commanddeck-reasoning-response.schema.json') {
+    errors.push('sourcegrid apprelay proxy request required_output_schema must be the CommandDeck AppRelay response contract');
+  }
+
+  return errors;
+}
+
+export function buildCommandDeckResponseForSourceGridProxyResponse(response) {
+  const errors = validateSourceGridAppRelayProxyResponse(response);
+
+  if (errors.length > 0) {
+    return {
+      status: 'blocked_apprelay_response_invalid',
+      response_text: 'SourceGrid returned an invalid AppRelay reasoning response, so CommandDeck failed closed.',
+      retryable: false,
+      errors
+    };
+  }
+
+  if (response.status === 'ok') {
+    return {
+      status: 'ok',
+      response_text: 'SourceGrid returned AppRelay reasoning. CommandDeck must validate and revalidate before routing.',
+      retryable: false,
+      apprelay_response: response.apprelay_response,
+      errors: []
+    };
+  }
+
+  return {
+    status: response.status,
+    response_text: response.user_message,
+    retryable: response.retryable,
+    errors: []
+  };
+}
+
+export function validateSourceGridAppRelayProxyResponse(response) {
+  const errors = [];
+
+  if (!response || typeof response !== 'object') {
+    return ['sourcegrid apprelay proxy response must be an object'];
+  }
+
+  if (response.schema_version !== '0.1') {
+    errors.push('sourcegrid apprelay proxy response schema_version must be 0.1');
+  }
+
+  if (!SOURCEGRID_APPRELAY_PROXY_ALLOWED_STATUSES.has(response.status)) {
+    errors.push(`sourcegrid apprelay proxy response status must be one of ${[...SOURCEGRID_APPRELAY_PROXY_ALLOWED_STATUSES].join(', ')}`);
+  }
+
+  if (!response.request_id || typeof response.request_id !== 'string') {
+    errors.push('sourcegrid apprelay proxy response request_id is required');
+  }
+
+  if (response.status === 'ok') {
+    if (!response.sourcegrid_proxy_ref || typeof response.sourcegrid_proxy_ref !== 'string') {
+      errors.push('sourcegrid apprelay proxy ok response requires sourcegrid_proxy_ref');
+    }
+
+    if (!response.apprelay_response || typeof response.apprelay_response !== 'object') {
+      errors.push('sourcegrid apprelay proxy ok response requires apprelay_response');
+    }
+  } else {
+    for (const field of ['reason', 'user_message']) {
+      if (!response[field] || typeof response[field] !== 'string') {
+        errors.push(`sourcegrid apprelay proxy blocked response requires ${field}`);
+      }
+    }
+
+    if (typeof response.retryable !== 'boolean') {
+      errors.push('sourcegrid apprelay proxy blocked response requires boolean retryable');
+    }
+  }
+
+  return errors;
 }
 
 export function validateCommandPackRoots(commandPackRoots, { rootDir }) {

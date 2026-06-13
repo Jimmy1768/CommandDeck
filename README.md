@@ -264,6 +264,13 @@ This is contract-only in slice 1. It validates local attachment metadata and
 reports payment-method readiness without calling SourceGrid, AppRelay, Stripe,
 or any external service.
 
+Preview the contract-only SourceGrid AppRelay proxy request shape without
+sending a network call:
+
+```sh
+npm run command:local -- sourcegrid:apprelay-proxy-preview --config commanddeck.config.example.json --request-file evals/fixtures/adapter_requests/apple_shortcuts.next_task.json
+```
+
 If SourceGrid credits are unavailable, CommandDeck should degrade gracefully:
 fixed local commands can still run, while AppRelay reasoning routes return a
 clear no-credits/no-spend response.

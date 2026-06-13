@@ -1,0 +1,50 @@
+{
+  "schema_version": "0.1",
+  "request_identity": {
+    "client_key": "commanddeck",
+    "client_type": "internal_ops_tool",
+    "runtime_mode": "sourcegrid_internal_ops",
+    "purpose": "command_routing_reasoning",
+    "request_id": "sgarp_req_fixture",
+    "idempotency_key": "sgarp_idem_fixture"
+  },
+  "sourcegrid_attachment_ref": {
+    "sourcegrid_workspace_ref": "workspace_sourcegrid_fixture",
+    "sourcegrid_account_ref": "account_sourcegrid_fixture",
+    "sourcegrid_user_ref": "user_sourcegrid_fixture"
+  },
+  "active_local_context": {
+    "active_pack_ref": "contracts/commands/mvp-commands.cdeck-pack.json",
+    "active_pack_digest": "fixture-pack-digest",
+    "control_folder_ref": "commanddeck_repo",
+    "control_folder_digest": "fixture-control-folder-digest",
+    "adapter": "apple_shortcuts",
+    "surface_hint": "phone",
+    "device_code": "command",
+    "commanddeck_version": "0.0.0"
+  },
+  "authority_constraints": {
+    "no_execution_authority": true,
+    "no_memory_activation": true,
+    "memory_read_scope": "approved_active_only",
+    "memory_writeback_policy": "candidate_only_requires_explicit_user_confirmation"
+  },
+  "runtime_task": {
+    "route_work_type": "commanddeck.command_routing_reasoning.standard",
+    "reasoning_task": "intent_resolution",
+    "escalation_reason": "fast_lane_failed",
+    "latency_class": "interactive",
+    "risk_tier": "command_routing",
+    "sensitivity": "workspace_metadata",
+    "cost_class": "sourcegrid_billed_runtime",
+    "constraints": [
+      "return_concept_checking_question_when_uncertain",
+      "do_not_return_execution_payloads"
+    ],
+    "task_metadata": {
+      "active_route_family": "apprelay.reasoning"
+    }
+  },
+  "required_output_schema": "contracts/apprelay/commanddeck-reasoning-response.schema.json",
+  "user_utterance": "Computer summarize today's AppRelay changes activate"
+}

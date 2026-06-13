@@ -3,6 +3,7 @@ import process from 'node:process';
 import {
   applyApprovalDecision,
   applySourceGridPackSelection,
+  buildSourceGridAppRelayProxyRequest,
   buildSourceGridAttachmentStatus,
   loadActionRecord,
   loadAdapterRequest,
@@ -25,6 +26,43 @@ const config = await loadCommandDeckConfig({
 
 if (['sourcegrid:status', 'attachment:status'].includes(parsed.subcommand)) {
   console.log(JSON.stringify(buildSourceGridAttachmentStatus(config), null, 2));
+  process.exit(0);
+}
+
+if (parsed.subcommand === 'sourcegrid:apprelay-proxy-preview') {
+  const adapterRequest = parsed.requestFile
+    ? await loadAdapterRequest({
+        requestPath: parsed.requestFile
+      })
+    : null;
+  const commandText = parsed.commandText || adapterRequest?.command_text;
+
+  if (parsed.requestFile && parsed.commandText) {
+    console.error('Usage error: provide either --request-file or command text, not both.');
+    process.exit(2);
+  }
+
+  if (!commandText) {
+    console.error('Usage error: sourcegrid:apprelay-proxy-preview requires --request-file or command text.');
+    process.exit(2);
+  }
+
+  const commandInput = adapterRequest ?? {
+    adapter: 'local_cli',
+    actor_ref: 'local_prototype',
+    command_text: commandText,
+    requested_output: 'display_text'
+  };
+
+  console.log(
+    JSON.stringify(
+      buildSourceGridAppRelayProxyRequest(commandInput, {
+        config
+      }),
+      null,
+      2
+    )
+  );
   process.exit(0);
 }
 
@@ -206,7 +244,7 @@ if (parsed.requestFile && parsed.commandText) {
 
 if (!commandText) {
   console.error(
-    'Usage: command-deck [sourcegrid:status|pack:init|pack:open|pack:recent|pack:apply-selection|approval:apply|ccq:resume] [--request-file evals/fixtures/adapter_requests/apple_shortcuts.next_task.json] [--config commanddeck.config.json] [--command-pack contracts/commands/mvp-commands.cdeck-pack.json] [--pack-slug sourcegrid] [--owner sourcegrid] [--control-root /path/to/repo] [--selection-file evals/fixtures/pack_selections/local-exact.selection.json] [--record-file records/actions/rec_example.json] [--decision-file evals/fixtures/approval_decisions/example.json] [--resume-token ccq_example] [--write-record] [--write-state] [--write-audit] [--record-dir records/actions] [--audit-dir .commanddeck/audit/pack-rejections] "What is my next SourceGrid task?"'
+    'Usage: command-deck [sourcegrid:status|sourcegrid:apprelay-proxy-preview|pack:init|pack:open|pack:recent|pack:apply-selection|approval:apply|ccq:resume] [--request-file evals/fixtures/adapter_requests/apple_shortcuts.next_task.json] [--config commanddeck.config.json] [--command-pack contracts/commands/mvp-commands.cdeck-pack.json] [--pack-slug sourcegrid] [--owner sourcegrid] [--control-root /path/to/repo] [--selection-file evals/fixtures/pack_selections/local-exact.selection.json] [--record-file records/actions/rec_example.json] [--decision-file evals/fixtures/approval_decisions/example.json] [--resume-token ccq_example] [--write-record] [--write-state] [--write-audit] [--record-dir records/actions] [--audit-dir .commanddeck/audit/pack-rejections] "What is my next SourceGrid task?"'
   );
   process.exit(2);
 }
@@ -241,6 +279,7 @@ function parseArgs(args) {
   const subcommands = new Set([
     'sourcegrid:status',
     'attachment:status',
+    'sourcegrid:apprelay-proxy-preview',
     'pack:init',
     'pack:open',
     'pack:recent',
