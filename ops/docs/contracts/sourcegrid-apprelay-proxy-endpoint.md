@@ -39,6 +39,16 @@ CommandDeck sends:
 - `required_output_schema`;
 - `user_utterance`.
 
+Live-gate field conventions:
+
+- `active_local_context.pack_ref` is canonical; do not use
+  `active_pack_ref` for the SourceGrid proxy request.
+- `sourcegrid_attachment_ref` includes `attachment_issued_at` and
+  `attachment_expires_at` so live dispatch can fail closed on stale attachment
+  proof.
+- `user_utterance` is an object with `text`, `locale`, and `language`.
+- `required_output_schema` is an object with `kind: json_schema_ref` and `ref`.
+
 Preview the local request shape without sending a network call:
 
 ```sh

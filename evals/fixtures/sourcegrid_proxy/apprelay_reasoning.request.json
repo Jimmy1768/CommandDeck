@@ -11,10 +11,12 @@
   "sourcegrid_attachment_ref": {
     "sourcegrid_workspace_ref": "workspace_sourcegrid_fixture",
     "sourcegrid_account_ref": "account_sourcegrid_fixture",
-    "sourcegrid_user_ref": "user_sourcegrid_fixture"
+    "sourcegrid_user_ref": "user_sourcegrid_fixture",
+    "attachment_issued_at": "2026-06-13T00:00:00.000Z",
+    "attachment_expires_at": "2026-06-13T00:05:00.000Z"
   },
   "active_local_context": {
-    "active_pack_ref": "contracts/commands/mvp-commands.cdeck-pack.json",
+    "pack_ref": "contracts/commands/mvp-commands.cdeck-pack.json",
     "active_pack_digest": "fixture-pack-digest",
     "control_folder_ref": "commanddeck_repo",
     "control_folder_digest": "fixture-control-folder-digest",
@@ -45,6 +47,13 @@
       "active_route_family": "apprelay.reasoning"
     }
   },
-  "required_output_schema": "contracts/apprelay/commanddeck-reasoning-response.schema.json",
-  "user_utterance": "Computer summarize today's AppRelay changes activate"
+  "required_output_schema": {
+    "kind": "json_schema_ref",
+    "ref": "contracts/apprelay/commanddeck-reasoning-response.schema.json"
+  },
+  "user_utterance": {
+    "text": "Computer summarize today's AppRelay changes activate",
+    "locale": "en-US",
+    "language": "en"
+  }
 }

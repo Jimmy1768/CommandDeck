@@ -58,7 +58,7 @@
   },
   "active_local_context": {
     "authorization_critical": [
-      "active_pack_ref",
+      "pack_ref",
       "active_pack_digest",
       "control_folder_ref",
       "control_folder_digest"

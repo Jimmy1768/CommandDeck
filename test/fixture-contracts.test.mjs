@@ -394,10 +394,20 @@ test('SourceGrid AppRelay proxy endpoint is contract-only and fail-closed', asyn
   assert.ok(contract.request_contract.required_fields.includes('sourcegrid_attachment_ref'));
   assert.ok(contract.request_contract.request_identity_required_fields.includes('idempotency_key'));
   assert.ok(contract.request_contract.sourcegrid_attachment_ref_required_fields.includes('sourcegrid_workspace_ref'));
+  assert.ok(contract.request_contract.sourcegrid_attachment_ref_required_fields.includes('attachment_issued_at'));
+  assert.ok(contract.request_contract.sourcegrid_attachment_ref_required_fields.includes('attachment_expires_at'));
+  assert.ok(contract.request_contract.active_local_context_required_fields.includes('pack_ref'));
+  assert.ok(contract.request_contract.user_utterance_required_fields.includes('text'));
+  assert.ok(contract.request_contract.required_output_schema_required_fields.includes('ref'));
   assert.equal(contract.request_contract.required_identity_values.client_key, 'commanddeck');
   assert.equal(contract.request_contract.required_identity_values.client_type, 'internal_ops_tool');
   assert.equal(contract.request_contract.required_authority_values.no_execution_authority, true);
   assert.equal(contract.request_contract.required_authority_values.memory_read_scope, 'approved_active_only');
+  assert.equal(contract.request_contract.required_output_schema_values.kind, 'json_schema_ref');
+  assert.equal(
+    contract.request_contract.required_output_schema_values.ref,
+    'contracts/apprelay/commanddeck-reasoning-response.schema.json'
+  );
   assert.ok(contract.request_contract.forbidden_request_fields.includes('model'));
   assert.ok(contract.request_contract.forbidden_request_fields.includes('model_key'));
   assert.ok(contract.request_contract.forbidden_request_fields.includes('model_name'));

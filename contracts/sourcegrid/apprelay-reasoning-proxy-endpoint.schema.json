@@ -32,7 +32,24 @@
     "sourcegrid_attachment_ref_required_fields": [
       "sourcegrid_workspace_ref",
       "sourcegrid_account_ref",
-      "sourcegrid_user_ref"
+      "sourcegrid_user_ref",
+      "attachment_issued_at",
+      "attachment_expires_at"
+    ],
+    "active_local_context_required_fields": [
+      "pack_ref",
+      "active_pack_digest",
+      "control_folder_ref",
+      "control_folder_digest"
+    ],
+    "user_utterance_required_fields": [
+      "text",
+      "locale",
+      "language"
+    ],
+    "required_output_schema_required_fields": [
+      "kind",
+      "ref"
     ],
     "required_identity_values": {
       "client_key": "commanddeck",
@@ -45,6 +62,10 @@
       "no_memory_activation": true,
       "memory_read_scope": "approved_active_only",
       "memory_writeback_policy": "candidate_only_requires_explicit_user_confirmation"
+    },
+    "required_output_schema_values": {
+      "kind": "json_schema_ref",
+      "ref": "contracts/apprelay/commanddeck-reasoning-response.schema.json"
     },
     "forbidden_request_fields": [
       "model",

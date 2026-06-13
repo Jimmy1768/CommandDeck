@@ -1614,13 +1614,18 @@ export function buildSourceGridAppRelayProxyRequest(input = {}, options = {}) {
     sourcegrid_attachment_ref: {
       sourcegrid_workspace_ref: attachment.sourcegrid_workspace_ref ?? null,
       sourcegrid_account_ref: attachment.sourcegrid_account_ref ?? null,
-      sourcegrid_user_ref: options.sourcegridUserRef ?? input.actor_ref ?? DEFAULT_ACTOR
+      sourcegrid_user_ref: options.sourcegridUserRef ?? input.actor_ref ?? DEFAULT_ACTOR,
+      attachment_issued_at: attachment.attachment_issued_at ?? options.attachmentIssuedAt ?? null,
+      attachment_expires_at: attachment.attachment_expires_at ?? options.attachmentExpiresAt ?? null
     },
     active_local_context: {
-      active_pack_ref: activePack.active_command_pack ?? DEFAULT_COMMAND_PACK_PATH,
-      active_pack_digest: options.activePackDigest ?? null,
+      pack_ref: activePack.active_command_pack ?? DEFAULT_COMMAND_PACK_PATH,
+      active_pack_digest:
+        options.activePackDigest ?? stableId('pack_digest', [activePack.active_command_pack ?? DEFAULT_COMMAND_PACK_PATH]),
       control_folder_ref: options.controlFolderRef ?? activePack.active_pack_source_field ?? 'default_command_pack',
-      control_folder_digest: options.controlFolderDigest ?? null,
+      control_folder_digest:
+        options.controlFolderDigest ??
+        stableId('control_digest', [options.controlFolderRef ?? activePack.active_pack_source_field ?? 'default_command_pack']),
       adapter: input.adapter ?? DEFAULT_ADAPTER,
       surface_hint: input.surface_hint ?? null,
       device_code: input.device_code ?? null,
@@ -1648,8 +1653,15 @@ export function buildSourceGridAppRelayProxyRequest(input = {}, options = {}) {
         active_route_family: 'apprelay.reasoning'
       }
     },
-    required_output_schema: 'contracts/apprelay/commanddeck-reasoning-response.schema.json',
-    user_utterance: commandText
+    required_output_schema: {
+      kind: 'json_schema_ref',
+      ref: 'contracts/apprelay/commanddeck-reasoning-response.schema.json'
+    },
+    user_utterance: {
+      text: commandText,
+      locale: options.locale ?? input.locale ?? 'en-US',
+      language: options.language ?? input.language ?? 'en'
+    }
   };
 
   return {
@@ -1717,9 +1729,28 @@ export function validateSourceGridAppRelayProxyRequest(request) {
   }
 
   const attachmentRef = request.sourcegrid_attachment_ref ?? {};
-  for (const field of ['sourcegrid_workspace_ref', 'sourcegrid_account_ref', 'sourcegrid_user_ref']) {
+  for (const field of [
+    'sourcegrid_workspace_ref',
+    'sourcegrid_account_ref',
+    'sourcegrid_user_ref',
+    'attachment_issued_at',
+    'attachment_expires_at'
+  ]) {
     if (!attachmentRef[field] || typeof attachmentRef[field] !== 'string') {
       errors.push(`sourcegrid apprelay proxy request sourcegrid_attachment_ref.${field} is required`);
+    }
+  }
+
+  for (const field of ['attachment_issued_at', 'attachment_expires_at']) {
+    if (attachmentRef[field] && Number.isNaN(new Date(attachmentRef[field]).getTime())) {
+      errors.push(`sourcegrid apprelay proxy request sourcegrid_attachment_ref.${field} must be a date-time`);
+    }
+  }
+
+  const activeLocalContext = request.active_local_context ?? {};
+  for (const field of ['pack_ref', 'active_pack_digest', 'control_folder_ref', 'control_folder_digest']) {
+    if (!activeLocalContext[field] || typeof activeLocalContext[field] !== 'string') {
+      errors.push(`sourcegrid apprelay proxy request active_local_context.${field} is required`);
     }
   }
 
@@ -1744,8 +1775,23 @@ export function validateSourceGridAppRelayProxyRequest(request) {
     errors.push('sourcegrid apprelay proxy request route_work_type must be commanddeck.command_routing_reasoning.standard');
   }
 
-  if (request.required_output_schema !== 'contracts/apprelay/commanddeck-reasoning-response.schema.json') {
-    errors.push('sourcegrid apprelay proxy request required_output_schema must be the CommandDeck AppRelay response contract');
+  if (request.required_output_schema?.kind !== 'json_schema_ref') {
+    errors.push('sourcegrid apprelay proxy request required_output_schema.kind must be json_schema_ref');
+  }
+
+  if (request.required_output_schema?.ref !== 'contracts/apprelay/commanddeck-reasoning-response.schema.json') {
+    errors.push('sourcegrid apprelay proxy request required_output_schema.ref must be the CommandDeck AppRelay response contract');
+  }
+
+  const utterance = request.user_utterance ?? {};
+  if (!utterance.text || typeof utterance.text !== 'string') {
+    errors.push('sourcegrid apprelay proxy request user_utterance.text is required');
+  }
+
+  for (const field of ['locale', 'language']) {
+    if (!utterance[field] || typeof utterance[field] !== 'string') {
+      errors.push(`sourcegrid apprelay proxy request user_utterance.${field} is required`);
+    }
   }
 
   return errors;

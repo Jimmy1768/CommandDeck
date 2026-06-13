@@ -1002,8 +1002,16 @@ test('runs with an explicit repo-relative command pack path', async () => {
   );
   assert.deepEqual(result.record.result.data.sourcegrid_apprelay_proxy_smoke.validation.errors, []);
   assert.equal(
-    result.record.result.data.sourcegrid_apprelay_proxy_smoke.request.required_output_schema,
+    result.record.result.data.sourcegrid_apprelay_proxy_smoke.request.required_output_schema.kind,
+    'json_schema_ref'
+  );
+  assert.equal(
+    result.record.result.data.sourcegrid_apprelay_proxy_smoke.request.required_output_schema.ref,
     'contracts/apprelay/commanddeck-reasoning-response.schema.json'
+  );
+  assert.equal(
+    result.record.result.data.sourcegrid_apprelay_proxy_smoke.request.user_utterance.text,
+    'What changed in AppRelay today?'
   );
 });
 
@@ -1397,23 +1405,39 @@ test('builds SourceGrid AppRelay proxy request preview without network dispatch'
   assert.equal(preview.request.request_identity.runtime_mode, 'sourcegrid_internal_ops');
   assert.equal(preview.request.sourcegrid_attachment_ref.sourcegrid_workspace_ref, 'workspace_sourcegrid_fixture');
   assert.equal(preview.request.sourcegrid_attachment_ref.sourcegrid_user_ref, 'user_sourcegrid_fixture');
+  assert.equal(preview.request.sourcegrid_attachment_ref.attachment_issued_at, '2026-06-13T00:00:00.000Z');
+  assert.equal(preview.request.sourcegrid_attachment_ref.attachment_expires_at, '2026-06-13T00:05:00.000Z');
+  assert.equal(preview.request.active_local_context.pack_ref, 'contracts/commands/mvp-commands.cdeck-pack.json');
   assert.equal(preview.request.authority_constraints.no_execution_authority, true);
   assert.equal(preview.request.authority_constraints.no_memory_activation, true);
   assert.equal(preview.request.runtime_task.route_work_type, 'commanddeck.command_routing_reasoning.standard');
-  assert.equal(preview.request.required_output_schema, 'contracts/apprelay/commanddeck-reasoning-response.schema.json');
+  assert.equal(preview.request.required_output_schema.kind, 'json_schema_ref');
+  assert.equal(preview.request.required_output_schema.ref, 'contracts/apprelay/commanddeck-reasoning-response.schema.json');
+  assert.equal(preview.request.user_utterance.text, "Computer summarize today's AppRelay changes activate");
+  assert.equal(preview.request.user_utterance.locale, 'en-US');
 });
 
 test('rejects SourceGrid AppRelay proxy request provider/model aliases', async () => {
   const fixture = await readJson('evals/fixtures/sourcegrid_proxy/apprelay_reasoning.request.json');
   const poisoned = {
     ...fixture,
-    model_key: 'not-allowed',
-    provider_model: 'not-allowed'
+    runtime_task: {
+      ...fixture.runtime_task,
+      model_key: 'not-allowed'
+    },
+    active_local_context: {
+      ...fixture.active_local_context,
+      provider_model: 'not-allowed'
+    },
+    nested: {
+      apprelay_token: 'not-allowed'
+    }
   };
   const errors = validateSourceGridAppRelayProxyRequest(poisoned);
 
-  assert.ok(errors.some((error) => error.includes('model_key')));
-  assert.ok(errors.some((error) => error.includes('provider_model')));
+  assert.ok(errors.some((error) => error.includes('runtime_task.model_key')));
+  assert.ok(errors.some((error) => error.includes('active_local_context.provider_model')));
+  assert.ok(errors.some((error) => error.includes('nested.apprelay_token')));
 });
 
 test('maps SourceGrid AppRelay proxy blocked response into fail-closed user response', async () => {
@@ -1465,7 +1489,9 @@ test('CLI prints SourceGrid AppRelay proxy preview without sending network reque
   assert.equal(parsed.network_call_status, 'not_sent_contract_only');
   assert.equal(parsed.request.request_identity.client_key, 'commanddeck');
   assert.equal(parsed.request.sourcegrid_attachment_ref.sourcegrid_workspace_ref, 'workspace_sourcegrid_fixture');
-  assert.equal(parsed.request.required_output_schema, 'contracts/apprelay/commanddeck-reasoning-response.schema.json');
+  assert.equal(parsed.request.active_local_context.pack_ref, 'contracts/commands/mvp-commands.cdeck-pack.json');
+  assert.equal(parsed.request.required_output_schema.ref, 'contracts/apprelay/commanddeck-reasoning-response.schema.json');
+  assert.equal(parsed.request.user_utterance.text, 'What is my next SourceGrid task?');
 });
 
 test('rejects SourceGrid attachment with raw payment fields', () => {

@@ -8,6 +8,8 @@
     "status": "contract_only",
     "sourcegrid_workspace_ref": "workspace_sourcegrid_fixture",
     "sourcegrid_account_ref": "account_sourcegrid_fixture",
+    "attachment_issued_at": "2026-06-13T00:00:00.000Z",
+    "attachment_expires_at": "2026-06-13T00:05:00.000Z",
     "billing_owner": "sourcegrid_workspace",
     "payment_method_state": "missing",
     "payment_method_label": null,

@@ -25,6 +25,7 @@
   ],
   "commanddeck_must_send_to_sourcegrid": [
     "request_identity",
+    "sourcegrid_attachment_ref",
     "active_local_context",
     "authority_constraints",
     "runtime_task",
