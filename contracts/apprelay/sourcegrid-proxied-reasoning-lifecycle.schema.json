@@ -1,0 +1,88 @@
+{
+  "schema_version": "0.1",
+  "contract_kind": "sourcegrid-proxied-commanddeck-apprelay-reasoning-lifecycle",
+  "transport_mode": "sourcegrid_full_proxy",
+  "direct_commanddeck_to_apprelay_allowed": false,
+  "short_lived_token_mode_enabled": false,
+  "commanddeck_secret_policy": "no_long_lived_apprelay_secret_in_local_cli",
+  "participants": {
+    "commanddeck": "local_command_intake_and_revalidation_boundary",
+    "sourcegrid": "workspace_attachment_entitlement_billing_and_proxy_boundary",
+    "apprelay": "reasoning_runtime_and_model_selection_boundary"
+  },
+  "lifecycle_steps": [
+    "commanddeck_detects_capable_lane_needed",
+    "commanddeck_builds_internal_ops_reasoning_request",
+    "commanddeck_sends_request_to_sourcegrid_proxy",
+    "sourcegrid_validates_workspace_account_user_entitlement_and_spend_policy",
+    "sourcegrid_binds_scope_proof_to_request",
+    "sourcegrid_calls_apprelay_internal_ops_endpoint",
+    "apprelay_selects_provider_and_model",
+    "apprelay_returns_bounded_reasoning_response_to_sourcegrid",
+    "sourcegrid_returns_response_to_commanddeck",
+    "commanddeck_revalidates_before_routing"
+  ],
+  "commanddeck_must_send_to_sourcegrid": [
+    "request_identity",
+    "active_local_context",
+    "authority_constraints",
+    "runtime_task",
+    "required_output_schema",
+    "user_utterance"
+  ],
+  "sourcegrid_must_validate": [
+    "workspace_attachment_status",
+    "sourcegrid_account_status",
+    "sourcegrid_user_authorization",
+    "apprelay_runtime_entitlement",
+    "payment_method_readiness",
+    "apprelay_spend_policy",
+    "sourcegrid_credit_availability",
+    "active_pack_scope_matches_workspace_policy"
+  ],
+  "sourcegrid_must_bind_before_apprelay": [
+    "sourcegrid_organization_id",
+    "sourcegrid_account_id",
+    "sourcegrid_workspace_id",
+    "sourcegrid_user_id",
+    "issued_at",
+    "expires_at",
+    "attachment_scope_hash",
+    "apprelay_runtime_entitlement"
+  ],
+  "sourcegrid_must_not_send_to_apprelay": [
+    "payment_card_data",
+    "raw_payment_method",
+    "stripe_secret_key",
+    "local_shell",
+    "local_script_body",
+    "provider_or_model_override_from_commanddeck"
+  ],
+  "apprelay_must_not_return": [
+    "shell",
+    "script",
+    "sql",
+    "approval_decision",
+    "execute_now",
+    "new_route_definition",
+    "activate_memory"
+  ],
+  "commanddeck_must_revalidate": [
+    "response_schema",
+    "resolved_intent_against_active_pack_or_core",
+    "route_policy",
+    "permission_policy",
+    "missing_dependency_policy",
+    "approval_policy",
+    "action_requirements"
+  ],
+  "fail_closed_statuses": [
+    "blocked_sourcegrid_proxy_unavailable",
+    "blocked_sourcegrid_scope_missing",
+    "blocked_sourcegrid_scope_stale",
+    "blocked_apprelay_not_entitled",
+    "blocked_apprelay_spend_unavailable",
+    "blocked_apprelay_response_invalid"
+  ],
+  "phase_1_network_calls_enabled": false
+}

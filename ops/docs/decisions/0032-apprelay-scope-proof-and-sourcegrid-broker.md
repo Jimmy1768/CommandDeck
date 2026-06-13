@@ -27,8 +27,9 @@ with:
 - authority constraints;
 - runtime task metadata and required output schema.
 
-V1 should prefer SourceGrid-brokered AppRelay calls. The local CommandDeck CLI
-must not store a long-lived AppRelay signing secret.
+V1 uses SourceGrid full proxy for AppRelay calls. The local CommandDeck CLI
+must not store a long-lived AppRelay signing secret and should not receive a
+short-lived AppRelay token in V1.
 
 The proposed runtime mode is:
 
@@ -84,6 +85,7 @@ AppRelay should fail closed with one of:
 
 - SourceGrid remains the broker for entitlement and billing readiness.
 - CommandDeck does not hold long-lived AppRelay secrets.
+- CommandDeck does not receive short-lived AppRelay tokens in V1.
 - AppRelay can distinguish CommandDeck internal ops requests from tenant chat.
 - Missing or stale scope proof blocks reasoning instead of degrading into an
   unsafe best-effort response.

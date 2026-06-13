@@ -54,12 +54,12 @@ This is not a normal tenant assistant chat surface. CommandDeck sends task
 metadata, constraints, risk, sensitivity, and required output schema. AppRelay
 owns model/provider selection.
 
-V1 AppRelay calls should be SourceGrid-brokered. CommandDeck should not store a
-long-lived AppRelay signing secret in the local CLI. SourceGrid is the authority
-for workspace attachment, entitlement, billing readiness, and AppRelay spend
-policy, so AppRelay should require scope proof bound to the SourceGrid
-workspace/account, active pack/control folder, user/device/session context, and
-authority constraints.
+V1 AppRelay calls use SourceGrid full proxy. CommandDeck should not store a
+long-lived AppRelay signing secret in the local CLI or receive a short-lived
+AppRelay token in V1. SourceGrid is the authority for workspace attachment,
+entitlement, billing readiness, and AppRelay spend policy, so SourceGrid
+validates the request, binds scope proof, calls AppRelay, and returns the
+bounded response to CommandDeck.
 
 AppRelay can create cost, so CommandDeck must not enable AppRelay spend until a
 SourceGrid workspace attachment and payment-method readiness check have passed.

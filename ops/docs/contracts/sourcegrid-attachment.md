@@ -81,8 +81,9 @@ requires user confirmation.
 
 ## AppRelay Scope Proof
 
-V1 should route CommandDeck AppRelay reasoning through SourceGrid as broker.
-The local CommandDeck CLI must not store a long-lived AppRelay signing secret.
+V1 routes CommandDeck AppRelay reasoning through SourceGrid as a full proxy.
+The local CommandDeck CLI must not store a long-lived AppRelay signing secret
+and should not receive a short-lived AppRelay token in V1.
 
 Before AppRelay accepts a CommandDeck internal-ops reasoning request, the
 request must prove:
@@ -101,6 +102,19 @@ request must prove:
 
 AppRelay should reject requests with missing, stale, invalid, or not-entitled
 scope proof instead of attempting best-effort reasoning.
+
+SourceGrid proxy responsibilities:
+
+- receive CommandDeck's internal-ops reasoning request;
+- validate workspace attachment, account, user, entitlement, spend policy, and
+  credits;
+- validate active pack scope against workspace policy;
+- bind SourceGrid scope proof;
+- call AppRelay;
+- return AppRelay's bounded response to CommandDeck.
+
+CommandDeck remains responsible for response schema validation and local
+revalidation before routing.
 
 ## Spend Gate
 

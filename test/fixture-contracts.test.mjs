@@ -243,13 +243,19 @@ test('SourceGrid attachment schema keeps billing anchor outside owner repos', as
   assert.equal(schema.apprelay_client_contract.no_execution_authority, true);
   assert.equal(schema.apprelay_client_contract.no_memory_activation, true);
   assert.equal(schema.apprelay_client_contract.memory_writeback_requires_user_confirmation, true);
-  assert.equal(schema.apprelay_scope_proof_contract.preferred_transport, 'sourcegrid_brokered');
+  assert.equal(schema.apprelay_scope_proof_contract.preferred_transport, 'sourcegrid_full_proxy');
+  assert.equal(schema.apprelay_scope_proof_contract.sourcegrid_proxy_mode, 'sourcegrid_validates_and_calls_apprelay');
+  assert.equal(schema.apprelay_scope_proof_contract.short_lived_token_mode_enabled, false);
   assert.equal(schema.apprelay_scope_proof_contract.direct_apprelay_call_allowed, false);
   assert.equal(
     schema.apprelay_scope_proof_contract.direct_apprelay_secret_policy,
     'commanddeck_cli_must_not_store_long_lived_apprelay_signing_secret'
   );
   assert.equal(schema.apprelay_scope_proof_contract.runtime_mode, 'sourcegrid_internal_ops');
+  assert.equal(
+    schema.apprelay_scope_proof_contract.proxy_lifecycle_contract,
+    'contracts/apprelay/sourcegrid-proxied-reasoning-lifecycle.schema.json'
+  );
   assert.ok(schema.apprelay_scope_proof_contract.authorization_critical_groups.includes('request_identity'));
   assert.ok(schema.apprelay_scope_proof_contract.authorization_critical_groups.includes('sourcegrid_scope_proof'));
   assert.equal(schema.owner_repo_role, 'command_pack_source_only');
@@ -277,11 +283,12 @@ test('AppRelay CommandDeck reasoning contracts are internal ops only', async () 
   assert.equal(request.runtime_mode, 'sourcegrid_internal_ops');
   assert.equal(request.model_selection_owner, 'apprelay');
   assert.equal(request.commanddeck_sends_model_name, false);
-  assert.equal(request.request_transport_recommendation, 'sourcegrid_brokered');
+  assert.equal(request.request_transport_recommendation, 'sourcegrid_full_proxy');
   assert.equal(
     request.direct_apprelay_secret_policy,
     'commanddeck_cli_must_not_store_long_lived_apprelay_signing_secret'
   );
+  assert.equal(request.sourcegrid_proxy_contract, 'contracts/apprelay/sourcegrid-proxied-reasoning-lifecycle.schema.json');
   assert.ok(request.required_fields.includes('request_identity'));
   assert.ok(request.required_fields.includes('sourcegrid_scope_proof'));
   assert.ok(request.required_fields.includes('active_local_context'));
@@ -330,6 +337,39 @@ test('AppRelay CommandDeck reasoning contracts are internal ops only', async () 
   assert.ok(response.forbidden_fields.includes('execute_now'));
   assert.ok(response.outcome_requirements.memory_candidate.includes('requires_user_confirmation'));
   assert.ok(response.outcome_requirements.rejected.includes('rejection_status'));
+});
+
+test('SourceGrid proxied AppRelay lifecycle keeps CommandDeck off AppRelay credentials', async () => {
+  const contract = await readJson('contracts/apprelay/sourcegrid-proxied-reasoning-lifecycle.schema.json');
+
+  assert.equal(contract.contract_kind, 'sourcegrid-proxied-commanddeck-apprelay-reasoning-lifecycle');
+  assert.equal(contract.transport_mode, 'sourcegrid_full_proxy');
+  assert.equal(contract.direct_commanddeck_to_apprelay_allowed, false);
+  assert.equal(contract.short_lived_token_mode_enabled, false);
+  assert.equal(contract.commanddeck_secret_policy, 'no_long_lived_apprelay_secret_in_local_cli');
+  assert.equal(contract.participants.commanddeck, 'local_command_intake_and_revalidation_boundary');
+  assert.equal(contract.participants.sourcegrid, 'workspace_attachment_entitlement_billing_and_proxy_boundary');
+  assert.equal(contract.participants.apprelay, 'reasoning_runtime_and_model_selection_boundary');
+  assert.deepEqual(contract.lifecycle_steps, [
+    'commanddeck_detects_capable_lane_needed',
+    'commanddeck_builds_internal_ops_reasoning_request',
+    'commanddeck_sends_request_to_sourcegrid_proxy',
+    'sourcegrid_validates_workspace_account_user_entitlement_and_spend_policy',
+    'sourcegrid_binds_scope_proof_to_request',
+    'sourcegrid_calls_apprelay_internal_ops_endpoint',
+    'apprelay_selects_provider_and_model',
+    'apprelay_returns_bounded_reasoning_response_to_sourcegrid',
+    'sourcegrid_returns_response_to_commanddeck',
+    'commanddeck_revalidates_before_routing'
+  ]);
+  assert.ok(contract.sourcegrid_must_validate.includes('payment_method_readiness'));
+  assert.ok(contract.sourcegrid_must_validate.includes('sourcegrid_credit_availability'));
+  assert.ok(contract.sourcegrid_must_bind_before_apprelay.includes('attachment_scope_hash'));
+  assert.ok(contract.sourcegrid_must_not_send_to_apprelay.includes('provider_or_model_override_from_commanddeck'));
+  assert.ok(contract.apprelay_must_not_return.includes('execute_now'));
+  assert.ok(contract.commanddeck_must_revalidate.includes('approval_policy'));
+  assert.ok(contract.fail_closed_statuses.includes('blocked_sourcegrid_proxy_unavailable'));
+  assert.equal(contract.phase_1_network_calls_enabled, false);
 });
 
 test('SourceGrid console bridge is selection metadata only', async () => {

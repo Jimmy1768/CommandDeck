@@ -71,16 +71,34 @@ AppRelay owns provider/model selection, fallback, retry, and reasoning depth.
 
 ## Transport
 
-V1 should prefer SourceGrid-brokered AppRelay calls. The local CommandDeck CLI
-must not store a long-lived AppRelay signing secret.
+V1 uses SourceGrid full proxy for AppRelay reasoning. The local CommandDeck CLI
+must not store a long-lived AppRelay signing secret, and it should not receive
+a short-lived AppRelay token in V1.
 
 SourceGrid is already the authority for workspace attachment, entitlement,
 billing readiness, and AppRelay spend policy. A brokered call lets SourceGrid
 issue or validate short-lived scope proof before AppRelay accepts billable
 reasoning.
 
-Direct CommandDeck-to-AppRelay calls should remain disabled until a separate
-short-lived credential contract exists.
+The lifecycle is:
+
+1. CommandDeck detects that capable-lane reasoning is needed.
+2. CommandDeck builds an internal-ops reasoning request.
+3. CommandDeck sends the request to SourceGrid.
+4. SourceGrid validates workspace, account, user, entitlement, spend policy,
+   credits, and active pack scope.
+5. SourceGrid binds scope proof to the request.
+6. SourceGrid calls AppRelay.
+7. AppRelay chooses provider/model and returns bounded reasoning.
+8. SourceGrid returns the response to CommandDeck.
+9. CommandDeck revalidates the response before routing.
+
+Direct CommandDeck-to-AppRelay calls remain disabled until a separate
+short-lived credential contract is accepted.
+
+See:
+
+- `contracts/apprelay/sourcegrid-proxied-reasoning-lifecycle.schema.json`
 
 See:
 

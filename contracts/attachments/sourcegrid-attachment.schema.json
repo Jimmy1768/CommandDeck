@@ -19,11 +19,14 @@
     "required_output_contract": "contracts/apprelay/commanddeck-reasoning-response.schema.json"
   },
   "apprelay_scope_proof_contract": {
-    "preferred_transport": "sourcegrid_brokered",
+    "preferred_transport": "sourcegrid_full_proxy",
+    "sourcegrid_proxy_mode": "sourcegrid_validates_and_calls_apprelay",
+    "short_lived_token_mode_enabled": false,
     "direct_apprelay_call_allowed": false,
     "direct_apprelay_secret_policy": "commanddeck_cli_must_not_store_long_lived_apprelay_signing_secret",
     "runtime_mode": "sourcegrid_internal_ops",
     "required_request_contract": "contracts/apprelay/commanddeck-reasoning-request.schema.json",
+    "proxy_lifecycle_contract": "contracts/apprelay/sourcegrid-proxied-reasoning-lifecycle.schema.json",
     "authorization_critical_groups": [
       "request_identity",
       "sourcegrid_scope_proof",

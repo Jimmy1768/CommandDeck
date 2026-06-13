@@ -8,8 +8,9 @@
   "model_selection_owner": "apprelay",
   "commanddeck_sends_model_name": false,
   "required_output_contract": "contracts/apprelay/commanddeck-reasoning-response.schema.json",
-  "request_transport_recommendation": "sourcegrid_brokered",
+  "request_transport_recommendation": "sourcegrid_full_proxy",
   "direct_apprelay_secret_policy": "commanddeck_cli_must_not_store_long_lived_apprelay_signing_secret",
+  "sourcegrid_proxy_contract": "contracts/apprelay/sourcegrid-proxied-reasoning-lifecycle.schema.json",
   "required_fields": [
     "schema_version",
     "request_identity",
