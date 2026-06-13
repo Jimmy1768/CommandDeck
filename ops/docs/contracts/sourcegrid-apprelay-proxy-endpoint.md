@@ -47,6 +47,17 @@ npm run command:local -- sourcegrid:apprelay-proxy-preview --config commanddeck.
 
 The preview returns `network_call_status: not_sent_contract_only`.
 
+The first command-level smoke path is:
+
+```text
+mvp.apprelay_changes_today -> apprelay.summary
+```
+
+In Phase 1 this command still answers from a local fixture. Its action record
+also includes `result.data.sourcegrid_apprelay_proxy_smoke` so tests can prove
+CommandDeck can build the accepted SourceGrid request shape without dispatching
+network traffic.
+
 CommandDeck must not send:
 
 - provider or model names;

@@ -970,19 +970,41 @@ test('loads the approval-gated local command pack through validation', async () 
 });
 
 test('runs with an explicit repo-relative command pack path', async () => {
+  const config = await loadCommandDeckConfig({
+    rootDir,
+    configPath: 'commanddeck.config.example.json'
+  });
   const result = await runLocalCommand(
     {
+      adapter: 'apple_shortcuts',
+      actor_ref: 'director',
+      surface_hint: 'phone',
+      device_code: 'computer',
       command_text: 'What changed in AppRelay today?'
     },
     {
       rootDir,
       timestamp,
+      config,
       commandPackPath: 'contracts/commands/mvp-commands.cdeck-pack.json'
     }
   );
 
   assert.equal(result.record.command_id, 'mvp.apprelay_changes_today');
   assert.equal(result.record.result.data.real_apprelay_read, false);
+  assert.equal(
+    result.record.result.data.sourcegrid_apprelay_proxy_smoke.network_call_status,
+    'not_sent_contract_only'
+  );
+  assert.equal(
+    result.record.result.data.sourcegrid_apprelay_proxy_smoke.endpoint.path,
+    '/commanddeck/apprelay/reasoning'
+  );
+  assert.deepEqual(result.record.result.data.sourcegrid_apprelay_proxy_smoke.validation.errors, []);
+  assert.equal(
+    result.record.result.data.sourcegrid_apprelay_proxy_smoke.request.required_output_schema,
+    'contracts/apprelay/commanddeck-reasoning-response.schema.json'
+  );
 });
 
 test('executes an allowlisted local repo status command with an injected executor', async () => {
@@ -1404,6 +1426,19 @@ test('maps SourceGrid AppRelay proxy blocked response into fail-closed user resp
   assert.equal(mapped.status, 'blocked_apprelay_spend_unavailable');
   assert.equal(mapped.response_text, response.user_message);
   assert.equal(mapped.retryable, false);
+  assert.deepEqual(mapped.errors, []);
+});
+
+test('maps SourceGrid AppRelay proxy ok response into revalidation-required response', async () => {
+  const response = await readJson('evals/fixtures/sourcegrid_proxy/apprelay_reasoning.ok.response.json');
+
+  assert.deepEqual(validateSourceGridAppRelayProxyResponse(response), []);
+
+  const mapped = buildCommandDeckResponseForSourceGridProxyResponse(response);
+
+  assert.equal(mapped.status, 'ok');
+  assert.match(mapped.response_text, /revalidate before routing/);
+  assert.equal(mapped.apprelay_response.command_id, 'mvp.apprelay_changes_today');
   assert.deepEqual(mapped.errors, []);
 });
 

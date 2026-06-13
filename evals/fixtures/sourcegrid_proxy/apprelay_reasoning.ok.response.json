@@ -1,0 +1,17 @@
+{
+  "schema_version": "0.1",
+  "status": "ok",
+  "request_id": "sgarp_req_fixture",
+  "sourcegrid_proxy_ref": "sgarp_proxy_fixture",
+  "apprelay_response": {
+    "schema_version": "0.1",
+    "outcome": "resolved_intent",
+    "confidence": 0.91,
+    "reasoning_summary": "Mapped the utterance to the AppRelay changes summary command.",
+    "command_id": "mvp.apprelay_changes_today",
+    "route": "apprelay.summary",
+    "slots": {
+      "time_window": "today"
+    }
+  }
+}

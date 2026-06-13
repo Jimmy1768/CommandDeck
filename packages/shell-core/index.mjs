@@ -271,6 +271,16 @@ export async function runLocalCommand(input, options = {}) {
     } else if (route.real_integration === false) {
       const sources = await Promise.all(command.sources.map((source) => readJson(rootDir, source)));
       result = evaluateFixtureCommand(command, sources);
+
+      if (route.route_family === 'apprelay.reasoning') {
+        result = attachSourceGridAppRelayProxySmoke({
+          result,
+          input,
+          config: options.config,
+          timestamp,
+          commandText
+        });
+      }
     } else {
       return buildFailureRecord({
         input,
@@ -2593,6 +2603,33 @@ function evaluateFixtureCommand(command, sources) {
         data: {}
       };
   }
+}
+
+function attachSourceGridAppRelayProxySmoke({ result, input, config, timestamp, commandText }) {
+  const preview = buildSourceGridAppRelayProxyRequest(
+    {
+      ...input,
+      command_text: commandText
+    },
+    {
+      config: config ?? DEFAULT_CONFIG,
+      timestamp
+    }
+  );
+
+  return {
+    ...result,
+    data: {
+      ...(result.data ?? {}),
+      sourcegrid_apprelay_proxy_smoke: {
+        endpoint: preview.endpoint,
+        network_call_status: preview.network_call_status,
+        sourcegrid_contract_status: preview.sourcegrid_contract_status,
+        request: preview.request,
+        validation: preview.validation
+      }
+    }
+  };
 }
 
 async function executeApprovedLocalAction(record, options = {}) {

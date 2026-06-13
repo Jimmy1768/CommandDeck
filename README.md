@@ -271,6 +271,13 @@ sending a network call:
 npm run command:local -- sourcegrid:apprelay-proxy-preview --config commanddeck.config.example.json --request-file evals/fixtures/adapter_requests/apple_shortcuts.next_task.json
 ```
 
+The AppRelay fixture command also exercises this shape as a smoke path while
+still answering from local fixture data:
+
+```sh
+npm run command:local -- --config commanddeck.config.example.json "What changed in AppRelay today?"
+```
+
 If SourceGrid credits are unavailable, CommandDeck should degrade gracefully:
 fixed local commands can still run, while AppRelay reasoning routes return a
 clear no-credits/no-spend response.

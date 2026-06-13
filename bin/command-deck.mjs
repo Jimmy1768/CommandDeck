@@ -258,6 +258,7 @@ const commandInput = adapterRequest ?? {
 
 const result = await runLocalCommand(commandInput, {
   commandPackPath: parsed.commandPack ?? config.default_command_pack,
+  config,
   writeAudit: parsed.writeAudit,
   auditDir: parsed.auditDir
 });
