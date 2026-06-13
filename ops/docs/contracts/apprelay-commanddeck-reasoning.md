@@ -99,6 +99,7 @@ short-lived credential contract is accepted.
 See:
 
 - `contracts/apprelay/sourcegrid-proxied-reasoning-lifecycle.schema.json`
+- `contracts/sourcegrid/apprelay-reasoning-proxy-endpoint.schema.json`
 
 See:
 

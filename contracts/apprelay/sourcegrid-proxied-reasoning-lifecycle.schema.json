@@ -5,6 +5,7 @@
   "direct_commanddeck_to_apprelay_allowed": false,
   "short_lived_token_mode_enabled": false,
   "commanddeck_secret_policy": "no_long_lived_apprelay_secret_in_local_cli",
+  "sourcegrid_proxy_endpoint_contract": "contracts/sourcegrid/apprelay-reasoning-proxy-endpoint.schema.json",
   "participants": {
     "commanddeck": "local_command_intake_and_revalidation_boundary",
     "sourcegrid": "workspace_attachment_entitlement_billing_and_proxy_boundary",
@@ -13,7 +14,7 @@
   "lifecycle_steps": [
     "commanddeck_detects_capable_lane_needed",
     "commanddeck_builds_internal_ops_reasoning_request",
-    "commanddeck_sends_request_to_sourcegrid_proxy",
+    "commanddeck_sends_request_to_sourcegrid_proxy_endpoint",
     "sourcegrid_validates_workspace_account_user_entitlement_and_spend_policy",
     "sourcegrid_binds_scope_proof_to_request",
     "sourcegrid_calls_apprelay_internal_ops_endpoint",

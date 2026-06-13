@@ -27,6 +27,7 @@
     "runtime_mode": "sourcegrid_internal_ops",
     "required_request_contract": "contracts/apprelay/commanddeck-reasoning-request.schema.json",
     "proxy_lifecycle_contract": "contracts/apprelay/sourcegrid-proxied-reasoning-lifecycle.schema.json",
+    "sourcegrid_proxy_endpoint_contract": "contracts/sourcegrid/apprelay-reasoning-proxy-endpoint.schema.json",
     "authorization_critical_groups": [
       "request_identity",
       "sourcegrid_scope_proof",

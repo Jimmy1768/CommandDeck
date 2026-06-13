@@ -1,0 +1,138 @@
+{
+  "schema_version": "0.1",
+  "contract_kind": "sourcegrid-commanddeck-apprelay-reasoning-proxy-endpoint",
+  "phase": "contract_only",
+  "network_calls_enabled": false,
+  "endpoint": {
+    "method": "POST",
+    "path": "/commanddeck/apprelay/reasoning",
+    "owner": "sourcegrid",
+    "caller": "commanddeck",
+    "transport_mode": "sourcegrid_full_proxy"
+  },
+  "request_contract": {
+    "required_fields": [
+      "schema_version",
+      "request_identity",
+      "sourcegrid_attachment_ref",
+      "active_local_context",
+      "authority_constraints",
+      "runtime_task",
+      "required_output_schema",
+      "user_utterance"
+    ],
+    "request_identity_required_fields": [
+      "client_key",
+      "client_type",
+      "runtime_mode",
+      "purpose",
+      "request_id",
+      "idempotency_key"
+    ],
+    "sourcegrid_attachment_ref_required_fields": [
+      "sourcegrid_workspace_ref",
+      "sourcegrid_account_ref",
+      "sourcegrid_user_ref"
+    ],
+    "required_identity_values": {
+      "client_key": "commanddeck",
+      "client_type": "internal_ops_tool",
+      "runtime_mode": "sourcegrid_internal_ops",
+      "purpose": "command_routing_reasoning"
+    },
+    "required_authority_values": {
+      "no_execution_authority": true,
+      "no_memory_activation": true,
+      "memory_read_scope": "approved_active_only",
+      "memory_writeback_policy": "candidate_only_requires_explicit_user_confirmation"
+    },
+    "forbidden_request_fields": [
+      "model",
+      "provider",
+      "apprelay_api_key",
+      "apprelay_token",
+      "stripe_secret_key",
+      "payment_card_data",
+      "shell",
+      "script",
+      "sql",
+      "approval_decision",
+      "execute_now",
+      "activate_memory"
+    ]
+  },
+  "sourcegrid_validation_contract": {
+    "must_validate_before_apprelay": [
+      "workspace_attachment_status",
+      "sourcegrid_account_status",
+      "sourcegrid_user_authorization",
+      "payment_method_readiness",
+      "apprelay_spend_policy",
+      "sourcegrid_credit_availability",
+      "apprelay_runtime_entitlement",
+      "active_pack_scope_matches_workspace_policy",
+      "idempotency_key_replay_policy"
+    ],
+    "must_bind_before_apprelay": [
+      "sourcegrid_organization_id",
+      "sourcegrid_account_id",
+      "sourcegrid_workspace_id",
+      "sourcegrid_user_id",
+      "issued_at",
+      "expires_at",
+      "attachment_scope_hash",
+      "apprelay_runtime_entitlement"
+    ],
+    "must_not_forward_to_apprelay": [
+      "payment_card_data",
+      "stripe_secret_key",
+      "apprelay_api_key",
+      "apprelay_token",
+      "local_shell",
+      "local_script_body",
+      "provider_or_model_override_from_commanddeck"
+    ]
+  },
+  "response_contract": {
+    "allowed_statuses": [
+      "ok",
+      "blocked_sourcegrid_proxy_unavailable",
+      "blocked_sourcegrid_scope_missing",
+      "blocked_sourcegrid_scope_stale",
+      "blocked_apprelay_not_entitled",
+      "blocked_apprelay_spend_unavailable",
+      "blocked_active_pack_scope_invalid",
+      "blocked_apprelay_response_invalid",
+      "blocked_rate_limited",
+      "blocked_idempotency_conflict"
+    ],
+    "ok_required_fields": [
+      "schema_version",
+      "status",
+      "request_id",
+      "sourcegrid_proxy_ref",
+      "apprelay_response"
+    ],
+    "blocked_required_fields": [
+      "schema_version",
+      "status",
+      "request_id",
+      "reason",
+      "user_message",
+      "retryable"
+    ],
+    "apprelay_response_contract": "contracts/apprelay/commanddeck-reasoning-response.schema.json"
+  },
+  "commanddeck_response_rules": {
+    "ok": "validate_apprelay_response_then_revalidate_before_routing",
+    "blocked_sourcegrid_proxy_unavailable": "tell_user_reasoning_service_unavailable_and_offer_exact_local_actions",
+    "blocked_sourcegrid_scope_missing": "tell_user_sourcegrid_attachment_required",
+    "blocked_sourcegrid_scope_stale": "tell_user_sourcegrid_attachment_refresh_required",
+    "blocked_apprelay_not_entitled": "tell_user_apprelay_runtime_not_enabled_for_workspace",
+    "blocked_apprelay_spend_unavailable": "tell_user_credits_or_payment_unavailable_and_offer_local_actions",
+    "blocked_active_pack_scope_invalid": "tell_user_active_pack_not_allowed_for_workspace",
+    "blocked_apprelay_response_invalid": "tell_user_reasoning_response_invalid_and_fail_closed",
+    "blocked_rate_limited": "tell_user_reasoning_temporarily_limited",
+    "blocked_idempotency_conflict": "tell_user_duplicate_request_conflict_and_fail_closed"
+  }
+}

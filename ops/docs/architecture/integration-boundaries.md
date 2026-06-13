@@ -61,6 +61,12 @@ entitlement, billing readiness, and AppRelay spend policy, so SourceGrid
 validates the request, binds scope proof, calls AppRelay, and returns the
 bounded response to CommandDeck.
 
+The CommandDeck-to-SourceGrid proxy endpoint is contract-only:
+
+```text
+POST /commanddeck/apprelay/reasoning
+```
+
 AppRelay can create cost, so CommandDeck must not enable AppRelay spend until a
 SourceGrid workspace attachment and payment-method readiness check have passed.
 SourceGrid is the billing anchor for AppRelay usage; owner repos are not.

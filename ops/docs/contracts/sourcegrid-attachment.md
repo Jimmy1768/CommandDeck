@@ -116,6 +116,10 @@ SourceGrid proxy responsibilities:
 CommandDeck remains responsible for response schema validation and local
 revalidation before routing.
 
+The proxy endpoint contract is:
+
+- `contracts/sourcegrid/apprelay-reasoning-proxy-endpoint.schema.json`
+
 ## Spend Gate
 
 AppRelay spend requires all of:
