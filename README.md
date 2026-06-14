@@ -173,6 +173,17 @@ Use both local CommandDeck and SourceGrid dogfood, but for different stages:
 - SourceGrid console is the real product dogfood path for account, attachment,
   pack selection, AppRelay gating, and adjacent tools such as ManyMind.
 
+Run the local smoke gate before SourceGrid dogfood:
+
+```sh
+npm run smoke:local
+```
+
+The smoke gate exercises the public CLI path for core local reads,
+calibration/help commands, pack open, target alias approval preview, Siri
+adapter request handling, and denied approval application. It does not launch
+GUI apps or call external runtimes.
+
 Creator/admin dogfood uses `sourcegrid_dev`, not customer-billed
 `sourcegrid_prod`. It is SourceGrid-company-funded runtime, does not require
 the public SourceGrid subscription fee, and must not use customer retail

@@ -29,6 +29,22 @@ npm run verify
 
 This runs tests, fixture validation, MVP evals, and safety evals.
 
+## Run The Local Smoke Gate
+
+```sh
+npm run smoke:local
+```
+
+The smoke gate exercises public CLI paths against the built-in core pack and a
+fixture custom pack. It checks deterministic local reads, calibration/help
+commands, pack open, target alias approval preview, Siri adapter request
+handling, and denied approval application.
+
+Unlike `npm run verify`, this is a local-runner smoke test. It may need normal
+Mac process-list access because service status commands call the allowlisted
+`ps -ef` runner path. It must not launch GUI apps: approval-gated controls are
+verified through approval preview and a denied approval decision.
+
 ## Add A Fixture
 
 1. Add a command case under `evals/cases/`.
