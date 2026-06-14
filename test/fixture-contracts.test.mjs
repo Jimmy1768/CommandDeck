@@ -401,6 +401,15 @@ test('SourceGrid AppRelay proxy endpoint is contract-only and fail-closed', asyn
   assert.ok(contract.request_contract.required_output_schema_required_fields.includes('ref'));
   assert.equal(contract.request_contract.required_identity_values.client_key, 'commanddeck');
   assert.equal(contract.request_contract.required_identity_values.client_type, 'internal_ops_tool');
+  assert.ok(contract.request_contract.supported_runtime_modes.includes('sourcegrid_internal_ops'));
+  assert.ok(contract.request_contract.supported_runtime_modes.includes('sourcegrid_internal_dev'));
+  assert.ok(contract.request_contract.internal_dev_required_fields.includes('internal_actor_ref'));
+  assert.ok(contract.request_contract.internal_dev_required_fields.includes('internal_dev_reason'));
+  assert.equal(
+    contract.request_contract.internal_dev_contract,
+    'sourcegrid-labs/company/contracts/commanddeck_apprelay_internal_dev_runtime_mode.schema.json'
+  );
+  assert.equal(contract.request_contract.internal_dev_dispatch_status, 'blocked_sourcegrid_proxy_unavailable');
   assert.equal(contract.request_contract.required_authority_values.no_execution_authority, true);
   assert.equal(contract.request_contract.required_authority_values.memory_read_scope, 'approved_active_only');
   assert.equal(contract.request_contract.required_output_schema_values.kind, 'json_schema_ref');

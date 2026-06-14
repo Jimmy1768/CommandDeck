@@ -100,6 +100,8 @@ const SOURCEGRID_APPRELAY_PROXY_ENDPOINT = {
   caller: 'commanddeck',
   transport_mode: 'sourcegrid_full_proxy'
 };
+const SOURCEGRID_APPRELAY_PROXY_RUNTIME_MODES = new Set(['sourcegrid_internal_ops', 'sourcegrid_internal_dev']);
+const SOURCEGRID_APPRELAY_PROXY_INTERNAL_DEV_RUNTIME_MODE = 'sourcegrid_internal_dev';
 const SOURCEGRID_APPRELAY_PROXY_FORBIDDEN_FIELDS = [
   'model',
   'provider',
@@ -1599,6 +1601,7 @@ export function buildSourceGridAppRelayProxyRequest(input = {}, options = {}) {
   const activePack = options.activePack ?? buildActiveCommandPackStatus(config);
   const timestamp = options.timestamp ?? new Date().toISOString();
   const commandText = input.command_text ?? input.commandText ?? '';
+  const runtimeMode = options.runtimeMode ?? input.runtime_mode ?? 'sourcegrid_internal_ops';
   const requestId = options.requestId ?? stableId('sgarp_req', [input.actor_ref ?? DEFAULT_ACTOR, commandText, timestamp]);
   const idempotencyKey = options.idempotencyKey ?? stableId('sgarp_idem', [requestId]);
   const request = {
@@ -1606,7 +1609,7 @@ export function buildSourceGridAppRelayProxyRequest(input = {}, options = {}) {
     request_identity: {
       client_key: 'commanddeck',
       client_type: 'internal_ops_tool',
-      runtime_mode: 'sourcegrid_internal_ops',
+      runtime_mode: runtimeMode,
       purpose: 'command_routing_reasoning',
       request_id: requestId,
       idempotency_key: idempotencyKey
@@ -1644,7 +1647,11 @@ export function buildSourceGridAppRelayProxyRequest(input = {}, options = {}) {
       latency_class: options.latencyClass ?? 'interactive',
       risk_tier: options.riskTier ?? 'command_routing',
       sensitivity: options.sensitivity ?? 'workspace_metadata',
-      cost_class: options.costClass ?? 'sourcegrid_billed_runtime',
+      cost_class:
+        options.costClass ??
+        (runtimeMode === SOURCEGRID_APPRELAY_PROXY_INTERNAL_DEV_RUNTIME_MODE
+          ? 'sourcegrid_company_dev_budget'
+          : 'sourcegrid_billed_runtime'),
       constraints: options.constraints ?? [
         'return_concept_checking_question_when_uncertain',
         'do_not_return_execution_payloads'
@@ -1663,6 +1670,13 @@ export function buildSourceGridAppRelayProxyRequest(input = {}, options = {}) {
       language: options.language ?? input.language ?? 'en'
     }
   };
+
+  if (runtimeMode === SOURCEGRID_APPRELAY_PROXY_INTERNAL_DEV_RUNTIME_MODE) {
+    request.internal_actor_ref =
+      options.internalActorRef ?? input.internal_actor_ref ?? `sourcegrid-internal:${input.actor_ref ?? DEFAULT_ACTOR}`;
+    request.internal_dev_reason =
+      options.internalDevReason ?? input.internal_dev_reason ?? 'local CommandDeck AppRelay runtime smoke';
+  }
 
   return {
     schema_version: '0.1',
@@ -1712,13 +1726,26 @@ export function validateSourceGridAppRelayProxyRequest(request) {
   const requiredIdentity = {
     client_key: 'commanddeck',
     client_type: 'internal_ops_tool',
-    runtime_mode: 'sourcegrid_internal_ops',
     purpose: 'command_routing_reasoning'
   };
 
   for (const [field, value] of Object.entries(requiredIdentity)) {
     if (identity[field] !== value) {
       errors.push(`sourcegrid apprelay proxy request request_identity.${field} must be ${value}`);
+    }
+  }
+
+  if (!SOURCEGRID_APPRELAY_PROXY_RUNTIME_MODES.has(identity.runtime_mode)) {
+    errors.push('sourcegrid apprelay proxy request request_identity.runtime_mode must be sourcegrid_internal_ops or sourcegrid_internal_dev');
+  }
+
+  if (identity.runtime_mode === SOURCEGRID_APPRELAY_PROXY_INTERNAL_DEV_RUNTIME_MODE) {
+    if (!request.internal_actor_ref || typeof request.internal_actor_ref !== 'string') {
+      errors.push('sourcegrid apprelay proxy internal dev request internal_actor_ref is required');
+    }
+
+    if (!request.internal_dev_reason || typeof request.internal_dev_reason !== 'string') {
+      errors.push('sourcegrid apprelay proxy internal dev request internal_dev_reason is required');
     }
   }
 

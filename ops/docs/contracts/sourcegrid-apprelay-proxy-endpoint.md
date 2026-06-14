@@ -39,6 +39,12 @@ CommandDeck sends:
 - `required_output_schema`;
 - `user_utterance`.
 
+For `request_identity.runtime_mode: sourcegrid_internal_dev`, CommandDeck also
+sends:
+
+- `internal_actor_ref`;
+- `internal_dev_reason`.
+
 Live-gate field conventions:
 
 - `active_local_context.pack_ref` is canonical; do not use
@@ -48,6 +54,17 @@ Live-gate field conventions:
   proof.
 - `user_utterance` is an object with `text`, `locale`, and `language`.
 - `required_output_schema` is an object with `kind: json_schema_ref` and `ref`.
+
+Internal dev field conventions:
+
+- `sourcegrid_internal_dev` is SourceGrid-company-funded development/testing,
+  not customer-billed runtime.
+- SourceGrid derives the stable audit/rate-limit actor from the resolved
+  `AdminAccount`; `internal_actor_ref` is caller-supplied context only.
+- Customer live mode remains `sourcegrid_internal_ops` and still blocks on
+  payment readiness.
+- Internal dev mode still returns `blocked_sourcegrid_proxy_unavailable` until
+  a separate dispatch slice is approved.
 
 Preview the local request shape without sending a network call:
 

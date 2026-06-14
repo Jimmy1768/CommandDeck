@@ -57,6 +57,16 @@
       "runtime_mode": "sourcegrid_internal_ops",
       "purpose": "command_routing_reasoning"
     },
+    "supported_runtime_modes": [
+      "sourcegrid_internal_ops",
+      "sourcegrid_internal_dev"
+    ],
+    "internal_dev_required_fields": [
+      "internal_actor_ref",
+      "internal_dev_reason"
+    ],
+    "internal_dev_contract": "sourcegrid-labs/company/contracts/commanddeck_apprelay_internal_dev_runtime_mode.schema.json",
+    "internal_dev_dispatch_status": "blocked_sourcegrid_proxy_unavailable",
     "required_authority_values": {
       "no_execution_authority": true,
       "no_memory_activation": true,
