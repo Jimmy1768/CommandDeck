@@ -1,5 +1,7 @@
 # Siri Shortcuts Local Runbook
 
+Status: V1 local fixture path documented and covered by tests.
+
 This runbook defines the V1 local voice surface:
 
 ```text
@@ -9,6 +11,31 @@ speaks adapter_response.spoken_text
 
 This is local-runner dogfood. It does not call SourceGrid, AppRelay,
 OperatorKit, ManyMind, or any hosted runtime.
+
+## One-Shortcut Rule
+
+Do not create one Shortcut per CommandDeck command.
+
+Shortcuts is only a thin adapter. The command registry belongs in CommandDeck
+and the active command pack. The one Shortcut should forward a command request
+to the Mac runner, then speak the returned response.
+
+Allowed in Shortcuts:
+
+- capture or receive text;
+- call the local CommandDeck runner;
+- parse returned JSON;
+- speak `adapter_response.spoken_text`;
+- display `adapter_response.display_text`.
+
+Not allowed in Shortcuts:
+
+- encode every command as a separate Shortcut;
+- make permission decisions;
+- treat voice invocation as approval;
+- store provider keys, AppRelay credentials, SourceGrid secrets, or payment
+  data;
+- choose AppRelay providers or model names.
 
 ## Requirements
 
@@ -21,6 +48,29 @@ npm run smoke:local
 ```
 
 - Siri/Shortcuts is available on the Apple device used as the capture surface.
+
+## Preflight In Terminal
+
+Run these on the Mac before creating the Shortcut:
+
+```sh
+cd /Users/jimmy1768/Projects/CommandDeck
+npm run smoke:local
+npm run command:local -- --request-file evals/fixtures/adapter_requests/apple_shortcuts.repo_status.local.json
+command -v node
+```
+
+Expected CommandDeck properties:
+
+- `record.adapter` is `apple_shortcuts`.
+- `record.command_id` is `core.repo_status`.
+- `adapter_response.response_mode` is `platform_tts`.
+- `adapter_response.apple_intelligence_required` is `false`.
+- `record_write.status` is `not_written`.
+
+Save the absolute Node path returned by `command -v node`. Shortcuts may not
+load the same shell profile as Terminal, so the shell script should use the
+absolute Node path instead of assuming `node` is on `PATH`.
 
 ## Spoken Shape
 
@@ -53,7 +103,13 @@ Hey Siri, command Siri setup
 
 ## Shortcut Contract
 
-The Shortcut should build an adapter request equivalent to:
+The first physical Shortcut should use this fixture:
+
+```sh
+evals/fixtures/adapter_requests/apple_shortcuts.repo_status.local.json
+```
+
+That fixture contains an adapter request equivalent to:
 
 ```json
 {
@@ -72,12 +128,6 @@ The Shortcut should build an adapter request equivalent to:
   },
   "requested_output": "spoken_summary"
 }
-```
-
-The fixture version lives at:
-
-```sh
-evals/fixtures/adapter_requests/apple_shortcuts.repo_status.local.json
 ```
 
 Test it locally:
@@ -100,37 +150,118 @@ adapter_response.display_text
 
 ## Suggested Shortcut Steps
 
-Create a Shortcut named `CommandDeck Local`:
+This is the fixture walkthrough. It proves the physical voice/speaking path
+before dynamic command capture is added.
 
-1. Ask for text with the prompt `CommandDeck command`.
+### 1. Create The Shortcut
+
+Open the macOS Shortcuts app and create a new Shortcut:
+
+- Name: `CommandDeck Local`
+- Icon/color: any
+- Purpose: run one fixed CommandDeck fixture and speak its response
+
+### 2. Add Run Shell Script
+
+Add action: `Run Shell Script`.
+
+Use:
+
+- Shell: `zsh`
+- Input: none
+- Pass input: not needed
+
+Script:
+
+```sh
+cd /Users/jimmy1768/Projects/CommandDeck
+/opt/homebrew/bin/node bin/command-deck.mjs --request-file evals/fixtures/adapter_requests/apple_shortcuts.repo_status.local.json
+```
+
+If `command -v node` returned a different path, replace
+`/opt/homebrew/bin/node` with that path.
+
+### 3. Parse JSON
+
+Add action: `Get Dictionary from Input`.
+
+Set its input to the shell script result.
+
+### 4. Extract Spoken Text
+
+Add action: `Get Dictionary Value`.
+
+Use key:
+
+```text
+adapter_response.spoken_text
+```
+
+If the Shortcuts UI does not accept dotted paths, extract in two steps:
+
+1. Get `adapter_response`.
+2. From that dictionary, get `spoken_text`.
+
+### 5. Speak Text
+
+Add action: `Speak Text`.
+
+Set its input to the value from step 4.
+
+### 6. Optional Display
+
+Optionally add `Show Result` or `Quick Look` using:
+
+```text
+adapter_response.display_text
+```
+
+### 7. Run Manually
+
+Run the Shortcut from the Shortcuts app first.
+
+Expected spoken output should be similar to:
+
+```text
+Repo status: main...origin/main; no local file changes.
+```
+
+If the repo has local changes, the count will differ. That is expected.
+
+### 8. Run Through Siri
+
+After the manual run works, invoke the Shortcut by name:
+
+```text
+Hey Siri, CommandDeck Local
+```
+
+This still runs the fixed fixture. It proves Siri can trigger the Shortcut and
+the Mac can speak the CommandDeck response.
+
+## Dynamic Command Capture Later
+
+After the fixture path works physically, the one Shortcut can become dynamic:
+
+1. Ask for text with prompt `CommandDeck command`.
 2. Create a Dictionary with the adapter request fields:
    `adapter`, `adapter_version`, `actor_ref`, `request_id`, `surface_hint`,
    `device_code`, `target_runner`, `command_text`, `device_context`, and
    `requested_output`.
 3. Set `command_text` to the captured text.
-4. Run a shell script on the Mac:
+4. Write that Dictionary JSON to a repo-relative temporary file such as
+   `records/actions/shortcut-request.json`.
+5. Run:
 
 ```sh
-cd /Users/jimmy1768/Projects/CommandDeck
-node bin/command-deck.mjs --request-file evals/fixtures/adapter_requests/apple_shortcuts.repo_status.local.json
+/opt/homebrew/bin/node bin/command-deck.mjs --request-file records/actions/shortcut-request.json
 ```
 
-For the first physical test, use the fixture command above instead of dynamic
-JSON injection. That proves the Mac runner, CLI, JSON output, and speaking path
-before adding Shortcut-side request-file generation.
+6. Parse the JSON output.
+7. Speak `adapter_response.spoken_text`.
+8. Overwrite the temporary request file on the next run.
 
-After the fixture path works, the dynamic Shortcut can write the Dictionary JSON
-to a temporary repo-relative request file, run:
-
-```sh
-node bin/command-deck.mjs --request-file records/actions/shortcut-request.json
-```
-
-and then delete or overwrite that temporary file on the next run.
-
-5. Parse the shell output as JSON.
-6. Speak `adapter_response.spoken_text`.
-7. Optionally show `adapter_response.display_text`.
+Do not add this dynamic path until the fixed fixture Shortcut works.
 
 ## Safety Rules
 
@@ -143,26 +274,72 @@ and then delete or overwrite that temporary file on the next run.
 - If CommandDeck returns a concept-checking question, speak the question and
   wait for the user to answer through the normal CCQ resume path.
 
-## First Manual Test
+## Troubleshooting
 
-Run this before trying the physical Siri Shortcut:
+### Shortcut says Node was not found
+
+Use the absolute Node path from:
+
+```sh
+command -v node
+```
+
+Then update the `Run Shell Script` action.
+
+### Shortcut says the repo path was not found
+
+Confirm this path exists on the Mac running the Shortcut:
+
+```sh
+/Users/jimmy1768/Projects/CommandDeck
+```
+
+The shell script must run on the same Mac where the CommandDeck repo and runner
+exist.
+
+### Shortcut speaks raw JSON
+
+The JSON parsing step is missing or wired to the wrong input. The shell script
+returns the full command result. The Shortcut should speak only:
+
+```text
+adapter_response.spoken_text
+```
+
+### Shortcut says CommandDeck could not classify the command
+
+For the fixture path, this means the fixture or core pack changed. Run:
 
 ```sh
 npm run command:local -- --request-file evals/fixtures/adapter_requests/apple_shortcuts.repo_status.local.json
 ```
 
-Expected properties:
+For the future dynamic path, this usually means the spoken command does not
+match the active pack and CommandDeck should ask a concept-checking question or
+fail closed.
 
-- `record.adapter` is `apple_shortcuts`.
-- `record.command_id` is `core.repo_status`.
-- `adapter_response.response_mode` is `platform_tts`.
-- `adapter_response.apple_intelligence_required` is `false`.
-- `record_write.status` is `not_written`.
+### Approval-required command does not execute
 
-Then wire the Shortcut to speak `adapter_response.spoken_text`.
+That is expected. Voice invocation is not approval. The initial response should
+request approval and not run the GUI action.
+
+### The spoken repo status says there are local changes
+
+That is normal when the repo has uncommitted edits. The fixture calls the real
+allowlisted `git status` local runner action.
+
+## Verification Commands
+
+Run these after editing this runbook or the fixture:
+
+```sh
+npm run command:local -- --request-file evals/fixtures/adapter_requests/apple_shortcuts.repo_status.local.json
+npm run smoke:local
+npm run verify
+```
 
 ## Gap Before Dynamic Siri
 
-The fixture path is enough to test the Mac runner. The next gap is dynamic
-request-file creation from Shortcuts. Do not add that until the fixture path
-works physically on the Mac.
+The fixture path is enough to test the Mac runner and physical speaking loop.
+The next gap is dynamic request-file creation from Shortcuts. Do not add that
+until the fixture path works physically on the Mac.
