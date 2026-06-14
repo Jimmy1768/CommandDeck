@@ -1399,7 +1399,7 @@ test('builds SourceGrid AppRelay proxy request preview without network dispatch'
   assert.equal(preview.contract_kind, 'commanddeck-sourcegrid-apprelay-proxy-client-preview');
   assert.equal(preview.endpoint.path, '/commanddeck/apprelay/reasoning');
   assert.equal(preview.network_call_status, 'not_sent_contract_only');
-  assert.equal(preview.sourcegrid_contract_status, 'accepted_contract_only');
+  assert.equal(preview.sourcegrid_contract_status, 'guarded_sourcegrid_dev_dispatch_enabled');
   assert.deepEqual(preview.validation.errors, []);
   assert.equal(preview.request.request_identity.client_key, 'commanddeck');
   assert.equal(preview.request.request_identity.runtime_mode, 'sourcegrid_prod');

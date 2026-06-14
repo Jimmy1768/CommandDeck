@@ -1,8 +1,8 @@
 {
   "schema_version": "0.1",
   "contract_kind": "sourcegrid-commanddeck-apprelay-reasoning-proxy-endpoint",
-  "status": "accepted_contract_only",
-  "network_calls_enabled": false,
+  "status": "guarded_sourcegrid_dev_dispatch_enabled",
+  "network_calls_enabled": true,
   "endpoint": {
     "method": "POST",
     "path": "/commanddeck/apprelay/reasoning",
@@ -66,7 +66,7 @@
       "internal_dev_reason"
     ],
     "internal_dev_contract": "sourcegrid-labs/company/contracts/commanddeck_apprelay_dev_runtime_mode.schema.json",
-    "internal_dev_dispatch_status": "blocked_sourcegrid_proxy_unavailable",
+    "internal_dev_dispatch_status": "guarded_sourcegrid_dev_dispatch_enabled",
     "required_authority_values": {
       "no_execution_authority": true,
       "no_memory_activation": true,

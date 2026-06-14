@@ -23,7 +23,7 @@ Before live dispatch, CommandDeck uses the SourceGrid-aligned request shape:
 - `required_output_schema` is structured as `{ kind, ref }`;
 - forbidden provider/model/token fields are rejected at any nesting depth.
 
-The smoke path remains contract-only and continues to report:
+The local CommandDeck smoke path remains non-networked and continues to report:
 
 ```text
 network_call_status: not_sent_contract_only
@@ -33,7 +33,8 @@ network_call_status: not_sent_contract_only
 
 - CommandDeck's preview shape is closer to SourceGrid's guard-layer
   expectations.
-- Live dispatch remains blocked until SourceGrid guard corrections are accepted.
+- SourceGrid live dispatch remains guarded by SourceGrid's endpoint, runtime,
+  and budget checks.
 - No response status changes are required.
 
 ## Non-Goals

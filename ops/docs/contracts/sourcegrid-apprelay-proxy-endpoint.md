@@ -12,7 +12,7 @@ The machine-readable contract is:
 POST /commanddeck/apprelay/reasoning
 ```
 
-Status: accepted contract-only. Phase 1 network calls remain disabled.
+Status: guarded `sourcegrid_dev` dispatch enabled in SourceGrid.
 
 SourceGrid owns this endpoint. CommandDeck is the caller. SourceGrid validates
 workspace/account/user scope, payment readiness, spend policy, credits, runtime
@@ -23,9 +23,8 @@ SourceGrid accepted this boundary in its own contract:
 - `/Users/jimmy1768/Projects/sourcegrid-labs/company/contracts/commanddeck_apprelay_reasoning_proxy_endpoint.schema.json`
 
 SourceGrid also accepted a runtime broker slice that can build signed
-SourceGrid-to-AppRelay requests, but the live CommandDeck-to-SourceGrid
-endpoint still requires guarded account, payment, credit, scope, and
-idempotency checks before exposure.
+SourceGrid-to-AppRelay requests. The live CommandDeck-to-SourceGrid endpoint
+still requires guarded account, payment, credit, scope, and idempotency checks.
 
 ## CommandDeck Request
 
@@ -63,16 +62,20 @@ Internal dev field conventions:
   `AdminAccount`; `internal_actor_ref` is caller-supplied context only.
 - Customer live mode remains `sourcegrid_prod` and still blocks on
   payment readiness.
-- Internal dev mode still returns `blocked_sourcegrid_proxy_unavailable` until
-  a separate dispatch slice is approved.
+- Internal dev mode may dispatch through SourceGrid after its guard,
+  authority, scope, and budget checks pass. If transport or configuration is
+  unavailable, SourceGrid still returns `blocked_sourcegrid_proxy_unavailable`.
 
-Preview the local request shape without sending a network call:
+Preview the local CommandDeck request shape without sending a network call:
 
 ```sh
 npm run command:local -- sourcegrid:apprelay-proxy-preview --config commanddeck.config.example.json --request-file evals/fixtures/adapter_requests/apple_shortcuts.next_task.json
 ```
 
-The preview returns `network_call_status: not_sent_contract_only`.
+The local CommandDeck preview returns
+`network_call_status: not_sent_contract_only`. SourceGrid's own endpoint may
+perform guarded `sourcegrid_dev` dispatch when called in an environment with the
+required runtime configuration.
 
 The first command-level smoke path is:
 

@@ -86,5 +86,6 @@
     "blocked_apprelay_spend_unavailable",
     "blocked_apprelay_response_invalid"
   ],
-  "phase_1_network_calls_enabled": false
+  "commanddeck_local_preview_network_calls_enabled": false,
+  "sourcegrid_proxy_sourcegrid_dev_dispatch_enabled": true
 }

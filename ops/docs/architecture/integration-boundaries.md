@@ -61,7 +61,7 @@ entitlement, billing readiness, and AppRelay spend policy, so SourceGrid
 validates the request, binds scope proof, calls AppRelay, and returns the
 bounded response to CommandDeck.
 
-The CommandDeck-to-SourceGrid proxy endpoint is contract-only:
+The CommandDeck-to-SourceGrid proxy endpoint is guarded by SourceGrid:
 
 ```text
 POST /commanddeck/apprelay/reasoning

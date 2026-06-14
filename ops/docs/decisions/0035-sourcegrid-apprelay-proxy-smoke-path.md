@@ -5,8 +5,8 @@ Status: Accepted.
 ## Context
 
 SourceGrid accepted the CommandDeck AppRelay proxy endpoint contract and added
-a runtime broker/probe foundation. CommandDeck still must not call SourceGrid
-or AppRelay while Phase 1 network calls are disabled.
+a runtime broker/probe foundation. CommandDeck's local smoke still must not
+call SourceGrid or AppRelay.
 
 SourceGrid later accepted this path for contract-only smoke, but required
 pre-live alignment before any live-call gate:
@@ -34,7 +34,7 @@ record with:
 
 - endpoint metadata;
 - `network_call_status: not_sent_contract_only`;
-- `sourcegrid_contract_status: accepted_contract_only`;
+- `sourcegrid_contract_status: guarded_sourcegrid_dev_dispatch_enabled`;
 - the SourceGrid proxy request preview;
 - validation errors, if any.
 
@@ -45,7 +45,7 @@ execute by itself.
 ## Consequences
 
 - The SourceGrid proxy request shape is exercised by a real command path.
-- No network call is introduced.
+- No CommandDeck-local network call is introduced.
 - No AppRelay spend is introduced.
 - The fixture answer remains stable for MVP evals.
 - Future live wiring has a concrete action-record location to replace or

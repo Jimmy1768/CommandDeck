@@ -1683,7 +1683,7 @@ export function buildSourceGridAppRelayProxyRequest(input = {}, options = {}) {
     contract_kind: 'commanddeck-sourcegrid-apprelay-proxy-client-preview',
     endpoint: SOURCEGRID_APPRELAY_PROXY_ENDPOINT,
     network_call_status: 'not_sent_contract_only',
-    sourcegrid_contract_status: 'accepted_contract_only',
+    sourcegrid_contract_status: 'guarded_sourcegrid_dev_dispatch_enabled',
     request,
     validation: {
       errors: validateSourceGridAppRelayProxyRequest(request)

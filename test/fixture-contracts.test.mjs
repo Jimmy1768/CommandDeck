@@ -377,15 +377,16 @@ test('SourceGrid proxied AppRelay lifecycle keeps CommandDeck off AppRelay crede
   assert.ok(contract.apprelay_must_not_return.includes('execute_now'));
   assert.ok(contract.commanddeck_must_revalidate.includes('approval_policy'));
   assert.ok(contract.fail_closed_statuses.includes('blocked_sourcegrid_proxy_unavailable'));
-  assert.equal(contract.phase_1_network_calls_enabled, false);
+  assert.equal(contract.commanddeck_local_preview_network_calls_enabled, false);
+  assert.equal(contract.sourcegrid_proxy_sourcegrid_dev_dispatch_enabled, true);
 });
 
-test('SourceGrid AppRelay proxy endpoint is contract-only and fail-closed', async () => {
+test('SourceGrid AppRelay proxy endpoint is guarded and fail-closed', async () => {
   const contract = await readJson('contracts/sourcegrid/apprelay-reasoning-proxy-endpoint.schema.json');
 
   assert.equal(contract.contract_kind, 'sourcegrid-commanddeck-apprelay-reasoning-proxy-endpoint');
-  assert.equal(contract.status, 'accepted_contract_only');
-  assert.equal(contract.network_calls_enabled, false);
+  assert.equal(contract.status, 'guarded_sourcegrid_dev_dispatch_enabled');
+  assert.equal(contract.network_calls_enabled, true);
   assert.equal(contract.endpoint.method, 'POST');
   assert.equal(contract.endpoint.path, '/commanddeck/apprelay/reasoning');
   assert.equal(contract.endpoint.owner, 'sourcegrid');
@@ -409,7 +410,7 @@ test('SourceGrid AppRelay proxy endpoint is contract-only and fail-closed', asyn
     contract.request_contract.internal_dev_contract,
     'sourcegrid-labs/company/contracts/commanddeck_apprelay_dev_runtime_mode.schema.json'
   );
-  assert.equal(contract.request_contract.internal_dev_dispatch_status, 'blocked_sourcegrid_proxy_unavailable');
+  assert.equal(contract.request_contract.internal_dev_dispatch_status, 'guarded_sourcegrid_dev_dispatch_enabled');
   assert.equal(contract.request_contract.required_authority_values.no_execution_authority, true);
   assert.equal(contract.request_contract.required_authority_values.memory_read_scope, 'approved_active_only');
   assert.equal(contract.request_contract.required_output_schema_values.kind, 'json_schema_ref');
