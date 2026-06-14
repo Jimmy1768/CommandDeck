@@ -13,11 +13,11 @@
   },
   "lifecycle_steps": [
     "commanddeck_detects_capable_lane_needed",
-    "commanddeck_builds_internal_ops_reasoning_request",
+    "commanddeck_builds_sourcegrid_reasoning_request",
     "commanddeck_sends_request_to_sourcegrid_proxy_endpoint",
     "sourcegrid_validates_workspace_account_user_entitlement_and_spend_policy",
     "sourcegrid_binds_scope_proof_to_request",
-    "sourcegrid_calls_apprelay_internal_ops_endpoint",
+    "sourcegrid_calls_apprelay_commanddeck_reasoning_endpoint",
     "apprelay_selects_provider_and_model",
     "apprelay_returns_bounded_reasoning_response_to_sourcegrid",
     "sourcegrid_returns_response_to_commanddeck",

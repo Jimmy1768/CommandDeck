@@ -1,6 +1,7 @@
 {
   "name": "command-deck",
-  "version": "0.0.0",
+  "version": "0.1.0",
+  "commanddeck_release": "release-0.1.0",
   "private": true,
   "description": "Local-first CommandDeck contract skeleton.",
   "type": "module",

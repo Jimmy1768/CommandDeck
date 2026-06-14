@@ -124,6 +124,18 @@
                 "end_code": { "type": ["string", "null"] }
               }
             },
+            "choices": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "target_id": { "type": "string" },
+                  "display_name": { "type": "string" },
+                  "environment": { "type": ["string", "null"] },
+                  "suggested_answer": { "type": "string" }
+                }
+              }
+            },
             "resume_token": { "type": "string" },
             "resume_token_status": {
               "enum": ["active", "used", "expired", "rejected"]

@@ -1,6 +1,6 @@
 {
   "schema_version": "0.1",
-  "default_command_pack": "contracts/commands/mvp-commands.cdeck-pack.json",
+  "default_command_pack": "contracts/commands/core-commands.cdeck-pack.json",
   "default_record_dir": "records/actions",
   "default_write_records": false,
   "sourcegrid_attachment": {

@@ -13,7 +13,7 @@ credentials into CommandDeck core.
 
 ## Standard Layout
 
-Use this V1 layout:
+Use this standard layout:
 
 ```text
 <owner-control-repo>/
@@ -77,7 +77,72 @@ The generated manifest is intentionally boring:
 
 Selecting a pack validates the manifest. It does not execute scripts.
 
+## Release Fields
+
+Custom packs must declare their own release identity. CommandDeck product
+releases use `release-X.Y.Z`; pack releases use the same format; schema
+versions stay separate and track manifest contract compatibility.
+
+For a user-authored pack:
+
+```json
+{
+  "schema_version": "0.1",
+  "pack_id": "sourcecombatives.targets.v1",
+  "pack_release": "release-0.1.0",
+  "pack_scope": "user_custom",
+  "commanddeck_release_compatibility": {
+    "min": "release-0.1.0",
+    "max_exclusive": "release-1.0.0"
+  }
+}
+```
+
+Use `sourcegrid_company` only for a SourceGrid Labs company-published pack.
+Use `user_custom` for Jimmy/customer packs, even when they are stored inside
+the `sourcegrid-labs` repo.
+
 ## What To Edit
+
+For most voice shortcuts, start with `targets`, not scripts. Targets are named
+objects that core actions can use as the command object slot.
+
+Example target-only pack:
+
+```json
+{
+  "schema_version": "0.1",
+  "pack_id": "sourcecombatives.targets.v1",
+  "pack_release": "release-0.1.0",
+  "pack_scope": "user_custom",
+  "commanddeck_release_compatibility": {
+    "min": "release-0.1.0",
+    "max_exclusive": "release-1.0.0"
+  },
+  "owner": "sourcecombatives",
+  "permissions": "contracts/permissions/permission-levels.json",
+  "record_policy": {
+    "record_schema": "contracts/records/action-record.schema.json",
+    "storage": "opt_in_local_action_record"
+  },
+  "default_environment": "prod",
+  "targets": [
+    {
+      "target_id": "sourcecombatives.homepage.prod",
+      "kind": "url",
+      "display_name": "Source Combatives homepage",
+      "aliases": ["source combatives", "source combatives homepage"],
+      "environment": "prod",
+      "value": "https://sourcecombatives.com/"
+    }
+  ],
+  "commands": []
+}
+```
+
+With that pack active, `computer open source combatives homepage activate`
+resolves the target alias and asks for approval before opening the URL. The pack
+does not need to define a command or script for that page.
 
 Edit `<pack_slug>.cdeck-pack.json` to add commands. Each command needs:
 
@@ -92,6 +157,15 @@ Edit `<pack_slug>.cdeck-pack.json` to add commands. Each command needs:
 
 Use pack-level `action_requirements` when a pack-specific action needs required
 slots that core does not know about.
+
+Use pack-level `targets` for voice-friendly objects such as homepages,
+dashboards, local app roots, repos, services, and working bookmarks. Do not
+write one script per webpage.
+
+Target declarations can be resolved by V1 runtime when a core target-aware
+action, such as `open`, needs an object slot. They do not execute by themselves:
+opening a URL target still routes through the core allowlisted runner and
+requires approval.
 
 ## Choose The Route Family
 
@@ -149,6 +223,75 @@ For example, a Sidekiq status command can declare:
 Do not add broad aliases that could point to several commands. If a user says
 `check server` and the pack has Puma, Sidekiq, and Redis, that should become a
 concept-checking question, not a hidden default.
+
+## Target Aliases And Bookmarks
+
+Voice should reduce friction. Users should not have to speak exact URLs such as
+`https://example.com/admin/users?filter=active`, and pack authors should not
+need to create a script for every page.
+
+This is separate from command-owned phrase aliases. Command aliases choose a
+declared command. Target aliases fill the object slot for that command.
+
+Declare named targets instead:
+
+```json
+{
+  "targets": [
+    {
+      "target_id": "sourcecombatives.homepage.prod",
+      "kind": "url",
+      "display_name": "Source Combatives homepage",
+      "aliases": ["source combatives", "source combatives homepage"],
+      "environment": "prod",
+      "value": "https://sourcecombatives.com"
+    }
+  ]
+}
+```
+
+Then the user can say:
+
+```text
+open source combatives homepage
+```
+
+The core `open` action handles the browser behavior. The custom pack only owns
+the target name, environment, aliases, and URL.
+
+For dev/prod pairs, declare both targets:
+
+```json
+{
+  "target_id": "sourcecombatives.homepage.dev",
+  "kind": "url",
+  "display_name": "Source Combatives local homepage",
+  "aliases": ["local source combatives", "source combatives dev"],
+  "environment": "dev",
+  "value": "http://localhost:3000"
+}
+```
+
+If the pack declares a default environment, CommandDeck may use it only when the
+route is safe. Otherwise it should ask a concept-checking question such as
+`Open dev or production?`.
+
+For short-term work, create bookmark targets:
+
+```json
+{
+  "target_id": "sourcegrid.bookmark.webpage_1",
+  "kind": "url",
+  "display_name": "Webpage 1",
+  "aliases": ["webpage one", "first page"],
+  "bookmark": true,
+  "value": "https://example.com/specific/page"
+}
+```
+
+Codex can help copy exact URLs into the manifest or local target registry. The
+important part is that CommandDeck receives structured target data, not raw
+spoken URLs or arbitrary scripts.
 
 ## If A Command Is Rejected
 

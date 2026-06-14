@@ -1,8 +1,12 @@
 # Adding Command Packs
 
-CommandDeck can load and validate command-pack JSON files. The default MVP path
-is fixture-only. A separate built-in preview pack can execute allowlisted local
-read-only runner actions.
+CommandDeck can load and validate command-pack JSON files. The default runtime
+pack is the built-in core pack at
+`contracts/commands/core-commands.cdeck-pack.json`. It can execute allowlisted
+local read-only runner actions and request approval for allowlisted local
+control actions.
+
+The MVP pack is a legacy fixture/eval pack, not the default runtime pack.
 
 Use this split when deciding where a new capability belongs:
 
@@ -10,6 +14,12 @@ Use this split when deciding where a new capability belongs:
   active platform target;
 - put it in a pack if it is a workspace-specific routine for SourceGrid or a
   particular user.
+- put URLs, dashboards, apps, services, repos, and short-lived working
+  bookmarks in `targets` instead of writing one command or script per object.
+
+Only one owner/custom pack is active for a command invocation. CommandDeck core
+actions remain available as the built-in action layer, so a custom pack can
+declare targets and let core handle generic actions such as `open`.
 
 ## Where Packs Live
 
@@ -29,7 +39,7 @@ this repo.
 
 ## Standard Custom Pack Layout
 
-Custom pack repos and local control folders should use this V1 layout:
+Custom pack repos and local control folders should use this standard layout:
 
 ```text
 <owner-control-repo>/
@@ -57,6 +67,8 @@ Rules:
 - `fixtures/` may hold pack-owned test or example data.
 - `scripts/` may hold owner-repo scripts, but selecting a pack does not grant
   script execution by itself.
+- Target-only packs may keep `commands: []` when they only need voice-friendly
+  object aliases for core actions.
 
 Example:
 
@@ -72,8 +84,14 @@ sourcegrid-labs/
 
 ## Pack Readiness Checklist
 
-- Include `schema_version`, `pack_id`, `owner`, `permissions`,
+- Include `schema_version`, `pack_id`, `pack_release`, `pack_scope`,
+  `commanddeck_release_compatibility`, `owner`, `permissions`,
   `record_policy`, and `commands`.
+- Use `release-X.Y.Z` for `pack_release`, and keep `schema_version` for
+  manifest contract compatibility only.
+- Use `pack_scope: sourcegrid_company` for SourceGrid Labs company-published
+  packs, and `pack_scope: user_custom` for Jimmy/customer-authored packs even
+  if the manifest lives in `sourcegrid-labs`.
 - Keep command sources under `evals/fixtures/` for fixture-backed examples.
 - Use `local://` sources only when the command uses a built-in `runner_action`.
 - Use only `read-only`, `draft-only`, or `approval-required` permission levels.
@@ -110,11 +128,11 @@ Run:
 npm run verify
 ```
 
-The verification gate checks the built-in MVP pack, the built-in exact local
-preview pack, generic fixture packs, route contracts, permission levels, source
-paths, and safety evals. Passing validation means the pack is ready for
-classification and, when applicable, built-in allowlisted local read-only
-actions only.
+The verification gate checks the built-in core pack, legacy fixture/eval packs,
+generic fixture packs, route contracts, permission levels, source paths, and
+safety evals. Passing validation means the pack is ready for classification and,
+when applicable, built-in allowlisted local reads or approval-gated local
+controls only.
 
 ## Future Integration
 

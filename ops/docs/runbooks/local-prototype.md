@@ -1,7 +1,7 @@
 # Local Prototype Runbook
 
-This runbook covers the slice 1 deterministic skeleton plus the slice 2 exact
-local preview commands.
+This runbook covers the deterministic local prototype, the built-in core pack,
+and the legacy fixture packs used by evals/compatibility tests.
 
 CommandDeck is for hands-off workspace command flow around the PC command runner.
 It is not a Codex replacement. If a task edits code, use Codex and the normal
@@ -36,34 +36,20 @@ This runs tests, fixture validation, MVP evals, and safety evals.
 3. Keep allowed effects to read-only or draft-only values.
 4. Run `npm test`.
 
-## Run A Local Command
+## Run A Core Local Command
 
 ```sh
-npm run command:local -- "What is my next SourceGrid task?"
+npm run command:local -- "Git status."
 ```
 
-The command reads contract and fixture JSON, then prints a response and action
-record shape to stdout. It does not write records, call external systems, or
-execute commands.
+The command reads the built-in core pack, then prints a response and action
+record shape to stdout. Read-only core commands may execute deterministic local
+reads. They do not write records unless `--write-record` is supplied.
 
-## Run An Exact Local Preview Command
-
-```sh
-npm run command:local -- --command-pack contracts/commands/local-exact-commands.cdeck-pack.json "What is the status of this repo?"
-```
-
-This pack uses CommandDeck-owned `runner_action` keys, not shell in the pack.
-It can execute only the built-in allowlisted read-only commands:
-
-- `What is the status of this repo?`
-- `Show recent commits.`
-- `Is Puma running?`
-- `Is Sidekiq running?`
-
-## Run An Approval-Gated Local Control Preview Command
+## Run A Core Approval-Gated Control Command
 
 ```sh
-npm run command:local -- --command-pack contracts/commands/local-approved-commands.cdeck-pack.json "Open the SourceGrid dashboard."
+npm run command:local -- "Open the SourceGrid dashboard."
 ```
 
 This returns an action record with `approval_status: requested_pending`. To
@@ -76,20 +62,35 @@ npm run command:local -- approval:apply --record-file records/actions/rec_exampl
 If the approved record uses a built-in allowlisted local control route,
 CommandDeck may execute it at this step.
 
+## Built-In Core Commands
+
+The default pack is
+`contracts/commands/core-commands.cdeck-pack.json`. It uses
+CommandDeck-owned `runner_action` keys, not shell in the pack. V1 core includes
+read-only commands such as:
+
+- `What is the status of this repo?`
+- `Show recent commits.`
+- `Is Puma running?`
+- `Is Sidekiq running?`
+
+It also includes approval-gated GUI controls such as opening the SourceGrid
+dashboard or the CommandDeck repo.
+
 ## Resume A Concept-Checking Question
 
 If a deterministic local command is missing a required object, CommandDeck can
 return a concept-checking question:
 
 ```sh
-npm run command:local -- --command-pack contracts/commands/local-approved-commands.cdeck-pack.json --write-record "Computer open activate"
+npm run command:local -- --write-record "Computer open activate"
 ```
 
 Use the returned `record_write.record_path` and
 `record.result.clarification.resume_token` to resume:
 
 ```sh
-npm run command:local -- ccq:resume --command-pack contracts/commands/local-approved-commands.cdeck-pack.json --record-file records/actions/rec_example.json --resume-token ccq_example "SourceGrid dashboard"
+npm run command:local -- ccq:resume --record-file records/actions/rec_example.json --resume-token ccq_example "SourceGrid dashboard"
 ```
 
 The resume path fills missing slots only, revalidates the command, and preserves
@@ -101,15 +102,15 @@ record under a local lock before writing the resumed command record.
 Fresh locks fail safely. Locks older than 30 seconds are treated as stale and
 only the `.lock` file may be removed.
 
-## Select A Command Pack
+## Select A Legacy Fixture Pack
 
 ```sh
 npm run command:local -- --command-pack contracts/commands/mvp-commands.cdeck-pack.json "What is my next SourceGrid task?"
 ```
 
-Direct `--command-pack` paths must be repo-relative. The default MVP pack
-remains fixture-only. The exact-local preview pack can execute built-in
-allowlisted read-only runner actions.
+Direct `--command-pack` paths must be repo-relative. The MVP pack is now a
+legacy fixture/eval pack, not the default runtime pack. The local-exact and
+local-approved packs remain compatibility fixtures for pack-loading tests.
 
 Custom packs outside this repo must be selected through a configured
 `local-folder` root with `local_only: true`, not by passing arbitrary absolute
@@ -118,7 +119,7 @@ paths to `--command-pack`.
 ## Use Local Config
 
 ```sh
-npm run command:local -- --config commanddeck.config.example.json "What is my next SourceGrid task?"
+npm run command:local -- --config commanddeck.config.example.json "Git status."
 ```
 
 If `commanddeck.config.json` is absent, CommandDeck uses safe built-in defaults.

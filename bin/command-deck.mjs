@@ -244,7 +244,7 @@ if (parsed.requestFile && parsed.commandText) {
 
 if (!commandText) {
   console.error(
-    'Usage: command-deck [sourcegrid:status|sourcegrid:apprelay-proxy-preview|pack:init|pack:open|pack:recent|pack:apply-selection|approval:apply|ccq:resume] [--request-file evals/fixtures/adapter_requests/apple_shortcuts.next_task.json] [--config commanddeck.config.json] [--command-pack contracts/commands/mvp-commands.cdeck-pack.json] [--pack-slug sourcegrid] [--owner sourcegrid] [--control-root /path/to/repo] [--selection-file evals/fixtures/pack_selections/local-exact.selection.json] [--record-file records/actions/rec_example.json] [--decision-file evals/fixtures/approval_decisions/example.json] [--resume-token ccq_example] [--write-record] [--write-state] [--write-audit] [--record-dir records/actions] [--audit-dir .commanddeck/audit/pack-rejections] "What is my next SourceGrid task?"'
+    'Usage: command-deck [sourcegrid:status|sourcegrid:apprelay-proxy-preview|pack:init|pack:open|pack:recent|pack:apply-selection|approval:apply|ccq:resume] [--request-file evals/fixtures/adapter_requests/apple_shortcuts.next_task.json] [--config commanddeck.config.json] [--command-pack contracts/commands/core-commands.cdeck-pack.json] [--pack-slug sourcegrid] [--owner sourcegrid] [--control-root /path/to/repo] [--selection-file evals/fixtures/pack_selections/local-exact.selection.json] [--record-file records/actions/rec_example.json] [--decision-file evals/fixtures/approval_decisions/example.json] [--resume-token ccq_example] [--write-record] [--write-state] [--write-audit] [--record-dir records/actions] [--audit-dir .commanddeck/audit/pack-rejections] "Git status."'
   );
   process.exit(2);
 }

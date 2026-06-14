@@ -5,6 +5,8 @@
   "command_shell_owner": "command-deck",
   "spoken_command_grammar": {
     "platform_wake_phrase_owner": "platform",
+    "v1_required_platform_entry": "activate_siri_first",
+    "v1_required_runner_hardware": "macbook",
     "preferred_format": "<platform_wake_phrase>, <device_code> <action> <object> [context] [end_code]",
     "default_device_code": "computer",
     "target_runner_for_default_device_code": "command",
@@ -15,6 +17,28 @@
     "surface_hint_rule": "surface_hint_records_capture_hardware_not_spoken_routing_word",
     "ccq_rule": "missing_required_action_parameters_force_concept_checking_question",
     "approval_rule": "end_code_and_voice_invocation_are_not_approval"
+  },
+  "calibration_command_grammar": {
+    "contract": "contracts/commands/calibration-commands.schema.json",
+    "operational_command_protocol_required": false,
+    "relaxed_phrases_allowed": true,
+    "matching_rule": "deterministic_normalized_phrase",
+    "allowed_routes_prefix": "commanddeck.help.",
+    "allowed_effects": [
+      "local_read",
+      "open_commanddeck_owned_help_doc",
+      "summarize_active_pack_metadata"
+    ],
+    "forbidden_effects": [
+      "workspace_mutation",
+      "computer_control",
+      "custom_pack_script_execution",
+      "approval_decision",
+      "settings_mutation",
+      "apprelay_reasoning",
+      "external_network_call",
+      "provider_call"
+    ]
   },
   "adapters": [
     {

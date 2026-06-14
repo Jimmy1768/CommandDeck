@@ -16,6 +16,8 @@
   "custom_pack_manifest_path_rule": "command-packs/<pack_slug>/<pack_slug>.cdeck-pack.json",
   "pack_slug_rule": "lowercase-kebab",
   "pack_selection_surfaces": ["open", "recent"],
+  "help_surfaces": ["commands", "command_structure", "siri_surface", "active_pack", "examples"],
+  "calibration_command_contract": "contracts/commands/calibration-commands.schema.json",
   "control_root_kinds": ["owner-repo", "local-folder"],
   "selection_manifest_contract": "contracts/bridge/sourcegrid-pack-selection.schema.json",
   "selection_apply_command": "pack:apply-selection",
@@ -24,7 +26,10 @@
     "show_recent_packs",
     "request_active_pack_selection",
     "show_sourcegrid_attachment_status",
-    "show_payment_readiness"
+    "show_payment_readiness",
+    "show_commanddeck_help",
+    "show_siri_macbook_setup",
+    "show_command_prompt_structure"
   ],
   "console_must_not": [
     "send_shell_commands",
@@ -57,6 +62,7 @@
   "selection_apply_rule": "sourcegrid_selection_is_candidate_until_local_pack_open_validates_one_pack",
   "external_local_folder_rule": "custom_packs_may_be_selected_from_configured_local_only_control_folders",
   "source_of_truth_rule": "core_packs_live_in_commanddeck_repo_custom_packs_live_in_user_owned_git_or_local_control_folders",
+  "help_surface_rule": "sourcegrid_console_may_display_commanddeck_owned_help_but_must_not_execute_local_actions",
   "selection_execution_rule": "selection_never_executes_commands_or_scripts",
   "recent_state_owner": "commanddeck_local_runner",
   "recent_state_rule": "console_may_display_recent_state_reported_by_local_runner",

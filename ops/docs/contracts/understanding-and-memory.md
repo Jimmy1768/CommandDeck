@@ -45,6 +45,16 @@ Users should provide as many parameters as the action needs. If a required
 parameter is missing, CommandDeck should ask a concept-checking question instead
 of guessing. End codes and voice invocation are not approval.
 
+Calibration/help commands are the exception to the full operational grammar.
+They are built-in read-only commands that explain CommandDeck itself, so they
+may match relaxed deterministic phrases such as `help`, `what can you do`,
+`show commands`, or `command structure`. For voice surfaces, the user still
+needs to activate Siri or the relevant platform adapter first.
+
+Calibration commands must not execute workspace actions, mutate settings,
+approve anything, call AppRelay, or run custom-pack scripts. See
+[Calibration Commands](/Users/jimmy1768/Projects/CommandDeck/ops/docs/contracts/calibration-commands.md:1).
+
 The per-action source of truth is the
 [Action Requirements Contract](/Users/jimmy1768/Projects/CommandDeck/ops/docs/contracts/action-requirements.md:1).
 CommandDeck core owns generic action requirements; packs may declare
@@ -235,7 +245,8 @@ A target alias is a short name for a target, not a hidden full command.
 
 Examples:
 
-- `ops dashboard` can mean `pack.sourcegrid_ops_dashboard`;
+- `source combatives homepage` can mean `pack.sourcecombatives.homepage.prod`;
+- `ops dashboard` can mean `pack.sourcegrid.ops_dashboard.prod`;
 - `worker` can mean `pack.sidekiq_service`;
 - `focus music` can mean `core.focus_playlist`.
 
@@ -249,6 +260,64 @@ Examples:
 
 `ops dashboard` by itself should not silently mean "open ops dashboard" unless
 CommandDeck has a separate explicit default-action rule for that grammar.
+
+This is especially important for voice. Users should not be expected to speak
+exact URLs, paths, or dashboard route strings. A pack should turn those strings
+into named targets with voice-friendly aliases.
+
+Target alias resolution is runtime-enabled for V1 core target-aware actions.
+The fast lane can resolve an active-pack target alias as the object slot for a
+core action such as `open`.
+
+When a valid pack contains one logical target family with distinct dev/prod
+aliases but no default environment, an underspecified phrase can produce a CCQ
+instead of a pack rejection. The CCQ should present a bounded set of choices,
+for example: `Do you mean source combatives dev or source combatives
+production?`
+
+Example:
+
+```text
+open source combatives homepage
+```
+
+should resolve as:
+
+```text
+action = open
+target alias = source combatives homepage
+target value = https://sourcecombatives.com
+```
+
+The target alias fills the object slot. It does not run a script by itself.
+
+## Target Environment
+
+Many URL targets have a dev and production form. CommandDeck should model those
+as environment-specific targets rather than forcing users to speak exact URLs.
+
+Examples:
+
+- `sourcecombatives.homepage.dev` -> `http://localhost:3000`
+- `sourcecombatives.homepage.prod` -> `https://sourcecombatives.com`
+
+If the command is safe and the active pack has an explicit default environment,
+CommandDeck may default. If the environment changes risk or side effects,
+CommandDeck should ask a concept-checking question.
+
+## Working Bookmarks
+
+Users usually work with a small set of active pages, not every page in a web
+app. A pack or local target registry may declare bookmark targets such as:
+
+- `webpage one`;
+- `admin users page`;
+- `billing dashboard`;
+- `local app`.
+
+Codex can help populate these targets by copying exact URLs into structured
+pack data. CommandDeck should consume the structured target registry; it should
+not require raw spoken URLs or one script per page.
 
 ## Normalized Phrase
 

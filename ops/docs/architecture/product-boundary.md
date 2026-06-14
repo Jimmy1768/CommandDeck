@@ -81,14 +81,17 @@ local credentials live on the PC runner.
 
 ## Current Boundary
 
-The default MVP path still defines contracts, docs, and fixtures. Current
-preview execution is limited to:
+The default runtime path uses the built-in core pack. Preview execution is
+limited to:
 
 - built-in exact local read-only actions;
 - built-in approval-gated local control actions.
 
 Workspace-specific mutable automation still belongs in command packs and needs a
 later owner-pack execution contract.
+
+The MVP pack remains a legacy fixture/eval pack for contract regression tests,
+not the default runtime pack.
 
 SourceGrid attachment is represented as local, non-sensitive metadata only.
 CommandDeck may report payment-method readiness, but SourceGrid remains the

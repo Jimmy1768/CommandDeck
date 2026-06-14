@@ -4,24 +4,24 @@ CommandDeck supports one selected JSON command pack per local command run. The
 default pack is:
 
 ```text
-contracts/commands/mvp-commands.cdeck-pack.json
+contracts/commands/core-commands.cdeck-pack.json
 ```
 
 Pack manifests use the `.cdeck-pack.json` extension, where `cdeck` means
 CommandDeck. Pack selection UIs should filter for `*.cdeck-pack.json` and
 select the manifest file, not an arbitrary folder.
 
-Select a pack explicitly:
+Run the default core pack:
 
 ```sh
-npm run command:local -- --command-pack contracts/commands/mvp-commands.cdeck-pack.json "What is my next SourceGrid task?"
+npm run command:local -- "Git status."
 ```
 
 Open and recent pack surfaces:
 
 ```sh
-npm run command:local -- pack:open --command-pack contracts/commands/local-exact-commands.cdeck-pack.json
-npm run command:local -- pack:open --command-pack contracts/commands/local-exact-commands.cdeck-pack.json --write-state
+npm run command:local -- pack:open --command-pack contracts/commands/core-commands.cdeck-pack.json
+npm run command:local -- pack:open --command-pack contracts/commands/core-commands.cdeck-pack.json --write-state
 npm run command:local -- pack:recent
 ```
 

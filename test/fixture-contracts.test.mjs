@@ -51,6 +51,39 @@ test('MVP command pack contains the first five commands only', async () => {
   ]);
 });
 
+test('core command pack contains the canonical built-in local actions', async () => {
+  const pack = await readJson('contracts/commands/core-commands.cdeck-pack.json');
+  const routes = await readJson('contracts/routes/route-contracts.json');
+  const permissions = await readJson('contracts/permissions/permission-levels.json');
+  const errors = validateCommandPack(pack, { routes, permissions });
+
+  assert.equal(pack.schema_version, '0.1');
+  assert.equal(pack.pack_id, 'commanddeck.core.v1');
+  assert.equal(pack.pack_release, 'release-0.1.0');
+  assert.equal(pack.pack_scope, 'commanddeck_core');
+  assert.deepEqual(pack.commanddeck_release_compatibility, {
+    min: 'release-0.1.0',
+    max_exclusive: 'release-1.0.0'
+  });
+  assert.deepEqual(errors, []);
+  assert.deepEqual(
+    pack.commands.map((command) => command.command_id),
+    [
+      'core.repo_status',
+      'core.repo_recent_commits',
+      'core.puma_status',
+      'core.sidekiq_status',
+      'core.open_url_target',
+      'core.open_sourcegrid_dashboard',
+      'core.open_commanddeck_repo'
+    ]
+  );
+  assert.ok(pack.commands.filter((command) => command.route === 'local.exact_read').length === 4);
+  assert.ok(pack.commands.filter((command) => command.route === 'local.exact_control').length === 3);
+  assert.ok(pack.commands.every((command) => ALLOWLISTED_LOCAL_RUNNER_ACTIONS.includes(command.runner_action)));
+  assert.equal(pack.targets[0].target_id, 'sourcegrid.dashboard.prod');
+});
+
 test('command pack schema documents the Phase 1 loading boundary', async () => {
   const schema = await readJson('contracts/commands/command-pack.schema.json');
 
@@ -60,10 +93,72 @@ test('command pack schema documents the Phase 1 loading boundary', async () => {
   assert.equal(schema.selector_target, 'pack_manifest_file');
   assert.equal(schema.selector_filter, '*.cdeck-pack.json');
   assert.ok(schema.required.includes('schema_version'));
+  assert.ok(schema.required.includes('pack_release'));
+  assert.ok(schema.required.includes('pack_scope'));
+  assert.ok(schema.required.includes('commanddeck_release_compatibility'));
+  assert.equal(schema.release_identity.commanddeck_product_release_format, 'release-X.Y.Z');
+  assert.equal(schema.release_identity.npm_package_version_format, 'X.Y.Z');
+  assert.equal(schema.release_identity.schema_version_role, 'contract_compatibility_not_product_release');
+  assert.equal(schema.release_identity.pack_release_role, 'pack_behavior_version');
+  assert.equal(
+    schema.release_identity.compatibility_enforcement_rule,
+    'current_commanddeck_release_must_be_within_min_inclusive_max_exclusive_range'
+  );
+  assert.equal(
+    schema.release_identity.incompatible_pack_behavior,
+    'fail_closed_with_setup_message_no_auto_migration'
+  );
+  assert.equal(schema.release_identity.core_pack_role, 'versioned_behavior_api_for_custom_packs');
+  assert.equal(
+    schema.release_identity.core_behavior_compatibility_rule,
+    'no_silent_removal_or_redefinition_within_compatible_release_range'
+  );
+  assert.equal(
+    schema.release_identity.legacy_core_behavior_rule,
+    'preserve_legacy_behavior_or_reject_incompatible_pack_explicitly'
+  );
+  assert.deepEqual(schema.release_identity.allowed_pack_scopes, [
+    'commanddeck_core',
+    'sourcegrid_company',
+    'user_custom',
+    'partner_custom',
+    'fixture_legacy'
+  ]);
+  assert.equal(
+    schema.release_identity.sourcegrid_name_disambiguation.sourcegrid_company,
+    'SourceGrid-owned company pack published by the hosting company'
+  );
+  assert.equal(
+    schema.release_identity.sourcegrid_name_disambiguation.user_custom,
+    'Jimmy or customer authored workspace pack that may live in sourcegrid-labs but is not SourceGrid core'
+  );
   assert.deepEqual(schema.allowed_permission_levels, ['read-only', 'draft-only', 'approval-required']);
   assert.deepEqual(schema.allowed_source_roots, ['evals/fixtures/', 'local://']);
   assert.ok(schema.optional_pack_fields.includes('action_requirements'));
+  assert.ok(schema.optional_pack_fields.includes('targets'));
+  assert.ok(schema.optional_pack_fields.includes('default_environment'));
   assert.ok(schema.optional_command_fields.includes('runner_action'));
+  assert.equal(
+    schema.built_in_command_classes.calibration.contract,
+    'contracts/commands/calibration-commands.schema.json'
+  );
+  assert.equal(schema.built_in_command_classes.calibration.pack_owned, false);
+  assert.equal(schema.built_in_command_classes.calibration.relaxed_grammar_allowed, true);
+  assert.equal(schema.target_registry.status, 'runtime_enabled_for_core_action_object_slots');
+  assert.equal(schema.target_registry.scope, 'active_command_pack_only');
+  assert.equal(schema.target_registry.target_alias_role, 'fills_object_slot_only');
+  assert.equal(schema.target_registry.target_aliases_hide_actions, false);
+  assert.equal(schema.target_registry.duplicate_alias_default, 'rejected');
+  assert.equal(
+    schema.target_registry.duplicate_alias_exception,
+    'same_logical_target_family_dev_prod_with_default_environment'
+  );
+  assert.equal(schema.target_registry.runtime_defaulting_scope_v1, 'approval_gated_open_url_or_dashboard_only');
+  assert.equal(
+    schema.target_registry.runtime_ambiguity_behavior_v1,
+    'ask_ccq_for_one_logical_family_with_two_to_four_safe_choices'
+  );
+  assert.equal(schema.target_registry.script_per_webpage_required, false);
   assert.equal(schema.local_exact_runner.enabled_for_read_only, true);
   assert.equal(schema.local_exact_runner.execution_boundary, 'allowlisted_local_runner');
   assert.equal(schema.custom_pack_enforcement.default_policy, 'deny_by_default');
@@ -360,11 +455,11 @@ test('SourceGrid proxied AppRelay lifecycle keeps CommandDeck off AppRelay crede
   assert.equal(contract.participants.apprelay, 'reasoning_runtime_and_model_selection_boundary');
   assert.deepEqual(contract.lifecycle_steps, [
     'commanddeck_detects_capable_lane_needed',
-    'commanddeck_builds_internal_ops_reasoning_request',
+    'commanddeck_builds_sourcegrid_reasoning_request',
     'commanddeck_sends_request_to_sourcegrid_proxy_endpoint',
     'sourcegrid_validates_workspace_account_user_entitlement_and_spend_policy',
     'sourcegrid_binds_scope_proof_to_request',
-    'sourcegrid_calls_apprelay_internal_ops_endpoint',
+    'sourcegrid_calls_apprelay_commanddeck_reasoning_endpoint',
     'apprelay_selects_provider_and_model',
     'apprelay_returns_bounded_reasoning_response_to_sourcegrid',
     'sourcegrid_returns_response_to_commanddeck',
@@ -466,10 +561,24 @@ test('SourceGrid console bridge is selection metadata only', async () => {
   assert.equal(contract.custom_pack_manifest_path_rule, 'command-packs/<pack_slug>/<pack_slug>.cdeck-pack.json');
   assert.equal(contract.pack_slug_rule, 'lowercase-kebab');
   assert.deepEqual(contract.pack_selection_surfaces, ['open', 'recent']);
+  assert.deepEqual(contract.help_surfaces, [
+    'commands',
+    'command_structure',
+    'siri_surface',
+    'active_pack',
+    'examples'
+  ]);
+  assert.equal(contract.calibration_command_contract, 'contracts/commands/calibration-commands.schema.json');
   assert.deepEqual(contract.control_root_kinds, ['owner-repo', 'local-folder']);
   assert.equal(contract.selection_manifest_contract, 'contracts/bridge/sourcegrid-pack-selection.schema.json');
   assert.equal(contract.selection_apply_command, 'pack:apply-selection');
   assert.ok(contract.console_may.includes('request_active_pack_selection'));
+  assert.ok(contract.console_may.includes('show_commanddeck_help'));
+  assert.ok(contract.console_may.includes('show_siri_macbook_setup'));
+  assert.equal(
+    contract.help_surface_rule,
+    'sourcegrid_console_may_display_commanddeck_owned_help_but_must_not_execute_local_actions'
+  );
   assert.ok(contract.console_must_not.includes('send_shell_commands'));
   assert.ok(contract.console_must_not.includes('execute_local_runner_actions'));
   assert.ok(contract.console_must_not.includes('activate_multiple_packs'));
@@ -718,7 +827,8 @@ test('local exact read route is the only real integration in the core contract',
   assert.equal(exactControlRoute.execution_boundary, 'allowlisted_local_runner');
   assert.deepEqual(exactControlRoute.allowed_runner_actions, [
     'workspace.open_sourcegrid_dashboard',
-    'workspace.open_commanddeck_repo'
+    'workspace.open_commanddeck_repo',
+    'workspace.open_url'
   ]);
 
   assert.ok(packWriteRoute);
@@ -787,6 +897,8 @@ test('voice adapters are IO surfaces and AppRelay owns reasoning', async () => {
   assert.equal(contract.voice_adapters_are_io_surfaces, true);
   assert.equal(contract.reasoning_owner, 'apprelay');
   assert.equal(contract.command_shell_owner, 'command-deck');
+  assert.equal(contract.spoken_command_grammar.v1_required_platform_entry, 'activate_siri_first');
+  assert.equal(contract.spoken_command_grammar.v1_required_runner_hardware, 'macbook');
   assert.equal(contract.spoken_command_grammar.default_device_code, 'computer');
   assert.equal(contract.spoken_command_grammar.target_runner_for_default_device_code, 'command');
   assert.deepEqual(contract.spoken_command_grammar.required_slots, ['device_code', 'action', 'object']);
@@ -796,6 +908,15 @@ test('voice adapters are IO surfaces and AppRelay owns reasoning', async () => {
     contract.spoken_command_grammar.ccq_rule,
     'missing_required_action_parameters_force_concept_checking_question'
   );
+  assert.equal(
+    contract.calibration_command_grammar.contract,
+    'contracts/commands/calibration-commands.schema.json'
+  );
+  assert.equal(contract.calibration_command_grammar.operational_command_protocol_required, false);
+  assert.equal(contract.calibration_command_grammar.relaxed_phrases_allowed, true);
+  assert.equal(contract.calibration_command_grammar.allowed_routes_prefix, 'commanddeck.help.');
+  assert.ok(contract.calibration_command_grammar.forbidden_effects.includes('apprelay_reasoning'));
+  assert.ok(contract.calibration_command_grammar.forbidden_effects.includes('custom_pack_script_execution'));
 
   const adaptersById = new Map(contract.adapters.map((adapter) => [adapter.id, adapter]));
   assert.equal(adaptersById.get('apple_shortcuts').provides_reasoning, false);
@@ -805,6 +926,33 @@ test('voice adapters are IO surfaces and AppRelay owns reasoning', async () => {
   const responseModes = contract.response_modes.map((mode) => mode.id);
   assert.ok(responseModes.includes('platform_tts'));
   assert.ok(responseModes.includes('apprelay_audio'));
+});
+
+test('calibration command class is read-only relaxed help only', async () => {
+  const contract = await readJson('contracts/commands/calibration-commands.schema.json');
+
+  assert.equal(contract.contract_kind, 'calibration-command-class');
+  assert.equal(contract.status, 'local_runtime_implemented');
+  assert.equal(contract.owner, 'commanddeck_core');
+  assert.equal(contract.availability, 'always_available_before_pack_classification');
+  assert.equal(contract.grammar_policy.operational_command_protocol_required, false);
+  assert.equal(contract.grammar_policy.relaxed_phrases_allowed, true);
+  assert.equal(contract.grammar_policy.platform_wake_phrase_still_required_for_voice_surfaces, true);
+  assert.equal(contract.grammar_policy.semantic_matching_allowed, false);
+  assert.ok(contract.allowed_effects.includes('open_commanddeck_owned_help_doc'));
+  assert.ok(contract.allowed_effects.includes('summarize_active_pack_metadata'));
+  assert.ok(contract.forbidden_effects.includes('workspace_mutation'));
+  assert.ok(contract.forbidden_effects.includes('apprelay_reasoning'));
+  assert.ok(contract.forbidden_effects.includes('custom_pack_script_execution'));
+  assert.ok(contract.allowed_routes.every((route) => route.startsWith('commanddeck.help.')));
+  assert.ok(
+    contract.canonical_commands
+      .find((command) => command.command_id === 'commanddeck.help.commands')
+      .relaxed_phrases.includes('what can you do')
+  );
+  assert.equal(contract.v1_surface_requirements.required_platform_entry, 'activate_siri_first');
+  assert.equal(contract.v1_surface_requirements.required_runner_hardware, 'macbook');
+  assert.ok(contract.v1_surface_requirements.common_wake_phrases.includes('hey siri'));
 });
 
 test('adapter response schema keeps voice adapters as IO surfaces', async () => {
@@ -912,6 +1060,10 @@ test('learned memory item contract requires user-confirmed scoped memory only', 
   assert.equal(contract.supersede_rule, 'replacement_creates_new_active_item_and_marks_prior_item_superseded');
   assert.equal(contract.conflict_rule, 'unresolved_active_conflicts_force_checking_question');
   assert.equal(contract.alias_rule, 'aliases_resolve_targets_not_hidden_actions_in_v1');
+  assert.equal(
+    contract.alias_namespace_rule,
+    'learned_memory_aliases_are_target_aliases_command_pack_phrase_aliases_are_separate'
+  );
   assert.equal(contract.normalized_phrase_contract, 'contracts/records/normalized-phrase.schema.json');
   assert.equal(
     contract.normalized_phrase_rule,

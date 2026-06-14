@@ -6,7 +6,8 @@ export const ALLOWLISTED_LOCAL_RUNNER_ACTIONS = [
   'service.puma_status',
   'service.sidekiq_status',
   'workspace.open_sourcegrid_dashboard',
-  'workspace.open_commanddeck_repo'
+  'workspace.open_commanddeck_repo',
+  'workspace.open_url'
 ];
 
 const ACTIONS = {
@@ -15,7 +16,8 @@ const ACTIONS = {
   'service.puma_status': runPumaStatus,
   'service.sidekiq_status': runSidekiqStatus,
   'workspace.open_sourcegrid_dashboard': runOpenSourceGridDashboard,
-  'workspace.open_commanddeck_repo': runOpenCommandDeckRepo
+  'workspace.open_commanddeck_repo': runOpenCommandDeckRepo,
+  'workspace.open_url': runOpenUrlTarget
 };
 
 export async function runAllowlistedLocalAction(actionId, options = {}) {
@@ -140,6 +142,55 @@ async function runOpenCommandDeckRepo(options) {
       runner_action: 'workspace.open_commanddeck_repo',
       opened_target: '.'
     }
+  };
+}
+
+async function runOpenUrlTarget(options) {
+  const target = options.target;
+  const value = target?.value;
+
+  if (!target || typeof value !== 'string') {
+    throw new Error('workspace.open_url requires a resolved target value');
+  }
+
+  let url;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error(`workspace.open_url target is not a valid URL: ${value}`);
+  }
+
+  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) {
+    throw new Error(`workspace.open_url target URL is not allowed: ${value}`);
+  }
+
+  await execAllowlistedCommand(
+    {
+      command: 'open',
+      args: [url.toString()],
+      cwd: options.rootDir
+    },
+    options.executor
+  );
+
+  return {
+    status: 'executed_local_approved_action',
+    summary: `Opened ${target.display_name ?? url.toString()}.`,
+    data: {
+      runner_action: 'workspace.open_url',
+      opened_target: url.toString(),
+      resolved_target: sanitizeResolvedTarget(target)
+    }
+  };
+}
+
+function sanitizeResolvedTarget(target) {
+  return {
+    target_id: target.target_id,
+    kind: target.kind,
+    display_name: target.display_name,
+    environment: target.environment ?? null,
+    value: target.value
   };
 }
 

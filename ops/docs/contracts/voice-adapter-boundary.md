@@ -78,6 +78,34 @@ If the action needs more information than the phrase provides, CommandDeck
 should return a concept-checking question. `activate` can terminate the phrase,
 but voice invocation and end codes are not approval.
 
+V1 assumes Siri/Shortcuts plus a MacBook runner. The user must activate Siri
+first with the device's configured platform wake phrase, usually `Hey Siri` or
+`Siri`. CommandDeck controls only the phrase after Siri is listening.
+
+## Calibration Commands
+
+Calibration commands explain CommandDeck itself. They are read-only and may use
+relaxed grammar because the user may not know the full operational command
+protocol yet.
+
+Examples:
+
+```text
+Hey Siri, command help
+Hey Siri, command what can you do
+Hey Siri, command command structure
+```
+
+Calibration commands may show CommandDeck-owned help docs, active-pack command
+metadata, examples, Siri/MacBook setup requirements, and command prompt
+structure. They must not execute workspace actions, run custom-pack scripts,
+mutate settings, approve anything, call AppRelay, or make external network
+calls.
+
+Reference:
+
+- [Calibration Commands](/Users/jimmy1768/Projects/CommandDeck/ops/docs/contracts/calibration-commands.md:1)
+
 ## Speech Output Modes
 
 Phase 1 and first voice phase:

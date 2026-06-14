@@ -32,6 +32,7 @@
   "supersede_rule": "replacement_creates_new_active_item_and_marks_prior_item_superseded",
   "conflict_rule": "unresolved_active_conflicts_force_checking_question",
   "alias_rule": "aliases_resolve_targets_not_hidden_actions_in_v1",
+  "alias_namespace_rule": "learned_memory_aliases_are_target_aliases_command_pack_phrase_aliases_are_separate",
   "normalized_phrase_contract": "contracts/records/normalized-phrase.schema.json",
   "normalized_phrase_rule": "lowercase_deterministic_transcript_cleanup_only_no_semantic_matching",
   "properties": {

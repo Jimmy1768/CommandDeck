@@ -101,8 +101,10 @@ Examples:
   target alias.
 - `start worker` uses `start` as the action and `worker` as the target alias.
 
-Full phrase shortcuts are not `alias` entries in V1 because they carry both
-target and action.
+Full phrase shortcuts are not learned-memory `alias` entries in V1 because they
+carry both target and action. Command-pack `aliases` are a separate mechanism:
+they are command-owned deterministic phrase shortcuts declared in the active
+pack, not saved learned-memory target aliases.
 
 ## Lifecycle
 

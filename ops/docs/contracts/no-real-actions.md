@@ -1,7 +1,8 @@
 # No Real Actions Boundary
 
-The default MVP path is contract-only. The repo must not perform real external
-integrations or state-changing work.
+The default core pack may run built-in allowlisted local reads and may run
+allowlisted local controls only after a separate approval decision. The repo
+must not perform real external integrations or unapproved state-changing work.
 
 Allowed:
 

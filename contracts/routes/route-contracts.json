@@ -59,7 +59,8 @@
       "execution_boundary": "allowlisted_local_runner",
       "allowed_runner_actions": [
         "workspace.open_sourcegrid_dashboard",
-        "workspace.open_commanddeck_repo"
+        "workspace.open_commanddeck_repo",
+        "workspace.open_url"
       ],
       "approval_gate": "human_decision_required_before_execution",
       "slice_2_behavior": "execute_allowlisted_local_state_change_after_approval"

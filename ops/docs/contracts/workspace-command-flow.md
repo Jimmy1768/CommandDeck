@@ -96,15 +96,15 @@ edit code by voice and does not replace Codex.
 
 ## Current Boundary
 
-The default MVP path still defines contracts, fixtures, and deterministic
-validation only.
-
-The first execution preview is now available for CommandDeck-owned core actions
-on Apple PCs:
+The default runtime path uses the built-in core pack for CommandDeck-owned core
+actions on Apple PCs:
 
 - exact local read-only actions such as repo status, recent commits, Puma
   status, and Sidekiq status;
 - approval-gated local control actions such as opening a dashboard or repo.
+
+The MVP pack remains a legacy fixture/eval pack for contract regression tests,
+not the default runtime pack.
 
 These built-in actions prove the engine and the Apple-first invocation surface.
 They are not the full pack execution story.

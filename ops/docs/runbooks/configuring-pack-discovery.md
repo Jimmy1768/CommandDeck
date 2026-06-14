@@ -10,17 +10,18 @@ selected by `default_command_pack` or an explicit command-pack override.
 Use `pack:open` and `pack:recent` as the local pack selection surface:
 
 ```sh
-npm run command:local -- pack:open --command-pack contracts/commands/local-exact-commands.cdeck-pack.json
-npm run command:local -- pack:open --command-pack contracts/commands/local-exact-commands.cdeck-pack.json --write-state
+npm run command:local -- pack:open --command-pack contracts/commands/core-commands.cdeck-pack.json
+npm run command:local -- pack:open --command-pack contracts/commands/core-commands.cdeck-pack.json --write-state
 npm run command:local -- pack:recent
 ```
 
 `pack:open` validates one selected pack. `pack:recent` lists recently opened
-packs from local CommandDeck UI state.
+packs from local CommandDeck UI state. The built-in core pack is the normal
+default; local-exact/local-approved packs are legacy compatibility fixtures.
 
 User-facing pack selection should target the pack manifest file, not a folder.
-The V1 manifest filename convention is `*.cdeck-pack.json`, where `cdeck`
-means CommandDeck. Selector UIs should filter to that extension.
+The manifest filename convention is `*.cdeck-pack.json`, where `cdeck` means
+CommandDeck. Selector UIs should filter to that extension.
 
 ## Safe Phase 1 Example
 
@@ -78,7 +79,7 @@ Selections from that root still use a relative `pack_path`, for example
 `command-packs/sourcegrid/sourcegrid.cdeck-pack.json`. CommandDeck validates
 that the resolved file stays inside the configured root before loading it.
 
-The standard V1 custom pack layout is:
+The standard custom pack layout is:
 
 ```text
 <owner-control-repo>/
@@ -92,6 +93,23 @@ The standard V1 custom pack layout is:
 
 External local-folder selections must use
 `command-packs/<pack_slug>/<pack_slug>.cdeck-pack.json`.
+
+The selected manifest must include release metadata:
+
+```json
+{
+  "pack_release": "release-0.1.0",
+  "pack_scope": "user_custom",
+  "commanddeck_release_compatibility": {
+    "min": "release-0.1.0",
+    "max_exclusive": "release-1.0.0"
+  }
+}
+```
+
+Use `sourcegrid_company` only for SourceGrid Labs company-published packs. Use
+`user_custom` for user/Jimmy/customer-authored packs, even when the control
+folder is `sourcegrid-labs`.
 
 Use `pack:init` to create this layout safely:
 

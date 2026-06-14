@@ -1,0 +1,115 @@
+{
+  "schema_version": "0.1",
+  "contract_kind": "calibration-command-class",
+  "status": "local_runtime_implemented",
+  "owner": "commanddeck_core",
+  "purpose": "help_discovery_and_usage_calibration",
+  "availability": "always_available_before_pack_classification",
+  "grammar_policy": {
+    "operational_command_protocol_required": false,
+    "relaxed_phrases_allowed": true,
+    "platform_wake_phrase_still_required_for_voice_surfaces": true,
+    "device_code_optional": true,
+    "end_code_optional": true,
+    "matching_rule": "deterministic_normalized_phrase",
+    "semantic_matching_allowed": false
+  },
+  "allowed_effects": [
+    "local_read",
+    "open_commanddeck_owned_help_doc",
+    "summarize_active_pack_metadata"
+  ],
+  "forbidden_effects": [
+    "workspace_mutation",
+    "computer_control",
+    "custom_pack_script_execution",
+    "approval_decision",
+    "settings_mutation",
+    "apprelay_reasoning",
+    "external_network_call",
+    "provider_call"
+  ],
+  "allowed_routes": [
+    "commanddeck.help.commands",
+    "commanddeck.help.command_structure",
+    "commanddeck.help.active_pack",
+    "commanddeck.help.examples",
+    "commanddeck.help.siri_surface"
+  ],
+  "canonical_commands": [
+    {
+      "command_id": "commanddeck.help.commands",
+      "title": "Show commands CommandDeck can understand",
+      "relaxed_phrases": [
+        "help",
+        "command help",
+        "what can you do",
+        "command what can you do",
+        "what commands can you understand",
+        "command what commands can you understand",
+        "show commands",
+        "command show commands",
+        "list commands"
+      ],
+      "route": "commanddeck.help.commands"
+    },
+    {
+      "command_id": "commanddeck.help.command_structure",
+      "title": "Show the CommandDeck command prompt structure",
+      "relaxed_phrases": [
+        "command structure",
+        "command command structure",
+        "how do i talk to commanddeck",
+        "command how do i talk to commanddeck",
+        "show command structure",
+        "command show command structure",
+        "how do commands work"
+      ],
+      "route": "commanddeck.help.command_structure"
+    },
+    {
+      "command_id": "commanddeck.help.active_pack",
+      "title": "Show the active command pack",
+      "relaxed_phrases": [
+        "active pack",
+        "command active pack",
+        "what pack is active",
+        "command what pack is active",
+        "show active pack"
+      ],
+      "route": "commanddeck.help.active_pack"
+    },
+    {
+      "command_id": "commanddeck.help.examples",
+      "title": "Show CommandDeck examples",
+      "relaxed_phrases": [
+        "show examples",
+        "command show examples",
+        "command examples",
+        "give me examples"
+      ],
+      "route": "commanddeck.help.examples"
+    },
+    {
+      "command_id": "commanddeck.help.siri_surface",
+      "title": "Show Siri and MacBook setup requirements",
+      "relaxed_phrases": [
+        "siri setup",
+        "command siri setup",
+        "how do i use siri",
+        "command how do i use siri",
+        "macbook setup",
+        "voice setup"
+      ],
+      "route": "commanddeck.help.siri_surface"
+    }
+  ],
+  "v1_surface_requirements": {
+    "primary_voice_adapter": "apple_shortcuts",
+    "required_platform_entry": "activate_siri_first",
+    "common_wake_phrases": ["hey siri", "siri"],
+    "required_runner_hardware": "macbook",
+    "capture_surfaces": ["phone", "watch", "glasses", "computer"],
+    "runner_surface": "computer"
+  }
+}

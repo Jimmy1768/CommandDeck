@@ -23,7 +23,7 @@
     "adapter": "local_cli",
     "surface_hint": "computer",
     "device_code": "command",
-    "commanddeck_version": "0.0.0"
+    "commanddeck_version": "release-0.1.0"
   },
   "authority_constraints": {
     "no_execution_authority": true,

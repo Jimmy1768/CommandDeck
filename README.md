@@ -110,10 +110,60 @@ or MacBook-specific names. If the spoken command omits a field required for the
 requested action, CommandDeck should ask a concept-checking question instead of
 guessing.
 
+Meta/help commands are the exception. They may use relaxed grammar because they
+teach the protocol itself:
+
+```text
+Hey Siri, command help
+Hey Siri, command what can you do
+Hey Siri, command command structure
+```
+
+These calibration commands are read-only and may only show CommandDeck-owned
+help or active-pack metadata. They do not execute workspace actions.
+
+V1 requires Siri/Shortcuts plus a MacBook runner. The user must activate Siri
+first using the device's configured wake phrase, then speak the CommandDeck
+phrase.
+
 In product terms, CommandDeck is not just "control the computer." It uses the
 computer as the execution surface for both generic built-in actions and
 workspace-specific automation that previously required mouse and keyboard work
 outside Codex.
+
+## Release And Pack Versioning
+
+CommandDeck product releases use DojoMate-style names such as
+`release-0.1.0`. The npm package version remains plain semver, such as
+`0.1.0`. Contract `schema_version` values remain separate compatibility
+markers and are not product releases.
+
+Command packs declare their own behavior release and compatibility range:
+
+```json
+{
+  "pack_release": "release-0.1.0",
+  "pack_scope": "user_custom",
+  "commanddeck_release_compatibility": {
+    "min": "release-0.1.0",
+    "max_exclusive": "release-1.0.0"
+  }
+}
+```
+
+Use `pack_scope: sourcegrid_company` only for SourceGrid Labs
+company-published packs. Use `pack_scope: user_custom` for Jimmy/customer
+workspace packs, even if the manifest lives inside `sourcegrid-labs`.
+
+CommandDeck enforces the compatibility range before loading a pack. If the
+current CommandDeck release is outside the declared range, the pack fails
+closed with a setup message instead of being auto-migrated or run partially.
+
+The built-in core pack is a versioned behavior API for custom packs. Existing
+core actions and their target resolution, approval, route, and CCQ semantics
+must not be silently removed or redefined inside a compatible release range.
+If behavior must change incompatibly, CommandDeck should keep legacy behavior
+or reject incompatible packs explicitly.
 
 ## Current Slice
 
@@ -187,21 +237,21 @@ does not write records or call external systems.
 Preview an exact local read-only command through the allowlisted runner:
 
 ```sh
-npm run command:local -- --command-pack contracts/commands/local-exact-commands.cdeck-pack.json "What is the status of this repo?"
+npm run command:local -- "What is the status of this repo?"
 ```
 
-Other built-in exact local preview commands:
+Other built-in core commands:
 
 ```sh
-npm run command:local -- --command-pack contracts/commands/local-exact-commands.cdeck-pack.json "Show recent commits."
-npm run command:local -- --command-pack contracts/commands/local-exact-commands.cdeck-pack.json "Is Puma running?"
-npm run command:local -- --command-pack contracts/commands/local-exact-commands.cdeck-pack.json "Is Sidekiq running?"
+npm run command:local -- "Show recent commits."
+npm run command:local -- "Is Puma running?"
+npm run command:local -- "Is Sidekiq running?"
 ```
 
 Preview an approval-gated local control command:
 
 ```sh
-npm run command:local -- --command-pack contracts/commands/local-approved-commands.cdeck-pack.json "Open the SourceGrid dashboard."
+npm run command:local -- "Open the SourceGrid dashboard."
 ```
 
 Apply a separate approval decision to an approval-required action record:
@@ -213,17 +263,17 @@ npm run command:local -- approval:apply --record-file records/actions/rec_exampl
 Resume a concept-checking question from a saved action record:
 
 ```sh
-npm run command:local -- ccq:resume --record-file records/actions/rec_example.json --resume-token ccq_example --command-pack contracts/commands/local-approved-commands.cdeck-pack.json "SourceGrid dashboard"
+npm run command:local -- ccq:resume --record-file records/actions/rec_example.json --resume-token ccq_example "SourceGrid dashboard"
 ```
 
-Select a CommandDeck-owned repo-relative command pack explicitly:
+Select the legacy MVP fixture pack explicitly:
 
 ```sh
 npm run command:local -- --command-pack contracts/commands/mvp-commands.cdeck-pack.json "What is my next SourceGrid task?"
 ```
 
-The MVP pack remains contract-only. Loaded packs cannot include executable
-fields, external integrations, or sources outside `evals/fixtures/` in slice 1.
+The MVP pack remains a fixture/eval pack. Loaded packs cannot include executable
+fields, unsafe external integrations, or arbitrary shell handlers.
 The exact-local preview pack may use `runner_action` keys that map to
 CommandDeck-owned allowlisted local commands, plus `local://` source
 descriptors.

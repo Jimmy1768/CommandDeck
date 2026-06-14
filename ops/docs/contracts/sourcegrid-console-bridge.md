@@ -55,12 +55,26 @@ SourceGrid Labs owns the normal user UX:
 - open one `*.cdeck-pack.json` manifest;
 - show recent packs;
 - show SourceGrid workspace attachment;
-- show payment and AppRelay spend readiness.
+- show payment and AppRelay spend readiness;
+- show CommandDeck help and calibration docs;
+- show the Siri/Shortcuts plus MacBook V1 setup requirement;
+- show the command prompt structure and examples.
+
+These help surfaces are read-only. They may display CommandDeck-owned docs and
+active-pack metadata, but they must not execute local actions, mutate settings,
+approve commands, or send scripts to the local runner.
+
+V1 user-facing help should explain two layers separately:
+
+- first activate Siri using the platform wake phrase configured on the device,
+  usually `Hey Siri` or `Siri`;
+- then speak the CommandDeck phrase, such as `command help` or
+  `computer open ops dashboard activate`.
 
 CommandDeck CLI remains a developer/debug fallback:
 
 ```sh
-npm run command:local -- pack:open --command-pack contracts/commands/local-exact-commands.cdeck-pack.json
+npm run command:local -- pack:open --command-pack contracts/commands/core-commands.cdeck-pack.json
 npm run command:local -- pack:recent
 ```
 

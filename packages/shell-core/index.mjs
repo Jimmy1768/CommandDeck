@@ -8,12 +8,24 @@ const DEFAULT_ADAPTER = 'local_cli';
 const DEFAULT_WORKSPACE_REF = 'local_workspace';
 const DEFAULT_CONFIG_PATH = 'commanddeck.config.json';
 const COMMAND_PACK_FILE_EXTENSION = '.cdeck-pack.json';
-const DEFAULT_COMMAND_PACK_PATH = 'contracts/commands/mvp-commands.cdeck-pack.json';
+const COMMANDDECK_RELEASE = 'release-0.1.0';
+const COMMANDDECK_NEXT_MAJOR_RELEASE = 'release-1.0.0';
+const DEFAULT_COMMAND_PACK_PATH = 'contracts/commands/core-commands.cdeck-pack.json';
+const DEFAULT_EVAL_COMMAND_PACK_PATH = 'contracts/commands/mvp-commands.cdeck-pack.json';
 const DEFAULT_RECORD_DIR = 'records/actions';
 const DEFAULT_PACK_STATE_PATH = '.commanddeck/state/recent-packs.json';
 const DEFAULT_PACK_REJECTION_AUDIT_DIR = '.commanddeck/audit/pack-rejections';
+const DEFAULT_CALIBRATION_COMMANDS_PATH = 'contracts/commands/calibration-commands.schema.json';
 const CUSTOM_PACK_CATALOG_DIR = 'command-packs';
 const PACK_SLUG_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
+const RELEASE_PATTERN = /^release-\d+\.\d+\.\d+$/;
+const ALLOWED_PACK_SCOPES = new Set([
+  'commanddeck_core',
+  'sourcegrid_company',
+  'user_custom',
+  'partner_custom',
+  'fixture_legacy'
+]);
 const RECENT_PACK_LIMIT = 10;
 const CCQ_TOKEN_TTL_SECONDS = 300;
 const ACTION_RECORD_LOCK_STALE_MS = 30_000;
@@ -56,6 +68,9 @@ const FORBIDDEN_ALLOWED_EFFECTS = new Set([
 ]);
 const COMMAND_PHRASE_FIELDS = ['example_utterances', 'aliases'];
 const FORBIDDEN_COMMAND_FIELDS = ['script', 'scripts', 'shell', 'executable', 'handler', 'env', 'secrets'];
+const TARGET_PHRASE_FIELDS = ['display_name', 'aliases'];
+const SUPPORTED_TARGET_KINDS_V1 = new Set(['url', 'dashboard', 'repo', 'service', 'app', 'media']);
+const SUPPORTED_TARGET_ENVIRONMENTS_V1 = new Set(['dev', 'prod']);
 const FORBIDDEN_CONFIG_FIELDS = [
   'provider_keys',
   'secrets',
@@ -207,12 +222,35 @@ const ALLOWED_ACTION_REQUIREMENT_RISK_TIERS = new Set([
 export async function runLocalCommand(input, options = {}) {
   const rootDir = options.rootDir ?? path.resolve(import.meta.dirname, '../..');
   const timestamp = options.timestamp ?? new Date().toISOString();
+  const commandText = input.command_text ?? input.commandText ?? '';
+  const commandPackPath = options.commandPackPath;
   const routes = await readJson(rootDir, 'contracts/routes/route-contracts.json');
   const permissions = await readJson(rootDir, 'contracts/permissions/permission-levels.json');
   const coreActionRequirements = await loadCoreActionRequirements({ rootDir });
+  const calibrationContract = await loadCalibrationCommands({ rootDir });
+  const calibrationCommand = classifyCalibrationCommand(calibrationContract, commandText);
+
+  assertExecuteNowDisabled(permissions);
+
+  if (calibrationCommand) {
+    return buildCalibrationCommandResult({
+      input,
+      commandText,
+      timestamp,
+      calibrationCommand,
+      calibrationContract,
+      rootDir,
+      commandPackPath: options.commandPackPath,
+      routes,
+      permissions,
+      writeAudit: options.writeAudit,
+      auditDir: options.auditDir
+    });
+  }
+
   const pack = await loadCommandPack({
     rootDir,
-    commandPackPath: options.commandPackPath,
+    commandPackPath,
     routes,
     permissions,
     writeAudit: options.writeAudit,
@@ -223,13 +261,38 @@ export async function runLocalCommand(input, options = {}) {
     coreActionRequirements,
     pack
   });
+  const corePack =
+    pack.pack_id === 'commanddeck.core.v1'
+      ? pack
+      : await loadCommandPack({
+          rootDir,
+          commandPackPath: DEFAULT_COMMAND_PACK_PATH,
+          routes,
+          permissions,
+          writeAudit: options.writeAudit,
+          auditDir: options.auditDir,
+          timestamp
+        });
 
-  assertExecuteNowDisabled(permissions);
-
-  const commandText = input.command_text ?? input.commandText ?? '';
-  const command = classifyCommand(pack.commands, commandText);
+  const command =
+    classifyCommand(pack.commands, commandText) ??
+    (pack.pack_id === corePack.pack_id ? null : classifyCommand(corePack.commands, commandText)) ??
+    classifyTargetCommand({ activePack: pack, corePack, commandText, actionRequirements: runtimeActionRequirements });
 
   if (!command) {
+    const targetAmbiguityCcq = buildTargetAmbiguityConceptCheck({
+      input,
+      commandText,
+      timestamp,
+      activePack: pack,
+      corePack,
+      actionRequirements: runtimeActionRequirements
+    });
+
+    if (targetAmbiguityCcq) {
+      return targetAmbiguityCcq;
+    }
+
     const ccq = buildMissingObjectConceptCheck({
       input,
       commandText,
@@ -268,7 +331,8 @@ export async function runLocalCommand(input, options = {}) {
       } else {
         result = await runAllowlistedLocalAction(command.runner_action, {
           rootDir,
-          executor: options.executor
+          executor: options.executor,
+          target: command.resolved_target
         });
       }
     } else if (route.real_integration === false) {
@@ -281,7 +345,8 @@ export async function runLocalCommand(input, options = {}) {
           input,
           config: options.config,
           timestamp,
-          commandText
+          commandText,
+          commandPackPath
         });
       }
     } else {
@@ -488,6 +553,125 @@ export function classifyCommand(commands, commandText) {
   return commands.find((command) => {
     return commandPhrases(command).some((utterance) => normalizeUtterance(utterance) === normalizedInput);
   });
+}
+
+export function classifyTargetCommand({ activePack, corePack, commandText, actionRequirements }) {
+  const slots = parseSpokenCommandSlots(commandText, actionRequirements);
+
+  if (!slots?.action || !slots.object) {
+    return null;
+  }
+
+  const targetCandidates = findPackTargetCandidates(activePack, slots.object);
+  if (targetCandidates.length === 0) {
+    return null;
+  }
+
+  const command = (corePack.commands ?? []).find((candidate) => {
+    const targetMatch = candidate.target_match;
+    return (
+      targetMatch?.action === slots.action &&
+      Array.isArray(targetMatch.target_kinds) &&
+      targetCandidates.some((target) => targetMatch.target_kinds.includes(target.kind))
+    );
+  });
+
+  if (!command) {
+    return null;
+  }
+
+  const commandTargetKinds = new Set(command.target_match.target_kinds);
+  const matchingTargetCandidates = targetCandidates.filter((target) => commandTargetKinds.has(target.kind));
+  const target = resolvePackTarget(activePack, matchingTargetCandidates, { command });
+  if (!target) {
+    return null;
+  }
+
+  return withResolvedTarget(command, target);
+}
+
+function findPackTargetCandidates(pack, objectText) {
+  const normalizedObject = normalizeUtterance(objectText);
+  if (!normalizedObject) {
+    return [];
+  }
+
+  return (pack.targets ?? []).filter((target) => {
+    return targetPhrases(target).some((phrase) => normalizeUtterance(phrase) === normalizedObject);
+  });
+}
+
+function resolvePackTarget(pack, candidates, { command }) {
+  if (candidates.length === 0) {
+    return null;
+  }
+
+  if (candidates.length === 1) {
+    return candidates[0];
+  }
+
+  const defaultEnvironment = pack.default_environment;
+  if (!safeCommandAllowsDefaultTargetEnvironment(command)) {
+    return null;
+  }
+
+  const defaulted = candidates.filter((target) => target.environment === defaultEnvironment);
+  return defaulted.length === 1 ? defaulted[0] : null;
+}
+
+function safeCommandAllowsDefaultTargetEnvironment(command) {
+  return (
+    command?.route === 'local.exact_control' &&
+    command?.permission_level === 'approval-required' &&
+    command?.runner_action === 'workspace.open_url'
+  );
+}
+
+function withResolvedTarget(command, target) {
+  const displayName = target.display_name ?? target.target_id;
+  return {
+    ...command,
+    command_id: `${command.command_id}.${target.target_id}`,
+    title: `${command.title} ${displayName}`,
+    sources: [...(command.sources ?? []), `target://${target.target_id}`],
+    resolved_target: sanitizeResolvedTarget(target),
+    approval_prompt:
+      command.permission_level === 'approval-required'
+        ? {
+            target: `${displayName} (${target.value})`,
+            action: `open ${displayName}`,
+            risk: command.approval_prompt?.risk ?? 'launches a GUI app and changes local desktop state',
+            expected_record:
+              command.approval_prompt?.expected_record ?? 'action record updated after approval decision'
+          }
+        : command.approval_prompt
+  };
+}
+
+function sanitizeResolvedTarget(target) {
+  return {
+    target_id: target.target_id,
+    kind: target.kind,
+    display_name: target.display_name,
+    environment: target.environment ?? null,
+    value: target.value
+  };
+}
+
+export async function loadCalibrationCommands(options = {}) {
+  const rootDir = options.rootDir ?? path.resolve(import.meta.dirname, '../..');
+  return readRepoRelativeJson(rootDir, options.contractPath ?? DEFAULT_CALIBRATION_COMMANDS_PATH);
+}
+
+export function classifyCalibrationCommand(contract, commandText) {
+  const normalizedInput = normalizeUtterance(commandText);
+  if (!normalizedInput) {
+    return null;
+  }
+
+  return (contract?.canonical_commands ?? []).find((command) => {
+    return (command.relaxed_phrases ?? []).some((phrase) => normalizeUtterance(phrase) === normalizedInput);
+  }) ?? null;
 }
 
 export function normalizeUtterance(value) {
@@ -934,6 +1118,17 @@ function commandPhrases(command) {
   });
 }
 
+function targetPhrases(target) {
+  return TARGET_PHRASE_FIELDS.flatMap((field) => {
+    const phrases = target?.[field];
+    if (typeof phrases === 'string') {
+      return [phrases];
+    }
+
+    return Array.isArray(phrases) ? phrases : [];
+  });
+}
+
 function validateCommandPhrases(command, { commandId, normalizedPhraseOwners }) {
   const errors = [];
 
@@ -976,6 +1171,241 @@ function validateCommandPhrases(command, { commandId, normalizedPhraseOwners }) 
         field,
         index
       });
+    }
+  }
+
+  return errors;
+}
+
+function validatePackTargets(pack) {
+  const errors = [];
+
+  if (pack.default_environment !== undefined && !SUPPORTED_TARGET_ENVIRONMENTS_V1.has(pack.default_environment)) {
+    errors.push(`default_environment must be one of ${Array.from(SUPPORTED_TARGET_ENVIRONMENTS_V1).join(', ')}`);
+  }
+
+  if (pack.targets === undefined) {
+    return errors;
+  }
+
+  if (!Array.isArray(pack.targets)) {
+    return ['targets must be an array'];
+  }
+
+  const normalizedTargetOwners = new Map();
+
+  for (const [targetIndex, target] of pack.targets.entries()) {
+    const targetId = target?.target_id ?? `<target:${targetIndex}>`;
+
+    if (!target || typeof target !== 'object') {
+      errors.push(`${targetId} target must be an object`);
+      continue;
+    }
+
+    for (const field of ['target_id', 'kind', 'display_name', 'aliases', 'value']) {
+      if (!(field in target)) {
+        errors.push(`${targetId} missing target field ${field}`);
+      }
+    }
+
+    if (!target.target_id || typeof target.target_id !== 'string') {
+      errors.push(`${targetId} target_id must be a string`);
+    }
+
+    if (!SUPPORTED_TARGET_KINDS_V1.has(target.kind)) {
+      errors.push(`${targetId} kind is unsupported: ${target.kind}`);
+    }
+
+    if (target.environment !== undefined && !SUPPORTED_TARGET_ENVIRONMENTS_V1.has(target.environment)) {
+      errors.push(`${targetId} environment is unsupported: ${target.environment}`);
+    }
+
+    if (!target.display_name || typeof target.display_name !== 'string') {
+      errors.push(`${targetId} display_name must be a string`);
+    }
+
+    if (!Array.isArray(target.aliases) || target.aliases.length === 0) {
+      errors.push(`${targetId} aliases must be a non-empty array`);
+    }
+
+    if (!target.value || typeof target.value !== 'string') {
+      errors.push(`${targetId} value must be a string`);
+    } else if (['url', 'dashboard'].includes(target.kind)) {
+      errors.push(...validateTargetUrlValue(target));
+    }
+
+    for (const phrase of targetPhrases(target)) {
+      const normalizedPhrase = normalizeUtterance(phrase);
+      if (!normalizedPhrase) {
+        errors.push(`${targetId} target phrase must normalize to a non-empty phrase`);
+        continue;
+      }
+
+      const owners = normalizedTargetOwners.get(normalizedPhrase) ?? [];
+      if (owners.some((owner) => owner.targetId === targetId)) {
+        continue;
+      }
+
+      owners.push({ targetId, target });
+      normalizedTargetOwners.set(normalizedPhrase, owners);
+    }
+  }
+
+  for (const [normalizedPhrase, owners] of normalizedTargetOwners.entries()) {
+    if (owners.length > 1) {
+      errors.push(...validateSharedTargetAlias(pack, normalizedPhrase, owners));
+    }
+  }
+
+  return errors;
+}
+
+function validatePackReleaseMetadata(pack) {
+  const errors = [];
+  let minRelease = null;
+  let maxExclusiveRelease = null;
+
+  if (!pack.pack_release || typeof pack.pack_release !== 'string') {
+    errors.push('pack_release must be a string');
+  } else if (!RELEASE_PATTERN.test(pack.pack_release)) {
+    errors.push('pack_release must use release-X.Y.Z format');
+  }
+
+  if (!ALLOWED_PACK_SCOPES.has(pack.pack_scope)) {
+    errors.push(`pack_scope must be one of ${Array.from(ALLOWED_PACK_SCOPES).join(', ')}`);
+  }
+
+  const compatibility = pack.commanddeck_release_compatibility;
+  if (!compatibility || typeof compatibility !== 'object') {
+    errors.push('commanddeck_release_compatibility must be an object');
+    return errors;
+  }
+
+  for (const field of ['min', 'max_exclusive']) {
+    if (!compatibility[field] || typeof compatibility[field] !== 'string') {
+      errors.push(`commanddeck_release_compatibility.${field} must be a string`);
+    } else if (!RELEASE_PATTERN.test(compatibility[field])) {
+      errors.push(`commanddeck_release_compatibility.${field} must use release-X.Y.Z format`);
+    } else if (field === 'min') {
+      minRelease = compatibility[field];
+    } else if (field === 'max_exclusive') {
+      maxExclusiveRelease = compatibility[field];
+    }
+  }
+
+  if (minRelease && maxExclusiveRelease) {
+    const rangeOrder = compareReleaseVersions(minRelease, maxExclusiveRelease);
+
+    if (rangeOrder >= 0) {
+      errors.push('commanddeck_release_compatibility.min must be lower than max_exclusive');
+    } else if (
+      compareReleaseVersions(COMMANDDECK_RELEASE, minRelease) < 0 ||
+      compareReleaseVersions(COMMANDDECK_RELEASE, maxExclusiveRelease) >= 0
+    ) {
+      errors.push(
+        `commanddeck release ${COMMANDDECK_RELEASE} is outside pack compatibility range ${minRelease} <= release < ${maxExclusiveRelease}`
+      );
+    }
+  }
+
+  return errors;
+}
+
+function compareReleaseVersions(left, right) {
+  const leftParts = parseReleaseVersion(left);
+  const rightParts = parseReleaseVersion(right);
+
+  for (let index = 0; index < leftParts.length; index += 1) {
+    if (leftParts[index] !== rightParts[index]) {
+      return leftParts[index] < rightParts[index] ? -1 : 1;
+    }
+  }
+
+  return 0;
+}
+
+function parseReleaseVersion(release) {
+  return release
+    .replace(/^release-/, '')
+    .split('.')
+    .map((part) => Number.parseInt(part, 10));
+}
+
+function validateSharedTargetAlias(pack, normalizedPhrase, owners) {
+  const errors = [];
+
+  if (!pack.default_environment) {
+    return [`target alias "${normalizedPhrase}" is ambiguous; shared target aliases require default_environment`];
+  }
+
+  const logicalFamilies = new Set(owners.map(({ target }) => logicalTargetFamily(target)));
+  if (logicalFamilies.size !== 1) {
+    errors.push(`target alias "${normalizedPhrase}" must refer to one logical target family`);
+  }
+
+  const environments = owners.map(({ target }) => target.environment);
+  if (environments.some((environment) => !SUPPORTED_TARGET_ENVIRONMENTS_V1.has(environment))) {
+    errors.push(`target alias "${normalizedPhrase}" can only be shared by dev/prod targets`);
+  }
+
+  if (new Set(environments).size !== environments.length) {
+    errors.push(`target alias "${normalizedPhrase}" has duplicate target environments`);
+  }
+
+  if (!environments.includes(pack.default_environment)) {
+    errors.push(`target alias "${normalizedPhrase}" does not include default_environment ${pack.default_environment}`);
+  }
+
+  return errors;
+}
+
+function logicalTargetFamily(target) {
+  const id = String(target?.target_id ?? '');
+  return id.replace(/\.(dev|prod)$/, '');
+}
+
+function validateTargetUrlValue(target) {
+  const errors = [];
+
+  try {
+    const url = new URL(target.value);
+    if (!['http:', 'https:'].includes(url.protocol)) {
+      errors.push(`${target.target_id} URL target must use http or https`);
+    }
+
+    if (url.username || url.password) {
+      errors.push(`${target.target_id} URL target must not include credentials`);
+    }
+  } catch {
+    errors.push(`${target.target_id} value must be a valid URL`);
+  }
+
+  return errors;
+}
+
+function validateCommandTargetMatch(command, { commandId }) {
+  const errors = [];
+  const targetMatch = command.target_match;
+
+  if (targetMatch === undefined) {
+    return errors;
+  }
+
+  if (!targetMatch || typeof targetMatch !== 'object') {
+    return [`${commandId} target_match must be an object`];
+  }
+
+  if (!targetMatch.action || typeof targetMatch.action !== 'string') {
+    errors.push(`${commandId} target_match action must be a string`);
+  }
+
+  if (!Array.isArray(targetMatch.target_kinds) || targetMatch.target_kinds.length === 0) {
+    errors.push(`${commandId} target_match target_kinds must be a non-empty array`);
+  } else {
+    for (const kind of targetMatch.target_kinds) {
+      if (!SUPPORTED_TARGET_KINDS_V1.has(kind)) {
+        errors.push(`${commandId} target_match target kind is unsupported: ${kind}`);
+      }
     }
   }
 
@@ -1121,7 +1551,7 @@ export async function loadApprovalDecision(options = {}) {
 export async function runEvalSuite(options = {}) {
   const rootDir = options.rootDir ?? path.resolve(import.meta.dirname, '../..');
   const suitePath = options.suitePath ?? 'evals/cases/mvp.slice1.cases.json';
-  const commandPackPath = options.commandPackPath ?? DEFAULT_COMMAND_PACK_PATH;
+  const commandPackPath = options.commandPackPath ?? DEFAULT_EVAL_COMMAND_PACK_PATH;
   const timestamp = options.timestamp ?? new Date().toISOString();
   const suite = await readRepoRelativeJson(rootDir, suitePath);
   const caseResults = [];
@@ -1690,7 +2120,7 @@ export function buildSourceGridAppRelayProxyRequest(input = {}, options = {}) {
       adapter: input.adapter ?? DEFAULT_ADAPTER,
       surface_hint: input.surface_hint ?? null,
       device_code: input.device_code ?? null,
-      commanddeck_version: options.commandDeckVersion ?? '0.0.0'
+      commanddeck_version: options.commandDeckVersion ?? COMMANDDECK_RELEASE
     },
     authority_constraints: {
       no_execution_authority: true,
@@ -2109,7 +2539,17 @@ export function validateCommandPack(pack, { routes, permissions }) {
     return ['pack must be an object'];
   }
 
-  for (const field of ['schema_version', 'pack_id', 'owner', 'permissions', 'record_policy', 'commands']) {
+  for (const field of [
+    'schema_version',
+    'pack_id',
+    'pack_release',
+    'pack_scope',
+    'commanddeck_release_compatibility',
+    'owner',
+    'permissions',
+    'record_policy',
+    'commands'
+  ]) {
     if (!(field in pack)) {
       errors.push(`missing pack field ${field}`);
     }
@@ -2119,12 +2559,19 @@ export function validateCommandPack(pack, { routes, permissions }) {
     errors.push('schema_version must be 0.1');
   }
 
-  if (!Array.isArray(pack.commands) || pack.commands.length === 0) {
-    errors.push('commands must be a non-empty array');
+  errors.push(...validatePackReleaseMetadata(pack));
+
+  if (!Array.isArray(pack.commands)) {
+    errors.push('commands must be an array');
     return errors;
   }
 
   errors.push(...validatePackActionRequirements(pack.action_requirements));
+  errors.push(...validatePackTargets(pack));
+
+  if (pack.commands.length === 0 && !Array.isArray(pack.targets)) {
+    errors.push('commands must be non-empty unless targets are declared for core action object slots');
+  }
 
   for (const command of pack.commands) {
     const commandId = command?.command_id ?? '<unknown>';
@@ -2149,6 +2596,8 @@ export function validateCommandPack(pack, { routes, permissions }) {
     if ('runner_action' in command && typeof command.runner_action !== 'string') {
       errors.push(`${commandId} runner_action must be a string`);
     }
+
+    errors.push(...validateCommandTargetMatch(command, { commandId }));
 
     if (!allowedPermissionLevels.has(command.permission_level)) {
       errors.push(`${commandId} has unsupported permission level ${command.permission_level}`);
@@ -2490,6 +2939,12 @@ function buildStarterCommandPack({ packSlug, owner }) {
   return {
     schema_version: '0.1',
     pack_id: `${owner}.${packSlug}`,
+    pack_release: COMMANDDECK_RELEASE,
+    pack_scope: 'user_custom',
+    commanddeck_release_compatibility: {
+      min: COMMANDDECK_RELEASE,
+      max_exclusive: COMMANDDECK_NEXT_MAJOR_RELEASE
+    },
     owner,
     permissions: 'contracts/permissions/permission-levels.json',
     record_policy: {
@@ -2735,7 +3190,190 @@ function evaluateFixtureCommand(command, sources) {
   }
 }
 
-function attachSourceGridAppRelayProxySmoke({ result, input, config, timestamp, commandText }) {
+async function buildCalibrationCommandResult({
+  input,
+  commandText,
+  timestamp,
+  calibrationCommand,
+  calibrationContract,
+  rootDir,
+  commandPackPath,
+  routes,
+  permissions,
+  writeAudit,
+  auditDir
+}) {
+  const activePack = await loadActivePackForCalibration({
+    rootDir,
+    commandPackPath,
+    routes,
+    permissions,
+    writeAudit,
+    auditDir,
+    timestamp
+  });
+  const help = calibrationHelpFor(calibrationCommand, calibrationContract, activePack);
+  const record = {
+    record_id: stableId('rec', [calibrationCommand.command_id, commandText, timestamp]),
+    command_id: calibrationCommand.command_id,
+    timestamp,
+    actor_ref: input.actor_ref ?? DEFAULT_ACTOR,
+    adapter: input.adapter ?? DEFAULT_ADAPTER,
+    command_text: commandText,
+    interpreted_intent: calibrationCommand.title,
+    permission_level: 'read-only',
+    approval_status: 'not_required',
+    route: calibrationCommand.route,
+    sources_used: [
+      DEFAULT_CALIBRATION_COMMANDS_PATH,
+      ...help.doc_refs
+    ],
+    model_provider_route: null,
+    action_key: null,
+    approval_request: null,
+    result: {
+      status: 'answered_calibration_help',
+      summary: help.responseText,
+      data: {
+        help_route: calibrationCommand.route,
+        allowed_effects: calibrationContract.allowed_effects,
+        forbidden_effects: calibrationContract.forbidden_effects,
+        doc_refs: help.doc_refs,
+        active_pack: help.active_pack
+      }
+    },
+    errors: activePack.error ? [activePack.error] : [],
+    follow_up_owner: null
+  };
+
+  return buildCommandResult({
+    input,
+    responseText: help.responseText,
+    record
+  });
+}
+
+async function loadActivePackForCalibration({
+  rootDir,
+  commandPackPath,
+  routes,
+  permissions,
+  writeAudit,
+  auditDir,
+  timestamp
+}) {
+  try {
+    const pack = await loadCommandPack({
+      rootDir,
+      commandPackPath,
+      routes,
+      permissions,
+      writeAudit,
+      auditDir,
+      timestamp
+    });
+
+    return {
+      pack,
+      error: null
+    };
+  } catch (error) {
+    return {
+      pack: null,
+      error: `Active pack metadata unavailable: ${error.message}`
+    };
+  }
+}
+
+function calibrationHelpFor(command, contract, activePackResult) {
+  const activePack = activePackResult.pack;
+  const activePackSummary = activePack
+    ? {
+        pack_id: activePack.pack_id,
+        owner: activePack.owner,
+        command_count: activePack.commands.length,
+        commands: activePack.commands.map((packCommand) => ({
+          command_id: packCommand.command_id,
+          title: packCommand.title,
+          permission_level: packCommand.permission_level,
+          route: packCommand.route
+        }))
+      }
+    : {
+        pack_id: null,
+        owner: null,
+        command_count: 0,
+        commands: [],
+        error: activePackResult.error
+      };
+  const docRefs = [
+    'ops/docs/contracts/calibration-commands.md',
+    'ops/docs/contracts/voice-adapter-boundary.md'
+  ];
+
+  switch (command.route) {
+    case 'commanddeck.help.command_structure':
+      return {
+        doc_refs: [
+          ...docRefs,
+          'ops/docs/contracts/understanding-and-memory.md'
+        ],
+        active_pack: activePackSummary,
+        responseText:
+          'CommandDeck operational commands use: platform wake phrase, device code, action, object, optional context, optional end code. For V1 say Siri first, then a CommandDeck phrase such as: computer open ops dashboard activate.'
+      };
+    case 'commanddeck.help.active_pack':
+      return {
+        doc_refs: [
+          ...docRefs,
+          'ops/docs/contracts/command-pack.md'
+        ],
+        active_pack: activePackSummary,
+        responseText: activePack
+          ? `Active pack: ${activePack.pack_id} by ${activePack.owner}. It declares ${activePack.commands.length} commands.`
+          : `Active pack metadata is unavailable. ${activePackResult.error}`
+      };
+    case 'commanddeck.help.examples':
+      return {
+        doc_refs: [
+          ...docRefs,
+          'README.md'
+        ],
+        active_pack: activePackSummary,
+        responseText:
+          'Examples: Hey Siri, command help. Hey Siri, command command structure. Operational example: Hey Siri, computer open ops dashboard activate. Exact local examples include: what is the status of this repo, show recent commits, is Puma up.'
+      };
+    case 'commanddeck.help.siri_surface':
+      return {
+        doc_refs: docRefs,
+        active_pack: activePackSummary,
+        responseText:
+          'V1 requires Siri or Shortcuts plus a MacBook runner. First activate Siri with your device wake phrase, usually Hey Siri or Siri. Then speak the CommandDeck phrase, such as command help or computer open ops dashboard activate.'
+      };
+    case 'commanddeck.help.commands':
+    default: {
+      const calibrationPhrases = (contract.canonical_commands ?? [])
+        .map((candidate) => candidate.relaxed_phrases?.[0])
+        .filter(Boolean);
+      const activeCommands = activePackSummary.commands.slice(0, 8).map((packCommand) => packCommand.title);
+      const activePackText = activePack
+        ? ` Active pack ${activePack.pack_id} currently declares ${activePack.commands.length} commands${activeCommands.length ? `, including: ${activeCommands.join('; ')}.` : '.'}`
+        : ` Active pack metadata is unavailable. ${activePackResult.error}`;
+
+      return {
+        doc_refs: [
+          ...docRefs,
+          'ops/docs/contracts/command-pack.md'
+        ],
+        active_pack: activePackSummary,
+        responseText:
+          `I can answer calibration commands such as: ${calibrationPhrases.join('; ')}.${activePackText}`
+      };
+    }
+  }
+}
+
+function attachSourceGridAppRelayProxySmoke({ result, input, config, timestamp, commandText, commandPackPath }) {
   const preview = buildSourceGridAppRelayProxyRequest(
     {
       ...input,
@@ -2743,6 +3381,10 @@ function attachSourceGridAppRelayProxySmoke({ result, input, config, timestamp, 
     },
     {
       config: config ?? DEFAULT_CONFIG,
+      activePack: {
+        active_command_pack: commandPackPath ?? config?.default_command_pack ?? DEFAULT_COMMAND_PACK_PATH,
+        active_pack_source_field: commandPackPath ? 'command_pack_override' : 'default_command_pack'
+      },
       timestamp
     }
   );
@@ -2778,7 +3420,8 @@ async function executeApprovedLocalAction(record, options = {}) {
   try {
     const result = await runAllowlistedLocalAction(record.action_key, {
       rootDir,
-      executor: options.executor
+      executor: options.executor,
+      target: record.result?.data?.resolved_target
     });
 
     return {
@@ -2850,13 +3493,19 @@ function responseFor(result, approvalStatus) {
 }
 
 function blockedApprovalResultFor(command) {
+  const data = {
+    pending_runner_action: command.runner_action,
+    approval_target: command.approval_prompt.target
+  };
+
+  if (command.resolved_target) {
+    data.resolved_target = command.resolved_target;
+  }
+
   return {
     status: 'approval_requested',
     summary: `Approval is required before ${command.approval_prompt.action}.`,
-    data: {
-      pending_runner_action: command.runner_action,
-      approval_target: command.approval_prompt.target
-    }
+    data
   };
 }
 
@@ -2922,6 +3571,135 @@ function buildMissingObjectConceptCheck({ input, commandText, timestamp, actionR
     responseText: question,
     record
   });
+}
+
+function buildTargetAmbiguityConceptCheck({ input, commandText, timestamp, activePack, corePack, actionRequirements }) {
+  const slots = parseSpokenCommandSlots(commandText, actionRequirements);
+
+  if (!slots?.action || !slots.object) {
+    return null;
+  }
+
+  const command = findCoreTargetCommandForAmbiguity({ corePack, action: slots.action });
+  if (!command || !safeCommandAllowsDefaultTargetEnvironment(command)) {
+    return null;
+  }
+
+  const choices = findTargetFamilyChoices(activePack, slots.object, command);
+  if (choices.length < 2 || choices.length > 4) {
+    return null;
+  }
+
+  const question = `Do you mean ${formatTargetChoiceList(choices)}?`;
+  const resumeToken = stableId('ccq', [
+    'target_ambiguity',
+    input.actor_ref ?? DEFAULT_ACTOR,
+    workspaceRefFor(input),
+    input.adapter ?? DEFAULT_ADAPTER,
+    commandText,
+    timestamp
+  ]);
+  const expiresAt = new Date(new Date(timestamp).getTime() + CCQ_TOKEN_TTL_SECONDS * 1000).toISOString();
+  const record = {
+    record_id: stableId('rec', ['ccq_target_ambiguity', slots.action, slots.object, timestamp]),
+    command_id: 'unresolved',
+    timestamp,
+    actor_ref: input.actor_ref ?? DEFAULT_ACTOR,
+    adapter: input.adapter ?? DEFAULT_ADAPTER,
+    command_text: commandText,
+    interpreted_intent: `${slots.action} command target ambiguous`,
+    permission_level: 'read-only',
+    approval_status: 'required_not_requested',
+    route: 'none',
+    sources_used: choices.map((choice) => `target://${choice.target_id}`),
+    model_provider_route: null,
+    action_key: null,
+    approval_request: null,
+    result: {
+      status: 'needs_clarification',
+      summary: 'CommandDeck needs one more detail before routing.',
+      clarification: {
+        question,
+        missing_slots: ['object'],
+        partial_intent: {
+          device_code: slots.device_code,
+          action: slots.action,
+          object: slots.object,
+          context: slots.context,
+          end_code: slots.end_code
+        },
+        choices: choices.map((choice) => ({
+          target_id: choice.target_id,
+          display_name: choice.display_name,
+          environment: choice.environment,
+          suggested_answer: preferredTargetAlias(choice)
+        })),
+        resume_token: resumeToken,
+        resume_token_status: 'active',
+        resume_token_expires_at: expiresAt,
+        resume_token_used_at: null,
+        workspace_ref: workspaceRefFor(input),
+        adapter_session_ref: adapterSessionRefFor(input)
+      }
+    },
+    errors: [],
+    follow_up_owner: 'user'
+  };
+
+  return buildCommandResult({
+    input,
+    responseText: question,
+    record
+  });
+}
+
+function findCoreTargetCommandForAmbiguity({ corePack, action }) {
+  return (corePack.commands ?? []).find((candidate) => candidate.target_match?.action === action);
+}
+
+function findTargetFamilyChoices(pack, objectText, command) {
+  const normalizedObject = normalizeUtterance(objectText);
+  const commandTargetKinds = new Set(command.target_match.target_kinds ?? []);
+  const candidates = (pack.targets ?? []).filter((target) => {
+    return commandTargetKinds.has(target.kind) && normalizedLogicalTargetFamily(target).includes(normalizedObject.replace(/\s/g, ''));
+  });
+  const familyCounts = new Map();
+
+  for (const target of candidates) {
+    const family = logicalTargetFamily(target);
+    familyCounts.set(family, (familyCounts.get(family) ?? 0) + 1);
+  }
+
+  const matchingFamilies = [...familyCounts.entries()].filter(([, count]) => count > 1);
+  if (matchingFamilies.length !== 1) {
+    return [];
+  }
+
+  const [family] = matchingFamilies[0];
+  return candidates
+    .filter((target) => logicalTargetFamily(target) === family)
+    .sort((left, right) => String(left.environment ?? '').localeCompare(String(right.environment ?? '')));
+}
+
+function formatTargetChoiceList(choices) {
+  const labels = choices.map((choice) => preferredTargetAlias(choice));
+  if (labels.length === 2) {
+    return `${labels[0]} or ${labels[1]}`;
+  }
+
+  return `${labels.slice(0, -1).join(', ')}, or ${labels[labels.length - 1]}`;
+}
+
+function preferredTargetAlias(target) {
+  const explicitEnvironmentAlias = (target.aliases ?? []).find((alias) =>
+    normalizeUtterance(alias).includes(normalizeUtterance(target.environment ?? ''))
+  );
+
+  return explicitEnvironmentAlias ?? target.display_name ?? target.target_id;
+}
+
+function normalizedLogicalTargetFamily(target) {
+  return normalizeUtterance(logicalTargetFamily(target)).replace(/\s/g, '');
 }
 
 function parseSpokenCommandSlots(commandText, actionRequirements) {
