@@ -90,10 +90,13 @@ test('classifies calibration commands with relaxed deterministic phrases', async
   const contract = await loadCalibrationCommands({ rootDir });
   const command = classifyCalibrationCommand(contract, 'What can you do?');
   const routedCommand = classifyCalibrationCommand(contract, 'Command what can you do?');
+  const commandStructure = classifyCalibrationCommand(contract, 'What is the command structure?');
 
   assert.equal(command.command_id, 'commanddeck.help.commands');
   assert.equal(command.route, 'commanddeck.help.commands');
   assert.equal(routedCommand.command_id, 'commanddeck.help.commands');
+  assert.equal(commandStructure.command_id, 'commanddeck.help.command_structure');
+  assert.equal(commandStructure.route, 'commanddeck.help.command_structure');
 });
 
 test('answers read-only MVP command from fixture only', async () => {

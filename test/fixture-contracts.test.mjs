@@ -975,6 +975,11 @@ test('calibration command class is read-only relaxed help only', async () => {
       .find((command) => command.command_id === 'commanddeck.help.commands')
       .relaxed_phrases.includes('what can you do')
   );
+  assert.ok(
+    contract.canonical_commands
+      .find((command) => command.command_id === 'commanddeck.help.command_structure')
+      .relaxed_phrases.includes('what is the command structure')
+  );
   assert.equal(contract.v1_surface_requirements.required_platform_entry, 'activate_siri_first');
   assert.equal(contract.v1_surface_requirements.required_runner_hardware, 'macbook');
   assert.ok(contract.v1_surface_requirements.common_wake_phrases.includes('hey siri'));
