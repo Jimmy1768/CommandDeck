@@ -55,6 +55,10 @@ test('normalizes MVP utterances without punctuation sensitivity', () => {
   assert.equal(normalizeUtterance("Summarize today's operator queue."), 'summarize todays operator queue');
 });
 
+test('normalizes harmless voice capture filler without semantic rewrite', () => {
+  assert.equal(normalizeUtterance('Please, uh, check Puma status.'), 'check puma status');
+});
+
 test('classifies exact MVP utterance variants', () => {
   const commands = [
     {
@@ -65,6 +69,19 @@ test('classifies exact MVP utterance variants', () => {
 
   const command = classifyCommand(commands, 'what is my next sourcegrid task');
   assert.equal(command.command_id, 'mvp.next_sourcegrid_task');
+});
+
+test('classifies deterministic command-owned aliases', () => {
+  const commands = [
+    {
+      command_id: 'local.puma_status',
+      example_utterances: ['Check Puma status.'],
+      aliases: ['Puma status.', 'Is Puma up?']
+    }
+  ];
+
+  const command = classifyCommand(commands, 'is puma up');
+  assert.equal(command.command_id, 'local.puma_status');
 });
 
 test('answers read-only MVP command from fixture only', async () => {
@@ -1049,7 +1066,7 @@ test('executes an allowlisted local repo status command with an injected executo
 test('executes an allowlisted local Puma status command with an injected executor', async () => {
   const result = await runLocalCommand(
     {
-      command_text: 'Is Puma running?'
+      command_text: 'Is Puma up?'
     },
     {
       rootDir,
@@ -1060,7 +1077,12 @@ test('executes an allowlisted local Puma status command with an injected executo
         assert.deepEqual(spec.args, ['-ef']);
         return {
           exitCode: 0,
-          stdout: 'UID PID PPID C STIME TTY TIME CMD\njimmy 123 1 0 10:00 ?? 0:00.10 puma 6.4.0 (tcp://127.0.0.1:3000)\n',
+          stdout: [
+            'UID PID PPID C STIME TTY TIME CMD',
+            'jimmy 111 1 0 10:00 ?? 0:00.10 node bin/command-deck.mjs --command-pack local Check Puma status.',
+            'jimmy 112 1 0 10:00 ?? 0:00.10 /Users/jimmy/.codex/computer-use/Codex Computer Use.app turn-ended {"prompt":"Check Puma status"}',
+            'jimmy 123 1 0 10:00 ?? 0:00.10 puma 6.4.0 (tcp://127.0.0.1:3000)'
+          ].join('\n'),
           stderr: ''
         };
       }
@@ -1072,6 +1094,12 @@ test('executes an allowlisted local Puma status command with an injected executo
   assert.equal(result.record.result.status, 'executed_local_exact_command');
   assert.equal(result.record.result.data.running, true);
   assert.equal(result.record.result.data.process_count, 1);
+  assert.deepEqual(result.record.result.data.processes, [
+    {
+      pid: '123',
+      command: 'puma 6.4.0 (tcp://127.0.0.1:3000)'
+    }
+  ]);
   assert.match(result.response_text, /Puma appears to be running in 1 process\./);
 });
 
@@ -1142,6 +1170,19 @@ test('rejects command packs with executable fields or unsafe sources', async () 
   const errors = validateCommandPack(unsafePack, { routes, permissions });
   assert.ok(errors.some((error) => error.includes('forbidden executable field script')));
   assert.ok(errors.some((error) => error.includes('source must be repo-relative under evals/fixtures')));
+});
+
+test('rejects command packs with conflicting normalized aliases', async () => {
+  const routes = await readJson('contracts/routes/route-contracts.json');
+  const permissions = await readJson('contracts/permissions/permission-levels.json');
+  const pack = await readJson('contracts/commands/local-exact-commands.cdeck-pack.json');
+  const invalidPack = structuredClone(pack);
+
+  invalidPack.commands[0].aliases = ['Check server.'];
+  invalidPack.commands[1].aliases = ['Please check server.'];
+
+  const errors = validateCommandPack(invalidPack, { routes, permissions });
+  assert.ok(errors.some((error) => error.includes('conflicts with local.repo_status aliases[0]: check server')));
 });
 
 test('writes opt-in pack rejection audit records for invalid custom packs', async () => {

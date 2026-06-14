@@ -89,7 +89,7 @@ async function runPumaStatus(options) {
   return runProcessMatch({
     actionId: 'service.puma_status',
     pattern: /\b(puma|rails server)\b/i,
-    runningSummary: (count) => `Puma appears to be running in ${count} process${pluralize(count)}.`,
+    runningSummary: (count) => `Puma appears to be running in ${count} ${pluralizeWord(count, 'process', 'processes')}.`,
     stoppedSummary: 'Puma does not appear to be running.'
   }, options);
 }
@@ -98,7 +98,7 @@ async function runSidekiqStatus(options) {
   return runProcessMatch({
     actionId: 'service.sidekiq_status',
     pattern: /\bsidekiq\b/i,
-    runningSummary: (count) => `Sidekiq appears to be running in ${count} process${pluralize(count)}.`,
+    runningSummary: (count) => `Sidekiq appears to be running in ${count} ${pluralizeWord(count, 'process', 'processes')}.`,
     stoppedSummary: 'Sidekiq does not appear to be running.'
   }, options);
 }
@@ -152,7 +152,10 @@ async function runProcessMatch(definition, options) {
     },
     options.executor
   );
-  const matches = splitLines(result.stdout).filter((line) => definition.pattern.test(line));
+  const matches = splitLines(result.stdout)
+    .map(parsePsEfLine)
+    .filter((processInfo) => processInfo && !shouldIgnoreProcessLine(processInfo.command))
+    .filter((processInfo) => definition.pattern.test(processInfo.command));
 
   return {
     status: 'executed_local_exact_command',
@@ -161,7 +164,10 @@ async function runProcessMatch(definition, options) {
       runner_action: definition.actionId,
       running: matches.length > 0,
       process_count: matches.length,
-      processes: matches
+      processes: matches.map((processInfo) => ({
+        pid: processInfo.pid,
+        command: truncateProcessCommand(processInfo.command)
+      }))
     }
   };
 }
@@ -218,4 +224,40 @@ function splitLines(value) {
 
 function pluralize(count) {
   return count === 1 ? '' : 's';
+}
+
+function pluralizeWord(count, singular, plural) {
+  return count === 1 ? singular : plural;
+}
+
+function parsePsEfLine(line) {
+  if (/^\s*UID\s+PID\s+PPID\s+/i.test(line)) {
+    return null;
+  }
+
+  const match = line.match(/^\s*(\S+)\s+(\d+)\s+(\d+)\s+\S+\s+\S+\s+\S+\s+\S+\s+(.+)$/);
+  if (!match) {
+    return null;
+  }
+
+  return {
+    uid: match[1],
+    pid: match[2],
+    ppid: match[3],
+    command: match[4]
+  };
+}
+
+function shouldIgnoreProcessLine(command) {
+  return [
+    /\bnode\s+bin\/command-deck\.mjs\b/,
+    /\bnpm\s+run\s+command:local\b/,
+    /Codex Computer Use\.app/,
+    /\bps\s+-ef\b/
+  ].some((pattern) => pattern.test(command));
+}
+
+function truncateProcessCommand(command) {
+  const value = String(command);
+  return value.length <= 240 ? value : `${value.slice(0, 237)}...`;
 }

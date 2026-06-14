@@ -205,7 +205,33 @@ Bad candidates:
 
 ## Alias
 
-An alias is a short name for a target, not a hidden full command.
+CommandDeck uses two bounded alias forms:
+
+- command phrase aliases in active command packs;
+- target aliases in learned memory or slot resolution.
+
+Neither form is chatbot understanding, and neither form grants execution
+authority.
+
+## Command Phrase Alias
+
+A command phrase alias is an additional deterministic phrase owned by a command
+pack command. It resolves to the same declared command contract as the command's
+examples.
+
+Examples:
+
+- `puma status` can mean command `local.puma_status`;
+- `check worker` can mean command `local.sidekiq_status`;
+- `open current repo` can mean command `local.open_commanddeck_repo`.
+
+Command phrase aliases are scoped to the active command pack. They must not
+conflict after normalization. They do not change permission level, route,
+required slots, allowed effects, or approval policy.
+
+## Target Alias
+
+A target alias is a short name for a target, not a hidden full command.
 
 Examples:
 

@@ -26,7 +26,16 @@
     "sources"
   ],
   "optional_pack_fields": ["action_requirements"],
-  "optional_command_fields": ["runner_action", "approval_prompt"],
+  "optional_command_fields": ["aliases", "runner_action", "approval_prompt"],
+  "alias_policy": {
+    "scope": "active_command_pack_only",
+    "owner": "declaring_command",
+    "match_rule": "deterministic_normalized_phrase",
+    "semantic_matching_allowed": false,
+    "cross_command_duplicate_normalized_phrases_allowed": false,
+    "execution_authority": "none_beyond_declared_command_contract",
+    "ambiguity_behavior": "reject_pack_or_ask_ccq_before_execution"
+  },
   "allowed_permission_levels": ["read-only", "draft-only", "approval-required"],
   "allowed_source_roots": ["evals/fixtures/", "local://"],
   "forbidden_command_fields": ["script", "scripts", "shell", "executable", "handler", "env", "secrets"],

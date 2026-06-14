@@ -35,6 +35,12 @@
         "What is the status of this repo?",
         "Show repo status."
       ],
+      "aliases": [
+        "Repo status.",
+        "Check repo status.",
+        "Git status.",
+        "Check git status."
+      ],
       "permission_level": "read-only",
       "route": "local.exact_read",
       "runner_action": "repo.status",
@@ -48,6 +54,11 @@
       "example_utterances": [
         "Show recent commits.",
         "What are the recent commits?"
+      ],
+      "aliases": [
+        "Recent commits.",
+        "Check recent commits.",
+        "Show git log."
       ],
       "permission_level": "read-only",
       "route": "local.exact_read",
@@ -63,6 +74,13 @@
         "Is Puma running?",
         "Check Puma status."
       ],
+      "aliases": [
+        "Puma status.",
+        "Check Puma.",
+        "Is Puma up?",
+        "Is Rails running?",
+        "Is Rails server running?"
+      ],
       "permission_level": "read-only",
       "route": "local.exact_read",
       "runner_action": "service.puma_status",
@@ -76,6 +94,13 @@
       "example_utterances": [
         "Is Sidekiq running?",
         "Check Sidekiq status."
+      ],
+      "aliases": [
+        "Sidekiq status.",
+        "Check Sidekiq.",
+        "Is Sidekiq up?",
+        "Worker status.",
+        "Check worker."
       ],
       "permission_level": "read-only",
       "route": "local.exact_read",

@@ -123,11 +123,32 @@ requested, but execution remains blocked until a future pack-write policy exists
 
 - Keep deterministic local reads read-only.
 - Use approval-required for risky local control.
+- Put safe phrase variants in `aliases`; do not rely on broad natural-language
+  guessing.
 - Do not include `script`, `scripts`, `shell`, `executable`, `handler`, `env`,
   or `secrets` in a command pack.
 - Do not assume files in `scripts/` can run. Script execution requires a future
   explicit runner policy.
 - Do not use raw spoken SQL or raw shell passthrough.
+
+## Phrase Aliases
+
+Custom packs may declare command-owned `aliases` for deterministic matching.
+Aliases are additional ways to say the same command, not new behavior.
+
+For example, a Sidekiq status command can declare:
+
+```json
+{
+  "command_id": "pack.sidekiq_status",
+  "example_utterances": ["Check Sidekiq status."],
+  "aliases": ["Sidekiq status.", "Check worker.", "Is Sidekiq up?"]
+}
+```
+
+Do not add broad aliases that could point to several commands. If a user says
+`check server` and the pack has Puma, Sidekiq, and Redis, that should become a
+concept-checking question, not a hidden default.
 
 ## If A Command Is Rejected
 

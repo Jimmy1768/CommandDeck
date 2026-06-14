@@ -15,6 +15,11 @@
         "Open the SourceGrid dashboard.",
         "Open SourceGrid dashboard."
       ],
+      "aliases": [
+        "Open SourceGrid.",
+        "Open dashboard.",
+        "Open ops dashboard."
+      ],
       "permission_level": "approval-required",
       "route": "local.exact_control",
       "runner_action": "workspace.open_sourcegrid_dashboard",
@@ -34,6 +39,11 @@
       "example_utterances": [
         "Open the CommandDeck repo.",
         "Open this repo."
+      ],
+      "aliases": [
+        "Open CommandDeck.",
+        "Open repo.",
+        "Open current repo."
       ],
       "permission_level": "approval-required",
       "route": "local.exact_control",

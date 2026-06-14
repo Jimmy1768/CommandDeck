@@ -54,6 +54,7 @@ const FORBIDDEN_ALLOWED_EFFECTS = new Set([
   'external_call',
   'provider_call'
 ]);
+const COMMAND_PHRASE_FIELDS = ['example_utterances', 'aliases'];
 const FORBIDDEN_COMMAND_FIELDS = ['script', 'scripts', 'shell', 'executable', 'handler', 'env', 'secrets'];
 const FORBIDDEN_CONFIG_FIELDS = [
   'provider_keys',
@@ -485,7 +486,7 @@ export function classifyCommand(commands, commandText) {
   const normalizedInput = normalizeUtterance(commandText);
 
   return commands.find((command) => {
-    return command.example_utterances.some((utterance) => normalizeUtterance(utterance) === normalizedInput);
+    return commandPhrases(command).some((utterance) => normalizeUtterance(utterance) === normalizedInput);
   });
 }
 
@@ -493,6 +494,8 @@ export function normalizeUtterance(value) {
   return String(value)
     .toLowerCase()
     .replace(/[^\w\s]/g, '')
+    .replace(/\b(uh|um)\b/g, ' ')
+    .replace(/^\s*please\s+/, '')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -919,6 +922,61 @@ function validatePackActionRequirements(actionRequirements) {
     }
 
     errors.push(...validateActionRequirementShape(action, { expectedCapabilitySource: 'pack', seenActions }));
+  }
+
+  return errors;
+}
+
+function commandPhrases(command) {
+  return COMMAND_PHRASE_FIELDS.flatMap((field) => {
+    const phrases = command?.[field];
+    return Array.isArray(phrases) ? phrases : [];
+  });
+}
+
+function validateCommandPhrases(command, { commandId, normalizedPhraseOwners }) {
+  const errors = [];
+
+  if (!Array.isArray(command.example_utterances) || command.example_utterances.length === 0) {
+    errors.push(`${commandId} must include at least one example utterance`);
+  }
+
+  for (const field of COMMAND_PHRASE_FIELDS) {
+    if (command[field] === undefined) {
+      continue;
+    }
+
+    if (!Array.isArray(command[field])) {
+      errors.push(`${commandId} ${field} must be an array`);
+      continue;
+    }
+
+    for (const [index, phrase] of command[field].entries()) {
+      if (typeof phrase !== 'string' || phrase.trim().length === 0) {
+        errors.push(`${commandId} ${field}[${index}] must be a non-empty string`);
+        continue;
+      }
+
+      const normalizedPhrase = normalizeUtterance(phrase);
+      if (!normalizedPhrase) {
+        errors.push(`${commandId} ${field}[${index}] must normalize to a non-empty phrase`);
+        continue;
+      }
+
+      const previousOwner = normalizedPhraseOwners.get(normalizedPhrase);
+      if (previousOwner && previousOwner.commandId !== commandId) {
+        errors.push(
+          `${commandId} ${field}[${index}] conflicts with ${previousOwner.commandId} ${previousOwner.field}[${previousOwner.index}]: ${normalizedPhrase}`
+        );
+        continue;
+      }
+
+      normalizedPhraseOwners.set(normalizedPhrase, {
+        commandId,
+        field,
+        index
+      });
+    }
   }
 
   return errors;
@@ -2045,6 +2103,7 @@ export function validateCommandPack(pack, { routes, permissions }) {
   const allowedPermissionLevels = new Set(
     permissions.levels.filter((level) => level.id !== 'execute-now').map((level) => level.id)
   );
+  const normalizedPhraseOwners = new Map();
 
   if (!pack || typeof pack !== 'object') {
     return ['pack must be an object'];
@@ -2112,9 +2171,7 @@ export function validateCommandPack(pack, { routes, permissions }) {
       }
     }
 
-    if (!Array.isArray(command.example_utterances) || command.example_utterances.length === 0) {
-      errors.push(`${commandId} must include at least one example utterance`);
-    }
+    errors.push(...validateCommandPhrases(command, { commandId, normalizedPhraseOwners }));
 
     if (!Array.isArray(command.allowed_effects)) {
       errors.push(`${commandId} allowed_effects must be an array`);

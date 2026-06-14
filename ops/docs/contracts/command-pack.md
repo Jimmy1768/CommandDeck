@@ -43,8 +43,8 @@ execution authority by themselves.
 ## Custom Pack Capability Boundary
 
 Custom packs are deny-by-default. They may declare workspace-specific intents,
-targets, required slots, examples, approved routes, and risk metadata. They do
-not grant execution authority by themselves.
+targets, required slots, examples, aliases, approved routes, and risk metadata.
+They do not grant execution authority by themselves.
 
 The enforcement chain is:
 
@@ -130,6 +130,47 @@ Each command requires:
 - `sources`;
 - `runner_action` when the command uses the built-in exact local runner;
 - `approval_prompt` when permission is `approval-required`.
+
+Optional command-owned fields:
+
+- `aliases`: deterministic phrase shortcuts for the same declared command.
+
+## Alias Policy
+
+Aliases are a V1 command grammar feature, not chatbot understanding.
+
+A command-owned alias is an additional phrase that resolves to the same command
+contract as its examples. It does not hide a different action, change
+permission level, bypass required slots, or grant script execution.
+
+The V1 matching chain is:
+
+```text
+user phrase -> normalized phrase -> example_utterance or alias -> command contract
+```
+
+Matching is deterministic. CommandDeck lowercases, removes punctuation, removes
+simple capture filler such as `uh` or `um`, removes leading `please`, collapses
+spaces, and compares strings. It does not use semantic similarity, embeddings,
+or LLM paraphrase matching in the fast lane.
+
+Aliases are scoped to the active command pack. A pack must not declare the same
+normalized phrase for two commands. If two commands need the same shorthand,
+the pack author should remove that alias and let CommandDeck ask a
+concept-checking question from the action/slot contract instead.
+
+Good V1 aliases:
+
+- `puma status` for the command `local.puma_status`;
+- `check sidekiq` for the command `local.sidekiq_status`;
+- `open current repo` for the approval-gated command
+  `local.open_commanddeck_repo`.
+
+Bad V1 aliases:
+
+- `check server` when both Puma and Sidekiq exist;
+- `start worker` for a status-only command;
+- `deploy prod` for a command that is not explicitly a deploy command.
 
 ## Action Requirements
 
