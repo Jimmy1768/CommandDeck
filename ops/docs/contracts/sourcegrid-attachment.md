@@ -58,6 +58,19 @@ but serve different purposes:
   account identity, pack selection, AppRelay gating, and adjacent SourceGrid
   tools such as ManyMind.
 
+This is a product-mode distinction, not a loophole around dogfood. ManyMind
+should default to hosted SourceGrid dogfood because its product value depends
+on persisted meeting notes, source packets, retrieval, sharing, and account
+state. CommandDeck should default to local creator usage while core behavior is
+being built because its product value depends on immediate control of the
+actual Mac runner.
+
+Local CommandDeck usage does not create SourceGrid revenue signals and should
+not pretend to. That is acceptable for creator/core-runner validation. Use
+SourceGrid dogfood when validating account attachment, payment readiness,
+AppRelay proxy/budget/audit behavior, pack selection UI, and customer-path
+policy.
+
 Creator/admin SourceGrid dogfood should use `sourcegrid_dev`. That mode is
 SourceGrid-company-funded internal runtime, not customer-billed runtime. It does
 not require the public SourceGrid subscription fee and must not use customer

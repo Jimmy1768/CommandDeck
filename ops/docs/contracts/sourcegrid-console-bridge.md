@@ -89,6 +89,13 @@ Jimmy or another creator/admin should use both surfaces:
 - local CLI for fast development, debugging, and smoke checks;
 - SourceGrid console for real product dogfood once the local path is stable.
 
+Default dogfood mode differs by product. ManyMind is hosted/persistence-first,
+so SourceGrid dogfood is the default. CommandDeck is local-runner-first, so
+local creator usage is the default for proving core command value. SourceGrid
+console dogfood becomes required when testing hosted product concerns: account
+attachment, SourceGrid workspace identity, pack selection UI, AppRelay
+proxying, budget/audit controls, and customer billing policy.
+
 SourceGrid dogfood for creator/admin accounts should run as `sourcegrid_dev`.
 That runtime is company-funded, audited, and budget/rate limited. It is not a
 public subscription charge and must not use customer retail AppRelay/LLM

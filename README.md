@@ -173,6 +173,18 @@ Use both local CommandDeck and SourceGrid dogfood, but for different stages:
 - SourceGrid console is the real product dogfood path for account, attachment,
   pack selection, AppRelay gating, and adjacent tools such as ManyMind.
 
+CommandDeck is intentionally the opposite of ManyMind in default dogfood mode.
+ManyMind is hosted/persistence-first because meetings, notes, retrieval,
+history, sharing, and account-scoped memory are the product. CommandDeck is
+local-runner-first because the product surface is the user's actual Mac:
+checking local services, opening targets, routing commands, and reducing ops
+friction without adding hosted ceremony to exact local actions.
+
+Creator/admin local usage is therefore valid CommandDeck dogfood. It proves
+whether the core runner removes friction. It is incomplete product dogfood only
+for hosted concerns such as account attachment, pack selection in SourceGrid,
+AppRelay proxy/budget/audit, and customer billing paths.
+
 Run the local smoke gate before SourceGrid dogfood:
 
 ```sh
