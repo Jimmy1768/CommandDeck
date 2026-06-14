@@ -239,29 +239,58 @@ Hey Siri, CommandDeck Local
 This still runs the fixed fixture. It proves Siri can trigger the Shortcut and
 the Mac can speak the CommandDeck response.
 
-## Dynamic Command Capture Later
+## Dynamic Command Capture
 
-After the fixture path works physically, the one Shortcut can become dynamic:
+After the fixture path works physically, keep the same one Shortcut and replace
+the shell script with a dynamic text command.
 
-1. Ask for text with prompt `CommandDeck command`.
-2. Create a Dictionary with the adapter request fields:
-   `adapter`, `adapter_version`, `actor_ref`, `request_id`, `surface_hint`,
-   `device_code`, `target_runner`, `command_text`, `device_context`, and
-   `requested_output`.
-3. Set `command_text` to the captured text.
-4. Write that Dictionary JSON to a repo-relative temporary file such as
-   `records/actions/shortcut-request.json`.
-5. Run:
+The Shortcut should ask for text, then pass that text directly to:
 
 ```sh
-/opt/homebrew/bin/node bin/command-deck.mjs --request-file records/actions/shortcut-request.json
+/opt/homebrew/bin/node bin/command-deck.mjs shortcut:run "$COMMAND_TEXT"
 ```
 
-6. Parse the JSON output.
-7. Speak `adapter_response.spoken_text`.
-8. Overwrite the temporary request file on the next run.
+`shortcut:run` builds the Apple Shortcuts adapter request inside CommandDeck.
+Shortcuts does not need to build JSON or write request files.
 
-Do not add this dynamic path until the fixed fixture Shortcut works.
+### Dynamic Shortcut Steps
+
+1. Add action: `Ask for Input`.
+2. Prompt: `CommandDeck command`.
+3. Input type: text.
+4. Keep the existing `Run Shell Script` action.
+5. Set the shell script input to the text from `Ask for Input`.
+6. Use this shell script:
+
+```sh
+cd /Users/jimmy1768/Projects/CommandDeck
+/opt/homebrew/bin/node bin/command-deck.mjs shortcut:run "$1"
+```
+
+7. Set `Pass Input` to `as arguments`.
+8. Keep the existing JSON parsing and Speak Text steps:
+   `Get Dictionary from Input` -> `adapter_response` -> `spoken_text` ->
+   `Speak Text`.
+
+Now the voice flow is:
+
+```text
+Hey Siri, CommandDeck Local
+Shortcut asks: CommandDeck command
+User says: computer what is the status of this repo activate
+Shortcut speaks: Repo status: ...
+```
+
+### Dynamic Terminal Test
+
+Test the dynamic command from Terminal before changing the Shortcut:
+
+```sh
+/opt/homebrew/bin/node bin/command-deck.mjs shortcut:run "Computer what is the status of this repo activate"
+```
+
+Expected properties are the same as the fixture path, but `record.command_text`
+will be the text supplied to `shortcut:run`.
 
 ## Safety Rules
 
@@ -334,12 +363,13 @@ Run these after editing this runbook or the fixture:
 
 ```sh
 npm run command:local -- --request-file evals/fixtures/adapter_requests/apple_shortcuts.repo_status.local.json
+/opt/homebrew/bin/node bin/command-deck.mjs shortcut:run "Computer what is the status of this repo activate"
 npm run smoke:local
 npm run verify
 ```
 
-## Gap Before Dynamic Siri
+## Gap After Dynamic Siri
 
-The fixture path is enough to test the Mac runner and physical speaking loop.
-The next gap is dynamic request-file creation from Shortcuts. Do not add that
-until the fixture path works physically on the Mac.
+The fixture and dynamic `shortcut:run` paths are enough to test the Mac runner
+and physical speaking loop. The next gap is latency. Do not optimize latency
+until dynamic capture works physically through Siri/Shortcuts.

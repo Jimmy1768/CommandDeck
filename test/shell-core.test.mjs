@@ -2268,6 +2268,52 @@ test('CLI accepts V1 Siri Shortcuts local adapter request against default core p
   assert.equal(parsed.record_write.status, 'not_written');
 });
 
+test('CLI shortcut:run builds Apple Shortcuts adapter request from plain text', async () => {
+  const output = spawnSync(
+    process.execPath,
+    [
+      'bin/command-deck.mjs',
+      'shortcut:run',
+      'Computer what is the status of this repo activate'
+    ],
+    {
+      cwd: rootDir,
+      encoding: 'utf8'
+    }
+  );
+
+  assert.equal(output.status, 0, output.stderr);
+  const parsed = JSON.parse(output.stdout);
+  assert.equal(parsed.record.adapter, 'apple_shortcuts');
+  assert.equal(parsed.record.actor_ref, 'creator_local');
+  assert.equal(parsed.record.command_text, 'Computer what is the status of this repo activate');
+  assert.equal(parsed.record.command_id, 'core.repo_status');
+  assert.equal(parsed.record.route, 'local.exact_read');
+  assert.equal(parsed.adapter_response.response_mode, 'platform_tts');
+  assert.equal(parsed.adapter_response.spoken_text, parsed.response_text);
+  assert.equal(parsed.adapter_response.apple_intelligence_required, false);
+  assert.equal(parsed.record_write.status, 'not_written');
+});
+
+test('CLI shortcut:run rejects request files so Shortcuts stays text-only', async () => {
+  const output = spawnSync(
+    process.execPath,
+    [
+      'bin/command-deck.mjs',
+      'shortcut:run',
+      '--request-file',
+      'evals/fixtures/adapter_requests/apple_shortcuts.repo_status.local.json'
+    ],
+    {
+      cwd: rootDir,
+      encoding: 'utf8'
+    }
+  );
+
+  assert.equal(output.status, 2);
+  assert.match(output.stderr, /shortcut:run accepts command text directly/);
+});
+
 test('CLI accepts Google voice request files without writing records', async () => {
   const output = spawnSync(
     process.execPath,

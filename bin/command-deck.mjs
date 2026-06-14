@@ -230,6 +230,54 @@ if (parsed.subcommand === 'ccq:resume') {
   process.exit(0);
 }
 
+if (parsed.subcommand === 'shortcut:run') {
+  if (parsed.requestFile) {
+    console.error('Usage error: shortcut:run accepts command text directly, not --request-file.');
+    process.exit(2);
+  }
+
+  if (!parsed.commandText) {
+    console.error('Usage error: shortcut:run requires command text.');
+    process.exit(2);
+  }
+
+  const shortcutInput = {
+    adapter: 'apple_shortcuts',
+    adapter_version: '0.1',
+    actor_ref: parsed.actorRef ?? 'creator_local',
+    surface_hint: parsed.surfaceHint ?? 'computer',
+    device_code: parsed.deviceCode ?? 'computer',
+    target_runner: parsed.targetRunner ?? 'command',
+    command_text: parsed.commandText,
+    device_context: {
+      platform: 'macos',
+      shortcut_name: parsed.shortcutName ?? 'CommandDeck Local'
+    },
+    requested_output: 'spoken_summary'
+  };
+
+  const result = await runLocalCommand(shortcutInput, {
+    commandPackPath: parsed.commandPack ?? config.default_command_pack,
+    config,
+    writeAudit: parsed.writeAudit,
+    auditDir: parsed.auditDir
+  });
+
+  if (parsed.writeRecord) {
+    result.record_write = await writeActionRecord(result.record, {
+      recordDir: parsed.recordDir ?? config.default_record_dir
+    });
+  } else {
+    result.record_write = {
+      status: 'not_written',
+      reason: 'record persistence requires --write-record'
+    };
+  }
+
+  console.log(JSON.stringify(result, null, 2));
+  process.exit(0);
+}
+
 const adapterRequest = parsed.requestFile
   ? await loadAdapterRequest({
       requestPath: parsed.requestFile
@@ -244,7 +292,7 @@ if (parsed.requestFile && parsed.commandText) {
 
 if (!commandText) {
   console.error(
-    'Usage: command-deck [sourcegrid:status|sourcegrid:apprelay-proxy-preview|pack:init|pack:open|pack:recent|pack:apply-selection|approval:apply|ccq:resume] [--request-file evals/fixtures/adapter_requests/apple_shortcuts.next_task.json] [--config commanddeck.config.json] [--command-pack contracts/commands/core-commands.cdeck-pack.json] [--pack-slug sourcegrid] [--owner sourcegrid] [--control-root /path/to/repo] [--selection-file evals/fixtures/pack_selections/local-exact.selection.json] [--record-file records/actions/rec_example.json] [--decision-file evals/fixtures/approval_decisions/example.json] [--resume-token ccq_example] [--write-record] [--write-state] [--write-audit] [--record-dir records/actions] [--audit-dir .commanddeck/audit/pack-rejections] "Git status."'
+    'Usage: command-deck [sourcegrid:status|sourcegrid:apprelay-proxy-preview|pack:init|pack:open|pack:recent|pack:apply-selection|approval:apply|ccq:resume|shortcut:run] [--request-file evals/fixtures/adapter_requests/apple_shortcuts.next_task.json] [--config commanddeck.config.json] [--command-pack contracts/commands/core-commands.cdeck-pack.json] [--pack-slug sourcegrid] [--owner sourcegrid] [--control-root /path/to/repo] [--selection-file evals/fixtures/pack_selections/local-exact.selection.json] [--record-file records/actions/rec_example.json] [--decision-file evals/fixtures/approval_decisions/example.json] [--resume-token ccq_example] [--actor-ref creator_local] [--surface-hint computer] [--device-code computer] [--target-runner command] [--shortcut-name "CommandDeck Local"] [--write-record] [--write-state] [--write-audit] [--record-dir records/actions] [--audit-dir .commanddeck/audit/pack-rejections] "Git status."'
   );
   process.exit(2);
 }
@@ -286,7 +334,8 @@ function parseArgs(args) {
     'pack:recent',
     'pack:apply-selection',
     'approval:apply',
-    'ccq:resume'
+    'ccq:resume',
+    'shortcut:run'
   ]);
   const commandParts = [];
   let writeRecord = false;
@@ -305,6 +354,11 @@ function parseArgs(args) {
   let recordFile = null;
   let decisionFile = null;
   let resumeToken = null;
+  let actorRef = null;
+  let surfaceHint = null;
+  let deviceCode = null;
+  let targetRunner = null;
+  let shortcutName = null;
   let subcommand = null;
 
   for (let index = 0; index < args.length; index += 1) {
@@ -408,6 +462,36 @@ function parseArgs(args) {
       continue;
     }
 
+    if (arg === '--actor-ref') {
+      actorRef = args[index + 1];
+      index += 1;
+      continue;
+    }
+
+    if (arg === '--surface-hint') {
+      surfaceHint = args[index + 1];
+      index += 1;
+      continue;
+    }
+
+    if (arg === '--device-code') {
+      deviceCode = args[index + 1];
+      index += 1;
+      continue;
+    }
+
+    if (arg === '--target-runner') {
+      targetRunner = args[index + 1];
+      index += 1;
+      continue;
+    }
+
+    if (arg === '--shortcut-name') {
+      shortcutName = args[index + 1];
+      index += 1;
+      continue;
+    }
+
     commandParts.push(arg);
   }
 
@@ -429,6 +513,11 @@ function parseArgs(args) {
     recordFile,
     decisionFile,
     resumeToken,
+    actorRef,
+    surfaceHint,
+    deviceCode,
+    targetRunner,
+    shortcutName,
     subcommand
   };
 }

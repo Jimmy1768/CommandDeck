@@ -102,6 +102,20 @@ try {
     }
   );
 
+  smokeCommand(
+    'apple shortcuts dynamic shortcut run',
+    ['shortcut:run', 'Computer what is the status of this repo activate'],
+    (result) => {
+      assert.equal(result.record.command_id, 'core.repo_status');
+      assert.equal(result.record.adapter, 'apple_shortcuts');
+      assert.equal(result.record.actor_ref, 'creator_local');
+      assert.equal(result.record.route, 'local.exact_read');
+      assert.equal(result.adapter_response.response_mode, 'platform_tts');
+      assert.equal(result.adapter_response.spoken_text, result.response_text);
+      assert.equal(result.record_write.status, 'not_written');
+    }
+  );
+
   smokeApprovalDeniedFlow();
 
   console.log(JSON.stringify({ status: 'passed', total: results.length, checks: results }, null, 2));
