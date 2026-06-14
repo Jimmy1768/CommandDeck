@@ -165,6 +165,20 @@ must not be silently removed or redefined inside a compatible release range.
 If behavior must change incompatibly, CommandDeck should keep legacy behavior
 or reject incompatible packs explicitly.
 
+## Local Debug And SourceGrid Dogfood
+
+Use both local CommandDeck and SourceGrid dogfood, but for different stages:
+
+- local CLI is the fastest development/debug/smoke path for core behavior;
+- SourceGrid console is the real product dogfood path for account, attachment,
+  pack selection, AppRelay gating, and adjacent tools such as ManyMind.
+
+Creator/admin dogfood uses `sourcegrid_dev`, not customer-billed
+`sourcegrid_prod`. It is SourceGrid-company-funded runtime, does not require
+the public SourceGrid subscription fee, and must not use customer retail
+runtime pricing. It still requires audit, budget, and rate-limit controls so
+internal runtime cost remains visible.
+
 ## Current Slice
 
 The default path remains the slice 1 deterministic skeleton. It defines docs,

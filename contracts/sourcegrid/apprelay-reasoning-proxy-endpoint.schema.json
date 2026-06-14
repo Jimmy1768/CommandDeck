@@ -67,6 +67,26 @@
     ],
     "internal_dev_contract": "sourcegrid-labs/company/contracts/commanddeck_apprelay_dev_runtime_mode.schema.json",
     "internal_dev_dispatch_status": "guarded_sourcegrid_dev_dispatch_enabled",
+    "runtime_mode_billing_policy": {
+      "sourcegrid_dev": {
+        "purpose": "creator_admin_dogfood_and_company_internal_testing",
+        "cost_owner": "sourcegrid_company_dev_budget",
+        "customer_billed": false,
+        "public_subscription_required": false,
+        "retail_runtime_markup_allowed": false,
+        "audit_required": true,
+        "budget_or_rate_limit_required": true
+      },
+      "sourcegrid_prod": {
+        "purpose": "customer_live_runtime",
+        "cost_owner": "sourcegrid_customer_workspace",
+        "customer_billed": true,
+        "public_subscription_required": true,
+        "retail_runtime_markup_allowed": true,
+        "payment_readiness_required": true,
+        "audit_required": true
+      }
+    },
     "required_authority_values": {
       "no_execution_authority": true,
       "no_memory_activation": true,

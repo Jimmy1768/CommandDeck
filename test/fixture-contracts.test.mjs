@@ -347,6 +347,15 @@ test('SourceGrid attachment schema keeps billing anchor outside owner repos', as
     'commanddeck_cli_must_not_store_long_lived_apprelay_signing_secret'
   );
   assert.equal(schema.apprelay_scope_proof_contract.runtime_mode, 'sourcegrid_prod');
+  assert.equal(schema.creator_admin_dogfood_policy.recommended_runtime_mode, 'sourcegrid_dev');
+  assert.equal(schema.creator_admin_dogfood_policy.cost_owner, 'sourcegrid_company_dev_budget');
+  assert.equal(schema.creator_admin_dogfood_policy.customer_billed, false);
+  assert.equal(schema.creator_admin_dogfood_policy.public_subscription_required, false);
+  assert.equal(schema.creator_admin_dogfood_policy.retail_runtime_markup_allowed, false);
+  assert.equal(schema.creator_admin_dogfood_policy.audit_required, true);
+  assert.equal(schema.creator_admin_dogfood_policy.budget_or_rate_limit_required, true);
+  assert.equal(schema.creator_admin_dogfood_policy.local_cli_role, 'development_debug_smoke');
+  assert.equal(schema.creator_admin_dogfood_policy.sourcegrid_console_role, 'real_product_dogfood_surface');
   assert.equal(
     schema.apprelay_scope_proof_contract.proxy_lifecycle_contract,
     'contracts/apprelay/sourcegrid-proxied-reasoning-lifecycle.schema.json'
@@ -501,6 +510,22 @@ test('SourceGrid AppRelay proxy endpoint is guarded and fail-closed', async () =
   assert.ok(contract.request_contract.supported_runtime_modes.includes('sourcegrid_dev'));
   assert.ok(contract.request_contract.internal_dev_required_fields.includes('internal_actor_ref'));
   assert.ok(contract.request_contract.internal_dev_required_fields.includes('internal_dev_reason'));
+  assert.equal(
+    contract.request_contract.runtime_mode_billing_policy.sourcegrid_dev.purpose,
+    'creator_admin_dogfood_and_company_internal_testing'
+  );
+  assert.equal(
+    contract.request_contract.runtime_mode_billing_policy.sourcegrid_dev.cost_owner,
+    'sourcegrid_company_dev_budget'
+  );
+  assert.equal(contract.request_contract.runtime_mode_billing_policy.sourcegrid_dev.customer_billed, false);
+  assert.equal(contract.request_contract.runtime_mode_billing_policy.sourcegrid_dev.public_subscription_required, false);
+  assert.equal(contract.request_contract.runtime_mode_billing_policy.sourcegrid_dev.retail_runtime_markup_allowed, false);
+  assert.equal(contract.request_contract.runtime_mode_billing_policy.sourcegrid_dev.audit_required, true);
+  assert.equal(contract.request_contract.runtime_mode_billing_policy.sourcegrid_dev.budget_or_rate_limit_required, true);
+  assert.equal(contract.request_contract.runtime_mode_billing_policy.sourcegrid_prod.customer_billed, true);
+  assert.equal(contract.request_contract.runtime_mode_billing_policy.sourcegrid_prod.public_subscription_required, true);
+  assert.equal(contract.request_contract.runtime_mode_billing_policy.sourcegrid_prod.payment_readiness_required, true);
   assert.equal(
     contract.request_contract.internal_dev_contract,
     'sourcegrid-labs/company/contracts/commanddeck_apprelay_dev_runtime_mode.schema.json'

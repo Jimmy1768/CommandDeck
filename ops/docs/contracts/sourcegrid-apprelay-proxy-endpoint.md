@@ -58,6 +58,12 @@ Internal dev field conventions:
 
 - `sourcegrid_dev` is SourceGrid-company-funded development/testing,
   not customer-billed runtime.
+- Creator/admin dogfood should use `sourcegrid_dev` when exercising the real
+  SourceGrid product path. It does not require the public SourceGrid
+  subscription fee and must not use customer retail AppRelay/LLM runtime
+  pricing.
+- `sourcegrid_dev` still requires audit plus budget or rate-limit controls so
+  company-funded runtime cost remains visible and bounded.
 - SourceGrid derives the stable audit/rate-limit actor from the resolved
   `AdminAccount`; `internal_actor_ref` is caller-supplied context only.
 - Customer live mode remains `sourcegrid_prod` and still blocks on
@@ -150,3 +156,8 @@ Blocked responses include:
 CommandDeck fails closed when SourceGrid blocks the proxy call. It should tell
 the user why reasoning is unavailable and offer exact local actions only when
 those actions remain locally permitted.
+
+Creator/admin usage should still dogfood through SourceGrid for real product
+flow once the local CLI smoke path is stable. The billing mode is the
+difference: creator/admin dogfood is internal company-funded `sourcegrid_dev`,
+while paying customer usage is `sourcegrid_prod`.

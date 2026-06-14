@@ -82,6 +82,21 @@ The CLI accepts the manifest path directly. The web console should present this
 as a constrained file selector, not arbitrary file upload and not arbitrary
 folder execution.
 
+## Creator/Admin Dogfood
+
+Jimmy or another creator/admin should use both surfaces:
+
+- local CLI for fast development, debugging, and smoke checks;
+- SourceGrid console for real product dogfood once the local path is stable.
+
+SourceGrid dogfood for creator/admin accounts should run as `sourcegrid_dev`.
+That runtime is company-funded, audited, and budget/rate limited. It is not a
+public subscription charge and must not use customer retail AppRelay/LLM
+pricing.
+
+Customer live usage remains `sourcegrid_prod` and follows SourceGrid payment,
+subscription, credit, and spend-readiness policy.
+
 ## Selection Manifest
 
 A SourceGrid pack selection manifest must identify:

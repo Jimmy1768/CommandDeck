@@ -48,6 +48,28 @@ payment tokens, card numbers, CVC/CVV values, or environment secrets. A future
 SourceGrid API may return non-sensitive payment readiness state or a masked
 display label, but payment method storage stays in SourceGrid.
 
+## Creator/Admin Dogfood
+
+For the creator/admin, local CommandDeck and SourceGrid dogfood are both valid
+but serve different purposes:
+
+- local CommandDeck is the fast development/debug/smoke surface;
+- SourceGrid is the real product dogfood surface for workspace attachment,
+  account identity, pack selection, AppRelay gating, and adjacent SourceGrid
+  tools such as ManyMind.
+
+Creator/admin SourceGrid dogfood should use `sourcegrid_dev`. That mode is
+SourceGrid-company-funded internal runtime, not customer-billed runtime. It does
+not require the public SourceGrid subscription fee and must not use customer
+retail AppRelay/LLM pricing.
+
+`sourcegrid_dev` is not free-form or unmetered. It still requires audit,
+internal actor binding, and budget or rate-limit controls so company-funded
+runtime cost remains visible and bounded.
+
+Customer live usage remains `sourcegrid_prod`, where SourceGrid payment,
+subscription, credit, entitlement, and spend-readiness policy applies.
+
 ## CLI
 
 Phase 1 provides a local status command:
