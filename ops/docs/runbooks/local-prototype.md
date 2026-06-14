@@ -45,6 +45,9 @@ Mac process-list access because service status commands call the allowlisted
 `ps -ef` runner path. It must not launch GUI apps: approval-gated controls are
 verified through approval preview and a denied approval decision.
 
+For the first physical voice surface, see
+[Siri Shortcuts Local](/Users/jimmy1768/Projects/CommandDeck/ops/docs/runbooks/siri-shortcuts-local.md:1).
+
 ## Add A Fixture
 
 1. Add a command case under `evals/cases/`.

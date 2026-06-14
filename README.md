@@ -196,6 +196,11 @@ calibration/help commands, pack open, target alias approval preview, Siri
 adapter request handling, and denied approval application. It does not launch
 GUI apps or call external runtimes.
 
+The first physical voice runbook is
+[Siri Shortcuts Local](/Users/jimmy1768/Projects/CommandDeck/ops/docs/runbooks/siri-shortcuts-local.md:1).
+It wires Siri/Shortcuts to the local Mac runner and speaks
+`adapter_response.spoken_text`.
+
 Creator/admin dogfood uses `sourcegrid_dev`, not customer-billed
 `sourcegrid_prod`. It is SourceGrid-company-funded runtime, does not require
 the public SourceGrid subscription fee, and must not use customer retail

@@ -86,6 +86,19 @@ test('classifies deterministic command-owned aliases', () => {
   assert.equal(command.command_id, 'local.puma_status');
 });
 
+test('classifies exact commands with spoken device code and end code wrappers', () => {
+  const commands = [
+    {
+      command_id: 'core.repo_status',
+      example_utterances: ['What is the status of this repo?'],
+      aliases: ['Repo status.', 'Check repo status.']
+    }
+  ];
+
+  const command = classifyCommand(commands, 'Computer what is the status of this repo activate');
+  assert.equal(command.command_id, 'core.repo_status');
+});
+
 test('classifies calibration commands with relaxed deterministic phrases', async () => {
   const contract = await loadCalibrationCommands({ rootDir });
   const command = classifyCalibrationCommand(contract, 'What can you do?');
@@ -2105,6 +2118,31 @@ test('loads a Siri Shortcuts-shaped adapter request fixture', async () => {
   assert.equal(request.requested_output, 'spoken_summary');
 });
 
+test('loads and runs V1 Siri Shortcuts local repo status fixture', async () => {
+  const request = await loadAdapterRequest({
+    rootDir,
+    requestPath: 'evals/fixtures/adapter_requests/apple_shortcuts.repo_status.local.json'
+  });
+
+  assert.equal(request.adapter, 'apple_shortcuts');
+  assert.equal(request.actor_ref, 'creator_local');
+  assert.equal(request.surface_hint, 'phone');
+  assert.equal(request.device_code, 'computer');
+  assert.equal(request.target_runner, 'command');
+  assert.equal(request.command_text, 'Computer what is the status of this repo activate');
+  assert.equal(request.requested_output, 'spoken_summary');
+
+  const result = await runLocalCommand(request, { rootDir, timestamp });
+  assert.equal(result.record.adapter, 'apple_shortcuts');
+  assert.equal(result.record.command_id, 'core.repo_status');
+  assert.equal(result.record.route, 'local.exact_read');
+  assert.equal(result.record.actor_ref, 'creator_local');
+  assert.equal(result.adapter_response.response_mode, 'platform_tts');
+  assert.equal(result.adapter_response.spoken_text, result.response_text);
+  assert.equal(result.adapter_response.apple_intelligence_required, false);
+  assert.equal(result.record.result.status, 'executed_local_exact_command');
+});
+
 test('loads a Google voice-shaped adapter request fixture as contract-only IO', async () => {
   const request = await loadAdapterRequest({
     rootDir,
@@ -2202,6 +2240,31 @@ test('CLI accepts adapter request files without writing records', async () => {
   assert.equal(parsed.record.command_id, 'mvp.next_sourcegrid_task');
   assert.equal(parsed.adapter_response.response_mode, 'platform_tts');
   assert.equal(parsed.adapter_response.record_ref, parsed.record.record_id);
+  assert.equal(parsed.record_write.status, 'not_written');
+});
+
+test('CLI accepts V1 Siri Shortcuts local adapter request against default core pack', async () => {
+  const output = spawnSync(
+    process.execPath,
+    [
+      'bin/command-deck.mjs',
+      '--request-file',
+      'evals/fixtures/adapter_requests/apple_shortcuts.repo_status.local.json'
+    ],
+    {
+      cwd: rootDir,
+      encoding: 'utf8'
+    }
+  );
+
+  assert.equal(output.status, 0, output.stderr);
+  const parsed = JSON.parse(output.stdout);
+  assert.equal(parsed.record.adapter, 'apple_shortcuts');
+  assert.equal(parsed.record.actor_ref, 'creator_local');
+  assert.equal(parsed.record.command_id, 'core.repo_status');
+  assert.equal(parsed.record.route, 'local.exact_read');
+  assert.equal(parsed.adapter_response.response_mode, 'platform_tts');
+  assert.equal(parsed.adapter_response.spoken_text, parsed.response_text);
   assert.equal(parsed.record_write.status, 'not_written');
 });
 

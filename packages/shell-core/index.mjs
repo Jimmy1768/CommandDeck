@@ -548,10 +548,10 @@ export async function resumeConceptCheckingQuestionFromFile(input, options = {})
 }
 
 export function classifyCommand(commands, commandText) {
-  const normalizedInput = normalizeUtterance(commandText);
+  const normalizedInputs = normalizedCommandInputs(commandText);
 
   return commands.find((command) => {
-    return commandPhrases(command).some((utterance) => normalizeUtterance(utterance) === normalizedInput);
+    return commandPhrases(command).some((utterance) => normalizedInputs.has(normalizeUtterance(utterance)));
   });
 }
 
@@ -682,6 +682,35 @@ export function normalizeUtterance(value) {
     .replace(/^\s*please\s+/, '')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+function normalizedCommandInputs(commandText) {
+  const normalizedInput = normalizeUtterance(commandText);
+  const inputs = new Set();
+
+  if (normalizedInput) {
+    inputs.add(normalizedInput);
+  }
+
+  const words = normalizedInput.split(' ').filter(Boolean);
+  if (words.length === 0) {
+    return inputs;
+  }
+
+  if (SPOKEN_DEVICE_CODES.has(words[0])) {
+    words.shift();
+  }
+
+  if (words.length > 0 && SPOKEN_END_CODES.has(words[words.length - 1])) {
+    words.pop();
+  }
+
+  const strippedInput = words.join(' ').trim();
+  if (strippedInput) {
+    inputs.add(strippedInput);
+  }
+
+  return inputs;
 }
 
 export async function loadCommandPack(options = {}) {

@@ -1,0 +1,17 @@
+{
+  "adapter": "apple_shortcuts",
+  "adapter_version": "0.1",
+  "actor_ref": "creator_local",
+  "request_id": "req_fixture_apple_repo_status_local",
+  "surface_hint": "phone",
+  "device_code": "computer",
+  "target_runner": "command",
+  "command_text": "Computer what is the status of this repo activate",
+  "device_context": {
+    "platform": "ios",
+    "locale": "en-US",
+    "timezone": "Asia/Taipei",
+    "shortcut_name": "CommandDeck Local"
+  },
+  "requested_output": "spoken_summary"
+}

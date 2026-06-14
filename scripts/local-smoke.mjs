@@ -91,18 +91,14 @@ try {
   );
 
   smokeCommand(
-    'adapter request with MVP fixture pack',
-    [
-      '--command-pack',
-      'contracts/commands/mvp-commands.cdeck-pack.json',
-      '--request-file',
-      'evals/fixtures/adapter_requests/apple_shortcuts.next_task.json'
-    ],
+    'apple shortcuts local repo status fixture',
+    ['--request-file', 'evals/fixtures/adapter_requests/apple_shortcuts.repo_status.local.json'],
     (result) => {
-      assert.equal(result.record.command_id, 'mvp.next_sourcegrid_task');
+      assert.equal(result.record.command_id, 'core.repo_status');
       assert.equal(result.adapter_response.adapter, 'apple_shortcuts');
       assert.equal(result.adapter_response.response_mode, 'platform_tts');
-      assert.equal(result.record.result.status, 'answered_from_fixture');
+      assert.equal(result.adapter_response.apple_intelligence_required, false);
+      assert.equal(result.record.result.status, 'executed_local_exact_command');
     }
   );
 
