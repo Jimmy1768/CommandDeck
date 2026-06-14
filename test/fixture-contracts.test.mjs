@@ -251,7 +251,7 @@ test('SourceGrid attachment schema keeps billing anchor outside owner repos', as
     schema.apprelay_scope_proof_contract.direct_apprelay_secret_policy,
     'commanddeck_cli_must_not_store_long_lived_apprelay_signing_secret'
   );
-  assert.equal(schema.apprelay_scope_proof_contract.runtime_mode, 'sourcegrid_internal_ops');
+  assert.equal(schema.apprelay_scope_proof_contract.runtime_mode, 'sourcegrid_prod');
   assert.equal(
     schema.apprelay_scope_proof_contract.proxy_lifecycle_contract,
     'contracts/apprelay/sourcegrid-proxied-reasoning-lifecycle.schema.json'
@@ -276,7 +276,7 @@ test('SourceGrid attachment schema keeps billing anchor outside owner repos', as
   assert.ok(schema.forbidden_local_payment_fields.includes('stripe_secret_key'));
 });
 
-test('AppRelay CommandDeck reasoning contracts are internal ops only', async () => {
+test('AppRelay CommandDeck reasoning contracts are SourceGrid runtime only', async () => {
   const request = await readJson('contracts/apprelay/commanddeck-reasoning-request.schema.json');
   const response = await readJson('contracts/apprelay/commanddeck-reasoning-response.schema.json');
 
@@ -284,7 +284,7 @@ test('AppRelay CommandDeck reasoning contracts are internal ops only', async () 
   assert.equal(request.client_type, 'internal_ops_tool');
   assert.equal(request.client_key, 'commanddeck');
   assert.equal(request.purpose, 'command_routing_reasoning');
-  assert.equal(request.runtime_mode, 'sourcegrid_internal_ops');
+  assert.equal(request.runtime_mode, 'sourcegrid_prod');
   assert.equal(request.model_selection_owner, 'apprelay');
   assert.equal(request.commanddeck_sends_model_name, false);
   assert.equal(request.request_transport_recommendation, 'sourcegrid_full_proxy');
@@ -301,7 +301,7 @@ test('AppRelay CommandDeck reasoning contracts are internal ops only', async () 
   assert.ok(request.required_fields.includes('required_output_schema'));
   assert.ok(request.request_identity.authorization_critical.includes('request_id'));
   assert.equal(request.request_identity.required_values.client_type, 'internal_ops_tool');
-  assert.equal(request.request_identity.required_values.runtime_mode, 'sourcegrid_internal_ops');
+  assert.equal(request.request_identity.required_values.runtime_mode, 'sourcegrid_prod');
   assert.ok(request.sourcegrid_scope_proof.authorization_critical.includes('sourcegrid_workspace_id'));
   assert.ok(request.sourcegrid_scope_proof.authorization_critical.includes('apprelay_runtime_entitlement'));
   assert.equal(request.sourcegrid_scope_proof.entitlement_rule, 'must_allow_sourcegrid_billed_apprelay_runtime');
@@ -401,13 +401,13 @@ test('SourceGrid AppRelay proxy endpoint is contract-only and fail-closed', asyn
   assert.ok(contract.request_contract.required_output_schema_required_fields.includes('ref'));
   assert.equal(contract.request_contract.required_identity_values.client_key, 'commanddeck');
   assert.equal(contract.request_contract.required_identity_values.client_type, 'internal_ops_tool');
-  assert.ok(contract.request_contract.supported_runtime_modes.includes('sourcegrid_internal_ops'));
-  assert.ok(contract.request_contract.supported_runtime_modes.includes('sourcegrid_internal_dev'));
+  assert.ok(contract.request_contract.supported_runtime_modes.includes('sourcegrid_prod'));
+  assert.ok(contract.request_contract.supported_runtime_modes.includes('sourcegrid_dev'));
   assert.ok(contract.request_contract.internal_dev_required_fields.includes('internal_actor_ref'));
   assert.ok(contract.request_contract.internal_dev_required_fields.includes('internal_dev_reason'));
   assert.equal(
     contract.request_contract.internal_dev_contract,
-    'sourcegrid-labs/company/contracts/commanddeck_apprelay_internal_dev_runtime_mode.schema.json'
+    'sourcegrid-labs/company/contracts/commanddeck_apprelay_dev_runtime_mode.schema.json'
   );
   assert.equal(contract.request_contract.internal_dev_dispatch_status, 'blocked_sourcegrid_proxy_unavailable');
   assert.equal(contract.request_contract.required_authority_values.no_execution_authority, true);

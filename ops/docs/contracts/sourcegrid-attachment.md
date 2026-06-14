@@ -62,7 +62,7 @@ external service.
 
 ## AppRelay Client Contract
 
-CommandDeck uses AppRelay as an internal ops client, not a normal tenant chat
+CommandDeck uses AppRelay as a SourceGrid runtime client, not a normal tenant chat
 surface.
 
 ```text
@@ -85,11 +85,11 @@ V1 routes CommandDeck AppRelay reasoning through SourceGrid as a full proxy.
 The local CommandDeck CLI must not store a long-lived AppRelay signing secret
 and should not receive a short-lived AppRelay token in V1.
 
-Before AppRelay accepts a CommandDeck internal-ops reasoning request, the
+Before AppRelay accepts a CommandDeck SourceGrid runtime reasoning request, the
 request must prove:
 
 - CommandDeck client identity: `internal_ops_tool` / `commanddeck`;
-- runtime mode: `sourcegrid_internal_ops`;
+- runtime mode: `sourcegrid_prod`;
 - purpose: `command_routing_reasoning`;
 - SourceGrid organization/account/workspace/user scope;
 - entitlement to consume SourceGrid-billed AppRelay runtime;
@@ -105,7 +105,7 @@ scope proof instead of attempting best-effort reasoning.
 
 SourceGrid proxy responsibilities:
 
-- receive CommandDeck's internal-ops reasoning request;
+- receive CommandDeck's SourceGrid runtime reasoning request;
 - validate workspace attachment, account, user, entitlement, spend policy, and
   credits;
 - validate active pack scope against workspace policy;

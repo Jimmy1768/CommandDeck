@@ -9,8 +9,8 @@ AppRelay must not receive execution authority, approval authority, model
 selection input, or live memory activation authority.
 
 The remaining issue is authorization. AppRelay needs proof that a CommandDeck
-internal-ops request is attached to a SourceGrid workspace that may consume
-SourceGrid-billed AppRelay runtime.
+SourceGrid runtime request is attached to a SourceGrid workspace that may
+consume SourceGrid-billed AppRelay runtime.
 
 ## Decision
 
@@ -34,11 +34,11 @@ short-lived AppRelay token in V1.
 The proposed runtime mode is:
 
 ```text
-sourcegrid_internal_ops
+sourcegrid_prod
 ```
 
 AppRelay may rename this later, but CommandDeck needs a stable field that
-separates internal ops requests from normal external assistant tenant traffic.
+separates SourceGrid runtime requests from normal external assistant tenant traffic.
 
 ## Authorization-Critical Fields
 
@@ -86,7 +86,7 @@ AppRelay should fail closed with one of:
 - SourceGrid remains the broker for entitlement and billing readiness.
 - CommandDeck does not hold long-lived AppRelay secrets.
 - CommandDeck does not receive short-lived AppRelay tokens in V1.
-- AppRelay can distinguish CommandDeck internal ops requests from tenant chat.
+- AppRelay can distinguish CommandDeck SourceGrid runtime requests from tenant chat.
 - Missing or stale scope proof blocks reasoning instead of degrading into an
   unsafe best-effort response.
 

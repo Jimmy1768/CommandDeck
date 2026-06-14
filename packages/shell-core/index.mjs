@@ -100,8 +100,8 @@ const SOURCEGRID_APPRELAY_PROXY_ENDPOINT = {
   caller: 'commanddeck',
   transport_mode: 'sourcegrid_full_proxy'
 };
-const SOURCEGRID_APPRELAY_PROXY_RUNTIME_MODES = new Set(['sourcegrid_internal_ops', 'sourcegrid_internal_dev']);
-const SOURCEGRID_APPRELAY_PROXY_INTERNAL_DEV_RUNTIME_MODE = 'sourcegrid_internal_dev';
+const SOURCEGRID_APPRELAY_PROXY_RUNTIME_MODES = new Set(['sourcegrid_prod', 'sourcegrid_dev']);
+const SOURCEGRID_APPRELAY_PROXY_DEV_RUNTIME_MODE = 'sourcegrid_dev';
 const SOURCEGRID_APPRELAY_PROXY_FORBIDDEN_FIELDS = [
   'model',
   'provider',
@@ -1601,7 +1601,7 @@ export function buildSourceGridAppRelayProxyRequest(input = {}, options = {}) {
   const activePack = options.activePack ?? buildActiveCommandPackStatus(config);
   const timestamp = options.timestamp ?? new Date().toISOString();
   const commandText = input.command_text ?? input.commandText ?? '';
-  const runtimeMode = options.runtimeMode ?? input.runtime_mode ?? 'sourcegrid_internal_ops';
+  const runtimeMode = options.runtimeMode ?? input.runtime_mode ?? 'sourcegrid_prod';
   const requestId = options.requestId ?? stableId('sgarp_req', [input.actor_ref ?? DEFAULT_ACTOR, commandText, timestamp]);
   const idempotencyKey = options.idempotencyKey ?? stableId('sgarp_idem', [requestId]);
   const request = {
@@ -1649,7 +1649,7 @@ export function buildSourceGridAppRelayProxyRequest(input = {}, options = {}) {
       sensitivity: options.sensitivity ?? 'workspace_metadata',
       cost_class:
         options.costClass ??
-        (runtimeMode === SOURCEGRID_APPRELAY_PROXY_INTERNAL_DEV_RUNTIME_MODE
+        (runtimeMode === SOURCEGRID_APPRELAY_PROXY_DEV_RUNTIME_MODE
           ? 'sourcegrid_company_dev_budget'
           : 'sourcegrid_billed_runtime'),
       constraints: options.constraints ?? [
@@ -1671,7 +1671,7 @@ export function buildSourceGridAppRelayProxyRequest(input = {}, options = {}) {
     }
   };
 
-  if (runtimeMode === SOURCEGRID_APPRELAY_PROXY_INTERNAL_DEV_RUNTIME_MODE) {
+  if (runtimeMode === SOURCEGRID_APPRELAY_PROXY_DEV_RUNTIME_MODE) {
     request.internal_actor_ref =
       options.internalActorRef ?? input.internal_actor_ref ?? `sourcegrid-internal:${input.actor_ref ?? DEFAULT_ACTOR}`;
     request.internal_dev_reason =
@@ -1736,10 +1736,10 @@ export function validateSourceGridAppRelayProxyRequest(request) {
   }
 
   if (!SOURCEGRID_APPRELAY_PROXY_RUNTIME_MODES.has(identity.runtime_mode)) {
-    errors.push('sourcegrid apprelay proxy request request_identity.runtime_mode must be sourcegrid_internal_ops or sourcegrid_internal_dev');
+    errors.push('sourcegrid apprelay proxy request request_identity.runtime_mode must be sourcegrid_prod or sourcegrid_dev');
   }
 
-  if (identity.runtime_mode === SOURCEGRID_APPRELAY_PROXY_INTERNAL_DEV_RUNTIME_MODE) {
+  if (identity.runtime_mode === SOURCEGRID_APPRELAY_PROXY_DEV_RUNTIME_MODE) {
     if (!request.internal_actor_ref || typeof request.internal_actor_ref !== 'string') {
       errors.push('sourcegrid apprelay proxy internal dev request internal_actor_ref is required');
     }

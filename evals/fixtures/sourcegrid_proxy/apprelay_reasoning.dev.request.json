@@ -3,7 +3,7 @@
   "request_identity": {
     "client_key": "commanddeck",
     "client_type": "internal_ops_tool",
-    "runtime_mode": "sourcegrid_internal_dev",
+    "runtime_mode": "sourcegrid_dev",
     "purpose": "command_routing_reasoning",
     "request_id": "sgarp_internal_dev_req_fixture",
     "idempotency_key": "sgarp_internal_dev_idem_fixture"

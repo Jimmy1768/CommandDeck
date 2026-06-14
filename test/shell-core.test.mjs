@@ -1402,7 +1402,7 @@ test('builds SourceGrid AppRelay proxy request preview without network dispatch'
   assert.equal(preview.sourcegrid_contract_status, 'accepted_contract_only');
   assert.deepEqual(preview.validation.errors, []);
   assert.equal(preview.request.request_identity.client_key, 'commanddeck');
-  assert.equal(preview.request.request_identity.runtime_mode, 'sourcegrid_internal_ops');
+  assert.equal(preview.request.request_identity.runtime_mode, 'sourcegrid_prod');
   assert.equal(preview.request.sourcegrid_attachment_ref.sourcegrid_workspace_ref, 'workspace_sourcegrid_fixture');
   assert.equal(preview.request.sourcegrid_attachment_ref.sourcegrid_user_ref, 'user_sourcegrid_fixture');
   assert.equal(preview.request.sourcegrid_attachment_ref.attachment_issued_at, '2026-06-13T00:00:00.000Z');
@@ -1441,10 +1441,10 @@ test('rejects SourceGrid AppRelay proxy request provider/model aliases', async (
 });
 
 test('validates SourceGrid AppRelay proxy internal dev request fixture', async () => {
-  const fixture = await readJson('evals/fixtures/sourcegrid_proxy/apprelay_reasoning.internal_dev.request.json');
+  const fixture = await readJson('evals/fixtures/sourcegrid_proxy/apprelay_reasoning.dev.request.json');
 
   assert.deepEqual(validateSourceGridAppRelayProxyRequest(fixture), []);
-  assert.equal(fixture.request_identity.runtime_mode, 'sourcegrid_internal_dev');
+  assert.equal(fixture.request_identity.runtime_mode, 'sourcegrid_dev');
   assert.equal(fixture.internal_actor_ref, 'sourcegrid-internal:user_sourcegrid_fixture');
   assert.equal(fixture.internal_dev_reason, 'local CommandDeck AppRelay runtime smoke');
   assert.equal(fixture.runtime_task.cost_class, 'sourcegrid_company_dev_budget');
@@ -1469,7 +1469,7 @@ test('builds SourceGrid AppRelay proxy internal dev preview without sending netw
       surface_hint: 'computer',
       device_code: 'command',
       command_text: "Computer summarize today's AppRelay changes activate",
-      runtime_mode: 'sourcegrid_internal_dev',
+      runtime_mode: 'sourcegrid_dev',
       internal_actor_ref: 'sourcegrid-internal:user_sourcegrid_fixture',
       internal_dev_reason: 'local CommandDeck AppRelay runtime smoke'
     },
@@ -1485,14 +1485,14 @@ test('builds SourceGrid AppRelay proxy internal dev preview without sending netw
 
   assert.equal(preview.network_call_status, 'not_sent_contract_only');
   assert.deepEqual(preview.validation.errors, []);
-  assert.equal(preview.request.request_identity.runtime_mode, 'sourcegrid_internal_dev');
+  assert.equal(preview.request.request_identity.runtime_mode, 'sourcegrid_dev');
   assert.equal(preview.request.internal_actor_ref, 'sourcegrid-internal:user_sourcegrid_fixture');
   assert.equal(preview.request.internal_dev_reason, 'local CommandDeck AppRelay runtime smoke');
   assert.equal(preview.request.runtime_task.cost_class, 'sourcegrid_company_dev_budget');
 });
 
 test('rejects SourceGrid AppRelay proxy internal dev request missing dev identity', async () => {
-  const fixture = await readJson('evals/fixtures/sourcegrid_proxy/apprelay_reasoning.internal_dev.request.json');
+  const fixture = await readJson('evals/fixtures/sourcegrid_proxy/apprelay_reasoning.dev.request.json');
   const invalid = { ...fixture };
   delete invalid.internal_actor_ref;
   delete invalid.internal_dev_reason;

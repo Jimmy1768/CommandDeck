@@ -1,4 +1,4 @@
-# 0031: AppRelay Internal Ops Client Contract
+# 0031: AppRelay SourceGrid Runtime Client Contract
 
 Status: Accepted.
 
@@ -6,12 +6,12 @@ Status: Accepted.
 
 CommandDeck may call AppRelay when fast-lane deterministic handling cannot
 resolve a command safely. This is not a normal tenant assistant conversation.
-It is an internal ops tool asking for bounded reasoning to support command
+It is a SourceGrid runtime tool asking for bounded reasoning to support command
 routing.
 
 SourceGrid workspace/account context still matters for entitlement, billing,
 and memory scope, but the client type must identify the request as CommandDeck
-internal ops.
+SourceGrid runtime.
 
 ## Decision
 

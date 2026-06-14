@@ -4,7 +4,7 @@
   "client_type": "internal_ops_tool",
   "client_key": "commanddeck",
   "purpose": "command_routing_reasoning",
-  "runtime_mode": "sourcegrid_internal_ops",
+  "runtime_mode": "sourcegrid_prod",
   "model_selection_owner": "apprelay",
   "commanddeck_sends_model_name": false,
   "required_output_contract": "contracts/apprelay/commanddeck-reasoning-response.schema.json",
@@ -33,7 +33,7 @@
     "required_values": {
       "client_key": "commanddeck",
       "client_type": "internal_ops_tool",
-      "runtime_mode": "sourcegrid_internal_ops",
+      "runtime_mode": "sourcegrid_prod",
       "purpose": "command_routing_reasoning"
     }
   },

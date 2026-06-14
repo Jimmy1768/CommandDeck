@@ -73,7 +73,7 @@ local clarification. The stored state is auditable local state only, not durable
 memory, a task queue, or approval.
 
 When AppRelay participates in capable-lane reasoning, CommandDeck uses the
-internal ops client contract: `client_type: internal_ops_tool`,
+SourceGrid runtime client contract: `client_type: internal_ops_tool`,
 `client_key: commanddeck`, and `purpose: command_routing_reasoning`.
 
 Consuming a resume token must be atomic. Only `active -> used`,

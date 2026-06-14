@@ -17,7 +17,7 @@ There are two possible V1 broker patterns:
 
 V1 uses SourceGrid full proxy.
 
-CommandDeck sends the internal-ops reasoning request to SourceGrid. SourceGrid
+CommandDeck sends the SourceGrid runtime reasoning request to SourceGrid. SourceGrid
 validates attachment, account, user, entitlement, payment readiness, spend
 policy, credits, and active pack scope. SourceGrid then binds scope proof and
 calls AppRelay. AppRelay returns bounded reasoning to SourceGrid, and SourceGrid
@@ -29,7 +29,7 @@ tokens in V1.
 ## Lifecycle
 
 1. CommandDeck detects capable-lane reasoning is needed.
-2. CommandDeck builds the internal-ops reasoning request.
+2. CommandDeck builds the SourceGrid runtime reasoning request.
 3. CommandDeck sends it to SourceGrid.
 4. SourceGrid validates workspace/account/user/payment/credit/runtime
    entitlement.
@@ -44,7 +44,7 @@ tokens in V1.
 - Billing, entitlement, and runtime spend policy stay centralized in
   SourceGrid.
 - The local CLI has no AppRelay secret storage problem.
-- AppRelay receives a cleaner internal-ops request from a trusted SourceGrid
+- AppRelay receives a cleaner SourceGrid runtime request from a trusted SourceGrid
   boundary.
 - Token issuance can be deferred until there is a clear need for direct local
   calls.

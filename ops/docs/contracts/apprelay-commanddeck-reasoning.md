@@ -1,6 +1,6 @@
 # AppRelay CommandDeck Reasoning Contract
 
-CommandDeck uses AppRelay as an internal ops client, not as a normal tenant chat
+CommandDeck uses AppRelay as a SourceGrid runtime client, not as a normal tenant chat
 surface.
 
 The client identity is:
@@ -83,7 +83,7 @@ reasoning.
 The lifecycle is:
 
 1. CommandDeck detects that capable-lane reasoning is needed.
-2. CommandDeck builds an internal-ops reasoning request.
+2. CommandDeck builds a SourceGrid runtime reasoning request.
 3. CommandDeck sends the request to SourceGrid.
 4. SourceGrid validates workspace, account, user, entitlement, spend policy,
    credits, and active pack scope.

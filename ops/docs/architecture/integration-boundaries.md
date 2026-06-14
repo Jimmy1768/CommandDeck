@@ -42,7 +42,7 @@ AppRelay remains responsible for provider selection, model routing, cost
 controls, tool dispatch policies, provider credentials, and future generated
 audio when needed.
 
-CommandDeck calls AppRelay as an internal ops client:
+CommandDeck calls AppRelay as a SourceGrid runtime client:
 
 ```text
 client_type: internal_ops_tool

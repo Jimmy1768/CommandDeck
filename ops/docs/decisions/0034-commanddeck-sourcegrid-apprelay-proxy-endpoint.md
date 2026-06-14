@@ -15,7 +15,7 @@ CommandDeck uses this contract-only endpoint:
 POST /commanddeck/apprelay/reasoning
 ```
 
-CommandDeck sends its internal-ops reasoning request to SourceGrid without
+CommandDeck sends its SourceGrid runtime reasoning request to SourceGrid without
 AppRelay credentials, provider names, model names, shell, scripts, SQL,
 approval decisions, execute-now flags, or live memory activation fields.
 

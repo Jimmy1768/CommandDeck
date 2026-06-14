@@ -24,7 +24,7 @@
     "short_lived_token_mode_enabled": false,
     "direct_apprelay_call_allowed": false,
     "direct_apprelay_secret_policy": "commanddeck_cli_must_not_store_long_lived_apprelay_signing_secret",
-    "runtime_mode": "sourcegrid_internal_ops",
+    "runtime_mode": "sourcegrid_prod",
     "required_request_contract": "contracts/apprelay/commanddeck-reasoning-request.schema.json",
     "proxy_lifecycle_contract": "contracts/apprelay/sourcegrid-proxied-reasoning-lifecycle.schema.json",
     "sourcegrid_proxy_endpoint_contract": "contracts/sourcegrid/apprelay-reasoning-proxy-endpoint.schema.json",

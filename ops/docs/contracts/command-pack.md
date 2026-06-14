@@ -94,7 +94,7 @@ CommandDeck must return a blocked setup response and must not fall back to shell
 execution.
 
 When the route family is `apprelay.reasoning`, CommandDeck calls AppRelay as an
-internal ops client for command routing reasoning. AppRelay may clarify or map
+SourceGrid runtime client for command routing reasoning. AppRelay may clarify or map
 intent, but CommandDeck must revalidate the returned structure before routing.
 
 The concrete V1 route for `pack.local_write_approved` is
